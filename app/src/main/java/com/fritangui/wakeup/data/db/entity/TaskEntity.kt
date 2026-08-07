@@ -1,0 +1,48 @@
+package com.fritangui.wakeup.data.db.entity
+
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+/**
+ * Tarea asociada a una carpeta (y opcionalmente a una materia concreta).
+ * [dueAtEpochMillis] es nullable a propósito: el usuario puede dejar la tarea
+ * sin fecha de vencimiento. [reminderOffsetsMinutes] son los minutos de
+ * anticipación con los que se debe avisar (por defecto 1 semana + 1 día);
+ * si la tarea no tiene fecha, no se programa ningún recordatorio.
+ */
+@Entity(
+    tableName = "tasks",
+    foreignKeys = [
+        ForeignKey(
+            entity = FolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["folderId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = SubjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["subjectId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index("folderId"), Index("subjectId")],
+)
+data class TaskEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val folderId: Long,
+    val subjectId: Long?,
+    val title: String,
+    val notes: String = "",
+    val dueAtEpochMillis: Long?,
+    val reminderOffsetsMinutes: List<Long> = DEFAULT_REMINDER_OFFSETS,
+    val isCompleted: Boolean = false,
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
+) {
+    companion object {
+        /** 1 semana antes + 1 día antes, el valor por defecto pedido. */
+        val DEFAULT_REMINDER_OFFSETS = listOf(7 * 24 * 60L, 24 * 60L)
+    }
+}

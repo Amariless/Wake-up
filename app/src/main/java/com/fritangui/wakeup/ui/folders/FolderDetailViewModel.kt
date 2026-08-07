@@ -1,0 +1,53 @@
+package com.fritangui.wakeup.ui.folders
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.fritangui.wakeup.alarm.AlarmController
+import com.fritangui.wakeup.data.db.dao.SubjectWithSessions
+import com.fritangui.wakeup.data.db.entity.AlarmEntity
+import com.fritangui.wakeup.data.db.entity.FolderEntity
+import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.data.repository.AlarmRepository
+import com.fritangui.wakeup.data.repository.FolderRepository
+import com.fritangui.wakeup.data.repository.SubjectRepository
+import com.fritangui.wakeup.data.repository.TaskRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class FolderDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    folderRepository: FolderRepository,
+    subjectRepository: SubjectRepository,
+    private val taskRepository: TaskRepository,
+    alarmRepository: AlarmRepository,
+    private val alarmController: AlarmController,
+) : ViewModel() {
+
+    val folderId: Long = checkNotNull(savedStateHandle["folderId"])
+
+    val folder: StateFlow<FolderEntity?> = folderRepository.observeById(folderId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val subjects: StateFlow<List<SubjectWithSessions>> = subjectRepository.observeWithSessionsByFolder(folderId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val tasks: StateFlow<List<TaskEntity>> = taskRepository.observeByFolder(folderId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeByFolder(folderId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setTaskCompleted(taskId: Long, completed: Boolean) {
+        viewModelScope.launch { taskRepository.setCompleted(taskId, completed) }
+    }
+
+    fun setAlarmEnabled(alarmId: Long, enabled: Boolean) {
+        viewModelScope.launch { alarmController.setEnabledAndReschedule(alarmId, enabled) }
+    }
+}

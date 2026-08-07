@@ -1,0 +1,81 @@
+package com.fritangui.wakeup.ui.subjects
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
+import com.fritangui.wakeup.data.db.entity.SubjectEntity
+import com.fritangui.wakeup.data.repository.SubjectRepository
+import com.fritangui.wakeup.widget.WidgetRefresher
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class SubjectEditorViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val subjectRepository: SubjectRepository,
+    private val widgetRefresher: WidgetRefresher,
+) : ViewModel() {
+
+    val folderId: Long = checkNotNull(savedStateHandle["folderId"])
+    private val initialSubjectId: Long = checkNotNull(savedStateHandle["subjectId"])
+
+    private val _currentSubjectId = MutableStateFlow(initialSubjectId.takeIf { it != 0L })
+    val currentSubjectId: StateFlow<Long?> = _currentSubjectId.asStateFlow()
+
+    val sessions: StateFlow<List<ClassSessionEntity>> = _currentSubjectId
+        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else subjectRepository.observeSessions(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val subject: StateFlow<SubjectEntity?> = _currentSubjectId
+        .flatMapLatest { id -> if (id == null) flowOf(null) else subjectRepository.observeById(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Guarda nombre/profesor/color. Si es una materia nueva, la crea y habilita la sección de horarios. */
+    fun saveBasicInfo(name: String, professor: String, colorArgb: Int, onSaved: (Long) -> Unit) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val id = _currentSubjectId.value
+            val entity = SubjectEntity(
+                id = id ?: 0L,
+                folderId = folderId,
+                name = name.trim(),
+                colorArgb = colorArgb,
+                professor = professor.trim(),
+            )
+            val savedId = subjectRepository.upsert(entity)
+            _currentSubjectId.value = savedId
+            onSaved(savedId)
+        }
+    }
+
+    fun addOrUpdateSession(session: ClassSessionEntity) {
+        val subjectId = _currentSubjectId.value ?: return
+        viewModelScope.launch {
+            subjectRepository.upsertSession(session.copy(subjectId = subjectId))
+            widgetRefresher.refreshAll()
+        }
+    }
+
+    fun deleteSession(session: ClassSessionEntity) {
+        viewModelScope.launch {
+            subjectRepository.deleteSession(session)
+            widgetRefresher.refreshAll()
+        }
+    }
+
+    fun deleteSubject(subject: SubjectEntity, onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            subjectRepository.delete(subject)
+            onDeleted()
+        }
+    }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WakeUp" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Tema para AlarmRingingActivity: debe poder mostrarse sobre la pantalla de bloqueo -->
+    <style name="Theme.WakeUp.Alarm" parent="Theme.WakeUp">
+        <item name="android:windowShowWallpaper">true</item>
+    </style>
+</resources>
