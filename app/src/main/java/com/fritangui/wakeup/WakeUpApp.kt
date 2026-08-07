@@ -51,10 +51,11 @@ class WakeUpApp : Application(), Configuration.Provider {
         val preAlarmChannel = NotificationChannel(
             CHANNEL_PRE_ALARM,
             "Aviso previo de alarma",
-            NotificationManager.IMPORTANCE_HIGH
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Aviso una hora antes de que suene una alarma"
-            enableVibration(true)
+            description = "Aviso una hora antes de que suene una alarma (silencioso, sin sonido ni vibración)"
+            setSound(null, null)
+            enableVibration(false)
         }
 
         val remindersChannel = NotificationChannel(

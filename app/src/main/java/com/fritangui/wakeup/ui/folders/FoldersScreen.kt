@@ -76,6 +76,7 @@ fun FoldersScreen(
                         onTerminate = { viewModel.terminateFolder(folder.id) },
                         onReactivate = { viewModel.reactivateFolder(folder.id) },
                         onDelete = { viewModel.deleteFolder(folder) },
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
@@ -100,12 +101,13 @@ private fun FolderRow(
     onTerminate: () -> Unit,
     onReactivate: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmTerminate by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
+    Card(modifier = modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,

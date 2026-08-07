@@ -25,7 +25,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
+import com.fritangui.wakeup.ui.components.WheelTimePicker
 import com.fritangui.wakeup.ui.theme.FolderColorPalette
 import androidx.compose.ui.graphics.toArgb
 
@@ -178,20 +178,49 @@ private fun SessionEditorDialog(
     var endMinute by remember { mutableStateOf((initial?.endMinuteOfDay ?: 9 * 60) % 60) }
     var room by rememberSaveable { mutableStateOf(initial?.room ?: "") }
 
+    // Al mover la hora de inicio (por interacción del usuario, no al abrir el diálogo),
+    // la de fin se adelanta sola 2 horas — se puede seguir ajustando a mano después.
+    fun applyStart(newHour: Int, newMinute: Int) {
+        startHour = newHour
+        startMinute = newMinute
+        val totalEnd = (newHour * 60 + newMinute + 120) % (24 * 60)
+        endHour = totalEnd / 60
+        endMinute = totalEnd % 60
+    }
+
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initial == null) "Nuevo horario" else "Editar horario") },
         text = {
             Column {
                 Text("Día")
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     DIA_NOMBRES.forEachIndexed { index, label ->
                         val iso = index + 1
-                        FilterChip(selected = dayOfWeek == iso, onClick = { dayOfWeek = iso }, label = { Text(label) })
+                        FilterChip(
+                            selected = dayOfWeek == iso,
+                            onClick = { dayOfWeek = iso },
+                            label = { Text(label.take(1)) },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
-                TimeRow("Inicio", startHour, startMinute, onHourChange = { startHour = it }, onMinuteChange = { startMinute = it })
-                TimeRow("Fin", endHour, endMinute, onHourChange = { endHour = it }, onMinuteChange = { endMinute = it })
+                Text("Inicio", modifier = Modifier.padding(top = 8.dp))
+                WheelTimePicker(
+                    hour = startHour,
+                    minute = startMinute,
+                    onHourChange = { applyStart(it, startMinute) },
+                    onMinuteChange = { applyStart(startHour, it) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text("Fin", modifier = Modifier.padding(top = 8.dp))
+                WheelTimePicker(
+                    hour = endHour,
+                    minute = endMinute,
+                    onHourChange = { endHour = it },
+                    onMinuteChange = { endMinute = it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 OutlinedTextField(
                     value = room,
                     onValueChange = { room = it },
@@ -220,14 +249,4 @@ private fun SessionEditorDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
-}
-
-@Composable
-private fun TimeRow(label: String, hour: Int, minute: Int, onHourChange: (Int) -> Unit, onMinuteChange: (Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-        Text(label, modifier = Modifier.padding(end = 8.dp))
-        OutlinedButton(onClick = { onHourChange((hour + 1) % 24) }) { Text("%02d".format(hour)) }
-        Text(" : ")
-        OutlinedButton(onClick = { onMinuteChange((minute + 5) % 60) }) { Text("%02d".format(minute)) }
-    }
 }

@@ -54,6 +54,9 @@ data class AlarmEntity(
     val preAlarmNotificationMinutesBefore: Int = 60,
     /** Se activa desde la notificación previa: "apagar solo esta vez". Se limpia sola tras usarse. */
     val skipNextOccurrence: Boolean = false,
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
+    /** Se actualiza cada vez que la alarma efectivamente suena; usado para ordenar la lista por uso reciente. */
+    val lastTriggeredAtEpochMillis: Long? = null,
 ) {
     companion object {
         fun dayBit(isoDayOfWeek: Int): Int = 1 shl (isoDayOfWeek - 1)

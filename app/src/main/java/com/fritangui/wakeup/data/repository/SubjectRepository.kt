@@ -22,6 +22,7 @@ class SubjectRepository @Inject constructor(
     fun observeSessions(subjectId: Long): Flow<List<ClassSessionEntity>> = subjectDao.observeSessions(subjectId)
 
     suspend fun upsert(subject: SubjectEntity): Long = subjectDao.upsert(subject)
+    suspend fun update(subject: SubjectEntity) = subjectDao.update(subject)
     suspend fun delete(subject: SubjectEntity) = subjectDao.delete(subject)
 
     suspend fun upsertSession(session: ClassSessionEntity): Long = subjectDao.upsertSession(session)

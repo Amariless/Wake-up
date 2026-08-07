@@ -18,6 +18,7 @@ import androidx.core.content.getSystemService
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_ALARM_ID
+import com.fritangui.wakeup.alarm.sound.AlarmSounds
 import com.fritangui.wakeup.data.repository.AlarmRepository
 import com.fritangui.wakeup.notifications.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
@@ -51,6 +52,9 @@ class RingingForegroundService : LifecycleService() {
     private var watchdogTicks = 0
     private var ringingAlarmId: Long? = null
 
+    private var vibrateEnabled = false
+    private var muteRunnable: Runnable? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
@@ -59,8 +63,27 @@ class RingingForegroundService : LifecycleService() {
                 if (alarmId >= 0 && ringingAlarmId == null) startRinging(alarmId)
             }
             ACTION_STOP_RINGING -> stopRinging()
+            ACTION_MUTE_TEMPORARILY -> muteTemporarily()
         }
         return START_STICKY
+    }
+
+    /**
+     * "Silenciar 20s": le da al usuario un respiro de silencio para concentrarse
+     * en el reto sin el ruido de la alarma encima. Si en esos 20s no la apagó
+     * (completando el reto), vuelve a sonar exactamente igual que antes.
+     */
+    private fun muteTemporarily() {
+        runCatching { mediaPlayer?.setVolume(0f, 0f) }
+        vibrator?.cancel()
+        muteRunnable?.let { watchdogHandler.removeCallbacks(it) }
+        muteRunnable = Runnable {
+            if (ringingAlarmId != null) {
+                runCatching { mediaPlayer?.setVolume(1f, 1f) }
+                if (vibrateEnabled) startVibration()
+            }
+        }
+        watchdogHandler.postDelayed(muteRunnable!!, MUTE_DURATION_MS)
     }
 
     private fun startRinging(alarmId: Long) {
@@ -87,6 +110,7 @@ class RingingForegroundService : LifecycleService() {
             if (alarm.repeatDaysBitmask == 0) {
                 alarmRepository.setEnabled(alarm.id, false)
             }
+            alarmRepository.setLastTriggered(alarm.id)
 
             val fullScreenPendingIntent = PendingIntent.getActivity(
                 this@RingingForegroundService,
@@ -97,16 +121,7 @@ class RingingForegroundService : LifecycleService() {
                 },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-            val stopPendingIntent = PendingIntent.getService(
-                this@RingingForegroundService,
-                AlarmConstants.mainRequestCode(alarmId) + 2,
-                Intent(this@RingingForegroundService, RingingForegroundService::class.java).apply {
-                    action = ACTION_STOP_RINGING
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-
-            val notification = notificationHelper.notifyRinging(alarm, fullScreenPendingIntent, stopPendingIntent)
+            val notification = notificationHelper.notifyRinging(alarm, fullScreenPendingIntent)
             startForeground(AlarmConstants.NOTIF_ID_RINGING_BASE + alarm.id.toInt(), notification)
 
             startSoundAndVibration(alarm.soundUri, alarm.vibrate)
@@ -147,8 +162,7 @@ class RingingForegroundService : LifecycleService() {
     private fun startSoundAndVibration(soundUri: String?, vibrate: Boolean) {
         runCatching {
             val uri = soundUri?.let { Uri.parse(it) }
-                ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getValidRingtoneUri(this)
+                ?: Uri.parse(AlarmSounds.defaultSoundUriFor(this))
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
@@ -156,23 +170,44 @@ class RingingForegroundService : LifecycleService() {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build(),
                 )
-                setDataSource(this@RingingForegroundService, uri!!)
+                setDataSource(this@RingingForegroundService, uri)
                 isLooping = true
                 prepare()
                 start()
             }
+        }.onFailure {
+            // Si el sonido guardado ya no existe (p.ej. un content:// revocado), cae al del sistema.
+            runCatching {
+                val fallback = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getValidRingtoneUri(this)
+                mediaPlayer = MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                    setDataSource(this@RingingForegroundService, fallback!!)
+                    isLooping = true
+                    prepare()
+                    start()
+                }
+            }
         }
 
-        if (vibrate) {
-            val pattern = longArrayOf(0, 800, 500)
-            vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                getSystemService<VibratorManager>()?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                getSystemService<Vibrator>()
-            }
-            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+        vibrateEnabled = vibrate
+        if (vibrate) startVibration()
+    }
+
+    private fun startVibration() {
+        val pattern = longArrayOf(0, 800, 500)
+        vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSystemService<VibratorManager>()?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService<Vibrator>()
         }
+        vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
     }
 
     private fun acquireWakeLock() {
@@ -187,6 +222,8 @@ class RingingForegroundService : LifecycleService() {
         val alarmId = ringingAlarmId
         watchdogRunnable?.let { watchdogHandler.removeCallbacks(it) }
         watchdogRunnable = null
+        muteRunnable?.let { watchdogHandler.removeCallbacks(it) }
+        muteRunnable = null
         runCatching { mediaPlayer?.stop() }
         runCatching { mediaPlayer?.release() }
         mediaPlayer = null
@@ -208,8 +245,13 @@ class RingingForegroundService : LifecycleService() {
     companion object {
         const val ACTION_START_RINGING = "com.fritangui.wakeup.action.START_RINGING"
         const val ACTION_STOP_RINGING = AlarmConstants.ACTION_STOP_RINGING
+        const val ACTION_MUTE_TEMPORARILY = "com.fritangui.wakeup.action.MUTE_TEMPORARILY"
+        const val MUTE_DURATION_MS = 20_000L
 
         fun stopIntent(context: Context): Intent =
             Intent(context, RingingForegroundService::class.java).apply { action = ACTION_STOP_RINGING }
+
+        fun muteIntent(context: Context): Intent =
+            Intent(context, RingingForegroundService::class.java).apply { action = ACTION_MUTE_TEMPORARILY }
     }
 }

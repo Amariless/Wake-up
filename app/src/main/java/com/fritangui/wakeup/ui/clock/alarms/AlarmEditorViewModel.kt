@@ -44,10 +44,12 @@ class AlarmEditorViewModel @Inject constructor(
         challenge: com.fritangui.wakeup.data.db.entity.DismissChallengeType,
         difficulty: Int,
         vibrate: Boolean,
+        soundUri: String?,
         preAlarmMinutesBefore: Int,
         onSaved: () -> Unit,
     ) {
         viewModelScope.launch {
+            val existing = _alarm.value
             val entity = AlarmEntity(
                 id = alarmId,
                 folderId = folderId,
@@ -59,7 +61,10 @@ class AlarmEditorViewModel @Inject constructor(
                 dismissChallenge = challenge,
                 challengeDifficulty = difficulty,
                 vibrate = vibrate,
+                soundUri = soundUri,
                 preAlarmNotificationMinutesBefore = preAlarmMinutesBefore,
+                createdAtEpochMillis = existing?.createdAtEpochMillis ?: System.currentTimeMillis(),
+                lastTriggeredAtEpochMillis = existing?.lastTriggeredAtEpochMillis,
             )
             alarmController.saveAndSchedule(entity)
             onSaved()

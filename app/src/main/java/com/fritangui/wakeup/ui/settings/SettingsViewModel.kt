@@ -16,7 +16,7 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val dynamicColorEnabled: StateFlow<Boolean> = settingsDataStore.isDynamicColorEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun setDynamicColorEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setDynamicColorEnabled(enabled) }

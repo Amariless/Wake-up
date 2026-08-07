@@ -26,20 +26,43 @@ private val LightColors = lightColorScheme(
     error = WakeUpError,
 )
 
+// Paleta oscura hecha a mano (no solo darkColorScheme(primary=...)): controla también los
+// "container" y las superficies escalonadas que usan Card/NavigationBar/Slider/Chips, para que
+// no se sientan todas del mismo gris genérico de Material.
 private val DarkColors = darkColorScheme(
     primary = WakeUpPrimaryDark,
-    onPrimary = WakeUpOnSecondary,
+    onPrimary = WakeUpOnPrimaryDark,
+    primaryContainer = WakeUpPrimaryContainerDark,
+    onPrimaryContainer = WakeUpOnPrimaryContainerDark,
     secondary = WakeUpSecondary,
-    onSecondary = WakeUpOnSecondary,
+    onSecondary = WakeUpOnSecondaryDark,
+    secondaryContainer = WakeUpSecondaryContainerDark,
+    onSecondaryContainer = WakeUpOnSecondaryContainerDark,
     tertiary = WakeUpTertiary,
+    onTertiary = WakeUpOnTertiaryDark,
     background = WakeUpBackgroundDark,
+    onBackground = androidx.compose.ui.graphics.Color(0xFFE3E5EC),
     surface = WakeUpSurfaceDark,
-    error = WakeUpError,
+    onSurface = androidx.compose.ui.graphics.Color(0xFFE3E5EC),
+    surfaceVariant = WakeUpSurfaceVariantDark,
+    onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFC4CAD9),
+    surfaceContainer = WakeUpSurfaceContainerDark,
+    surfaceContainerHigh = WakeUpSurfaceContainerHighDark,
+    surfaceContainerHighest = WakeUpSurfaceVariantDark,
+    outline = WakeUpOutlineDark,
+    outlineVariant = WakeUpOutlineVariantDark,
+    error = WakeUpErrorDark,
 )
 
+/**
+ * Tema de la app. El default es **oscuro siempre** (no sigue el tema del
+ * sistema): es lo que se pidió como identidad visual de Wake up, un reloj de
+ * alarma piensa mejor en oscuro. El color dinámico (Android 12+) sigue
+ * disponible y configurable desde Ajustes.
+ */
 @Composable
 fun WakeUpTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
@@ -56,13 +79,17 @@ fun WakeUpTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.navigationBarColor = colorScheme.background.toArgb()
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = WakeUpTypography,
+        shapes = WakeUpShapes,
         content = content,
     )
 }

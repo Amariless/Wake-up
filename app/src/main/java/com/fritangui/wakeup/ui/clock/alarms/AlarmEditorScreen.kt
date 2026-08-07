@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.fritangui.wakeup.ui.clock.alarms
 
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -19,7 +23,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,8 +37,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fritangui.wakeup.alarm.sound.AlarmSounds
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.ui.components.AppTimePickerDialog
@@ -51,12 +56,14 @@ private val CHALLENGE_LABELS = mapOf(
     DismissChallengeType.TYPE_PHRASE to "Escribir una frase",
 )
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+private val DIFFICULTY_LABELS = listOf(1 to "Fácil", 2 to "Medio", 3 to "Difícil")
+
 @Composable
 fun AlarmEditorScreen(
     onBack: () -> Unit,
     viewModel: AlarmEditorViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
     val alarm by viewModel.alarm.collectAsState()
 
     var label by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.label ?: "") }
@@ -66,8 +73,9 @@ fun AlarmEditorScreen(
     var challenge by remember(alarm?.id) { mutableStateOf(alarm?.dismissChallenge ?: DismissChallengeType.NONE) }
     var difficulty by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.challengeDifficulty ?: 1) }
     var vibrate by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.vibrate ?: true) }
-    var preAlarmMinutes by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.preAlarmNotificationMinutesBefore ?: 60) }
+    var soundUri by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.soundUri) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showSoundPicker by remember { mutableStateOf(false) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -99,7 +107,7 @@ fun AlarmEditorScreen(
             )
 
             Text("Repetir", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 DIA_NOMBRES.forEachIndexed { index, dayLabel ->
                     val bit = AlarmEntity.dayBit(index + 1)
                     val selected = (repeatBitmask and bit) != 0
@@ -107,7 +115,25 @@ fun AlarmEditorScreen(
                         selected = selected,
                         onClick = { repeatBitmask = if (selected) repeatBitmask and bit.inv() else repeatBitmask or bit },
                         label = { Text(dayLabel) },
+                        modifier = Modifier.weight(1f),
                     )
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+            Text("Sonido", style = MaterialTheme.typography.titleMedium)
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text(AlarmSounds.labelFor(context, soundUri))
+                    }
+                    TextButton(onClick = { showSoundPicker = true }) { Text("Cambiar") }
                 }
             }
 
@@ -134,17 +160,16 @@ fun AlarmEditorScreen(
             }
 
             if (challenge != DismissChallengeType.NONE) {
-                Text("Dificultad", modifier = Modifier.padding(top = 12.dp))
-                Slider(
-                    value = difficulty.toFloat(),
-                    onValueChange = { difficulty = it.toInt() },
-                    valueRange = 1f..3f,
-                    steps = 1,
-                )
+                Text("Dificultad", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DIFFICULTY_LABELS.forEach { (value, text) ->
+                        FilterChip(selected = difficulty == value, onClick = { difficulty = value }, label = { Text(text) })
+                    }
+                }
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -152,12 +177,11 @@ fun AlarmEditorScreen(
                 Switch(checked = vibrate, onCheckedChange = { vibrate = it })
             }
 
-            OutlinedTextField(
-                value = preAlarmMinutes.toString(),
-                onValueChange = { preAlarmMinutes = it.filter(Char::isDigit).toIntOrNull() ?: 0 },
-                label = { Text("Avisar con anticipación (minutos, 0 = desactivado)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            Text(
+                "Te avisaremos 1 hora antes con una notificación silenciosa (puedes apagar solo esa vez desde ahí).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(top = 8.dp),
             )
 
             Button(
@@ -170,11 +194,12 @@ fun AlarmEditorScreen(
                         challenge = challenge,
                         difficulty = difficulty,
                         vibrate = vibrate,
-                        preAlarmMinutesBefore = preAlarmMinutes,
+                        soundUri = soundUri,
+                        preAlarmMinutesBefore = 60,
                         onSaved = onBack,
                     )
                 },
-                modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             ) { Text("Guardar") }
         }
     }
@@ -185,6 +210,14 @@ fun AlarmEditorScreen(
             initialMinute = minute,
             onDismiss = { showTimePicker = false },
             onConfirm = { h, m -> hour = h; minute = m; showTimePicker = false },
+        )
+    }
+
+    if (showSoundPicker) {
+        AlarmSoundPickerDialog(
+            currentUri = soundUri,
+            onDismiss = { showSoundPicker = false },
+            onSelect = { soundUri = it; showSoundPicker = false },
         )
     }
 }

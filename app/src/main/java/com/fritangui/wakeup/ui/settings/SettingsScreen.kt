@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -39,17 +42,18 @@ fun SettingsScreen(
                 Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)
             }
             HorizontalDivider()
-            SettingsLinkRow("Permisos (Xiaomi/MIUI y generales)", onOpenXiaomiWizard)
-            SettingsLinkRow("Tiempo de pantalla", onOpenScreenTime)
-            SettingsLinkRow("Bloqueo de Reels/TikTok", onOpenBlocking)
+            SettingsLinkRow("Permisos", "Notificaciones, alarmas exactas, accesibilidad y más", onOpenXiaomiWizard)
+            SettingsLinkRow("Tiempo de pantalla", "Cuánto usas cada app hoy", onOpenScreenTime)
+            SettingsLinkRow("Bloqueo de Reels/TikTok", "Límites diarios de scroll infinito", onOpenBlocking)
             if (BuildConfig.DEV_TOOLS_ENABLED) {
                 HorizontalDivider()
-                SettingsLinkRow("Panel de desarrollador", onOpenDevTools)
+                SettingsLinkRow("Panel de desarrollador", "Solo en builds debug", onOpenDevTools)
             }
             HorizontalDivider()
             Text(
                 "Wake up ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(16.dp),
             )
         }
@@ -65,18 +69,23 @@ private fun SettingsRow(title: String, subtitle: String, trailing: @Composable (
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         }
         trailing()
     }
 }
 
 @Composable
-private fun SettingsLinkRow(title: String, onClick: () -> Unit) {
+private fun SettingsLinkRow(title: String, subtitle: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
     }
 }

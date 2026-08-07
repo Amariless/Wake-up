@@ -1,5 +1,6 @@
 package com.fritangui.wakeup.ui.clock.alarms
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -20,8 +26,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fritangui.wakeup.alarm.sound.AlarmSounds
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 
 private val DIA_LETRAS = listOf("L", "M", "X", "J", "V", "S", "D")
@@ -32,6 +40,8 @@ fun AlarmsListScreen(
     viewModel: AlarmsViewModel = hiltViewModel(),
 ) {
     val alarms by viewModel.alarms.collectAsState()
+    val playingUri by viewModel.previewPlayer.playingUri.collectAsState()
+    val context = LocalContext.current
 
     if (alarms.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -42,14 +52,29 @@ fun AlarmsListScreen(
 
     LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
         items(alarms, key = { it.id }) { alarm ->
-            AlarmRow(alarm, onClick = { onOpenAlarm(alarm.id) }, onToggle = { viewModel.setEnabled(alarm.id, it) })
+            val soundUri = alarm.soundUri ?: AlarmSounds.defaultSoundUriFor(context)
+            AlarmRow(
+                alarm = alarm,
+                isPreviewing = playingUri == soundUri,
+                onClick = { onOpenAlarm(alarm.id) },
+                onToggle = { viewModel.setEnabled(alarm.id, it) },
+                onPreview = { viewModel.previewPlayer.toggle(soundUri) },
+                modifier = Modifier.animateItem(placementSpec = tween(220)),
+            )
         }
     }
 }
 
 @Composable
-private fun AlarmRow(alarm: AlarmEntity, onClick: () -> Unit, onToggle: (Boolean) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
+private fun AlarmRow(
+    alarm: AlarmEntity,
+    isPreviewing: Boolean,
+    onClick: () -> Unit,
+    onToggle: (Boolean) -> Unit,
+    onPreview: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -60,7 +85,15 @@ private fun AlarmRow(alarm: AlarmEntity, onClick: () -> Unit, onToggle: (Boolean
                 Text(alarm.label.ifBlank { "Alarma" }, style = MaterialTheme.typography.bodyMedium)
                 Text(repeatSummary(alarm.repeatDaysBitmask), style = MaterialTheme.typography.bodyMedium)
             }
-            Switch(checked = alarm.isEnabled, onCheckedChange = onToggle)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onPreview) {
+                    Icon(
+                        if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        contentDescription = "Previsualizar sonido",
+                    )
+                }
+                Switch(checked = alarm.isEnabled, onCheckedChange = onToggle)
+            }
         }
     }
 }

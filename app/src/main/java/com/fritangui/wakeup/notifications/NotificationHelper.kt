@@ -31,18 +31,24 @@ class NotificationHelper @Inject constructor(
         const val TIMER_RINGING_NOTIF_ID = 60_001
     }
 
-    fun notifyRinging(alarm: AlarmEntity, fullScreenPendingIntent: PendingIntent, stopPendingIntent: PendingIntent) =
+    /**
+     * A propósito NO tiene una acción de "Apagar": si el usuario configuró un
+     * reto, apagar la alarma con un solo toque desde la notificación sería
+     * hacer trampa (justo lo que no queremos si la idea es asegurarnos de que
+     * de verdad se despertó). Solo se puede apagar completando el reto dentro
+     * de [com.fritangui.wakeup.alarm.AlarmRingingActivity].
+     */
+    fun notifyRinging(alarm: AlarmEntity, fullScreenPendingIntent: PendingIntent) =
         NotificationCompat.Builder(context, WakeUpApp.CHANNEL_ALARM)
             .setSmallIcon(R.drawable.ic_notification_alarm)
             .setContentTitle(alarm.label.ifBlank { "Alarma" })
-            .setContentText("Toca para abrir y apagar la alarma")
+            .setContentText("Toca para abrir")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(fullScreenPendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
-            .addAction(R.drawable.ic_notification_alarm, "Apagar", stopPendingIntent)
             .build()
             .also { manager.notify(AlarmConstants.NOTIF_ID_RINGING_BASE + alarm.id.toInt(), it) }
 
@@ -124,17 +130,17 @@ class NotificationHelper @Inject constructor(
 
     fun cancelTimerRunningNotification() = manager.cancel(TIMER_RUNNING_NOTIF_ID)
 
-    fun buildTimerRingingNotification(fullScreenPendingIntent: PendingIntent, stopPendingIntent: PendingIntent) =
+    /** Sin acción de "Apagar" por la misma razón que [notifyRinging]: no debe poder saltarse el reto. */
+    fun buildTimerRingingNotification(fullScreenPendingIntent: PendingIntent) =
         NotificationCompat.Builder(context, WakeUpApp.CHANNEL_ALARM)
             .setSmallIcon(R.drawable.ic_notification_alarm)
             .setContentTitle("¡Temporizador terminado!")
-            .setContentText("Toca para abrir y apagarlo")
+            .setContentText("Toca para abrir")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(fullScreenPendingIntent)
             .setOngoing(true)
-            .addAction(R.drawable.ic_notification_alarm, "Apagar", stopPendingIntent)
             .build()
 
     fun cancelTimerRinging() = manager.cancel(TIMER_RINGING_NOTIF_ID)

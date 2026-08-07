@@ -27,6 +27,8 @@ class AlarmRepository @Inject constructor(
     suspend fun update(alarm: AlarmEntity) = alarmDao.update(alarm)
     suspend fun setEnabled(id: Long, enabled: Boolean) = alarmDao.setEnabled(id, enabled)
     suspend fun setSkipNext(id: Long, skip: Boolean) = alarmDao.setSkipNext(id, skip)
+    suspend fun setLastTriggered(id: Long, atEpochMillis: Long = System.currentTimeMillis()) =
+        alarmDao.setLastTriggered(id, atEpochMillis)
     suspend fun disableAllForFolder(folderId: Long) = alarmDao.disableAllForFolder(folderId)
     suspend fun delete(alarm: AlarmEntity) = alarmDao.delete(alarm)
 }

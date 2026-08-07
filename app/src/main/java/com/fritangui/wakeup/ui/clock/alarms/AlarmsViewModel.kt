@@ -3,6 +3,7 @@ package com.fritangui.wakeup.ui.clock.alarms
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fritangui.wakeup.alarm.AlarmController
+import com.fritangui.wakeup.alarm.sound.AlarmSoundPreviewPlayer
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.repository.AlarmRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class AlarmsViewModel @Inject constructor(
     alarmRepository: AlarmRepository,
     private val alarmController: AlarmController,
+    val previewPlayer: AlarmSoundPreviewPlayer,
 ) : ViewModel() {
 
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeGeneralAlarms()
@@ -24,5 +26,10 @@ class AlarmsViewModel @Inject constructor(
 
     fun setEnabled(alarmId: Long, enabled: Boolean) {
         viewModelScope.launch { alarmController.setEnabledAndReschedule(alarmId, enabled) }
+    }
+
+    override fun onCleared() {
+        previewPlayer.stop()
+        super.onCleared()
     }
 }

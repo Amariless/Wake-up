@@ -16,9 +16,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fritangui.wakeup.alarm.RingingForegroundService
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -31,6 +33,7 @@ fun AlarmRingingScreen(
     onSnoozed: () -> Unit,
     viewModel: AlarmRingingViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
     LaunchedEffect(alarmId) { viewModel.load(alarmId) }
     val alarm by viewModel.alarm.collectAsState()
     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -63,6 +66,10 @@ fun AlarmRingingScreen(
         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             if (challenge == DismissChallengeType.NONE) {
                 Button(onClick = onDismissed, modifier = Modifier.fillMaxWidth()) { Text("Apagar") }
+            } else {
+                MuteTemporarilyButton(onMute = {
+                    context.startService(RingingForegroundService.muteIntent(context))
+                })
             }
             OutlinedButton(onClick = onSnoozed, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Text("Posponer 5 minutos")

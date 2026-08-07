@@ -26,7 +26,7 @@ class SettingsDataStore @Inject constructor(
     private object Keys {
         val XIAOMI_ONBOARDING_DONE = booleanPreferencesKey("xiaomi_onboarding_done")
         val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
-        val LAST_SELECTED_FOLDER_ID = stringPreferencesKey("last_selected_folder_id")
+        val PINNED_FOLDER_ID = stringPreferencesKey("last_selected_folder_id")
         val DEFAULT_REMINDER_WEEK_BEFORE_MIN = intPreferencesKey("default_reminder_week_min")
         val DEFAULT_REMINDER_DAY_BEFORE_MIN = intPreferencesKey("default_reminder_day_min")
         val TIMER_CHALLENGE_TYPE = stringPreferencesKey("timer_challenge_type")
@@ -40,19 +40,23 @@ class SettingsDataStore @Inject constructor(
         context.dataStore.edit { it[Keys.XIAOMI_ONBOARDING_DONE] = done }
     }
 
+    // Por defecto apagado: la paleta propia de Wake up (índigo + ámbar) es la identidad visual de
+    // la app; el color dinámico de Material You suele verse más apagado/genérico según el fondo
+    // de pantalla del usuario, justo lo contrario de lo que se busca aquí. Se puede activar en Ajustes.
     val isDynamicColorEnabled: Flow<Boolean> =
-        context.dataStore.data.map { it[Keys.DYNAMIC_COLOR_ENABLED] ?: true }
+        context.dataStore.data.map { it[Keys.DYNAMIC_COLOR_ENABLED] ?: false }
 
     suspend fun setDynamicColorEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.DYNAMIC_COLOR_ENABLED] = enabled }
     }
 
-    val lastSelectedFolderId: Flow<Long?> =
-        context.dataStore.data.map { it[Keys.LAST_SELECTED_FOLDER_ID]?.toLongOrNull() }
+    /** La "carpeta principal": si está marcada, el tab de "Carpetas" abre directo su detalle. */
+    val pinnedFolderId: Flow<Long?> =
+        context.dataStore.data.map { it[Keys.PINNED_FOLDER_ID]?.toLongOrNull() }
 
-    suspend fun setLastSelectedFolderId(id: Long?) {
+    suspend fun setPinnedFolderId(id: Long?) {
         context.dataStore.edit {
-            if (id == null) it.remove(Keys.LAST_SELECTED_FOLDER_ID) else it[Keys.LAST_SELECTED_FOLDER_ID] = id.toString()
+            if (id == null) it.remove(Keys.PINNED_FOLDER_ID) else it[Keys.PINNED_FOLDER_ID] = id.toString()
         }
     }
 

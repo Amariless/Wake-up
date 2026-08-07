@@ -11,11 +11,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AlarmDao {
-    /** Alarmas del reloj general (no atadas a ninguna carpeta). */
-    @Query("SELECT * FROM alarms WHERE folderId IS NULL ORDER BY hour, minute")
+    /** Alarmas del reloj general (no atadas a ninguna carpeta), más recientemente usada/creada primero. */
+    @Query("SELECT * FROM alarms WHERE folderId IS NULL ORDER BY COALESCE(lastTriggeredAtEpochMillis, createdAtEpochMillis) DESC")
     fun observeGeneralAlarms(): Flow<List<AlarmEntity>>
 
-    @Query("SELECT * FROM alarms WHERE folderId = :folderId ORDER BY hour, minute")
+    @Query("SELECT * FROM alarms WHERE folderId = :folderId ORDER BY COALESCE(lastTriggeredAtEpochMillis, createdAtEpochMillis) DESC")
     fun observeByFolder(folderId: Long): Flow<List<AlarmEntity>>
 
     @Query(
@@ -40,6 +40,9 @@ interface AlarmDao {
 
     @Query("UPDATE alarms SET skipNextOccurrence = :skip WHERE id = :id")
     suspend fun setSkipNext(id: Long, skip: Boolean)
+
+    @Query("UPDATE alarms SET lastTriggeredAtEpochMillis = :atEpochMillis WHERE id = :id")
+    suspend fun setLastTriggered(id: Long, atEpochMillis: Long)
 
     @Query("UPDATE alarms SET isEnabled = 0 WHERE folderId = :folderId")
     suspend fun disableAllForFolder(folderId: Long)

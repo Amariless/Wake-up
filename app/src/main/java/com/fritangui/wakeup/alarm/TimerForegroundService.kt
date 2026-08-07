@@ -6,6 +6,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -16,6 +17,7 @@ import android.os.VibratorManager
 import androidx.core.content.getSystemService
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.fritangui.wakeup.alarm.sound.AlarmSounds
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.notifications.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
@@ -70,8 +72,25 @@ class TimerForegroundService : LifecycleService() {
             ACTION_RESUME -> resume()
             ACTION_CANCEL -> cancelTimer()
             ACTION_STOP_RINGING -> stopRinging()
+            ACTION_MUTE_TEMPORARILY -> muteTemporarily()
         }
         return START_STICKY
+    }
+
+    private var muteRunnable: Runnable? = null
+
+    /** Ver el equivalente en [RingingForegroundService.muteTemporarily]: mismo comportamiento para el temporizador. */
+    private fun muteTemporarily() {
+        runCatching { mediaPlayer?.setVolume(0f, 0f) }
+        vibrator?.cancel()
+        muteRunnable?.let { watchdogHandler.removeCallbacks(it) }
+        muteRunnable = Runnable {
+            if (_state.value.isRinging) {
+                runCatching { mediaPlayer?.setVolume(1f, 1f) }
+                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 500), 0))
+            }
+        }
+        watchdogHandler.postDelayed(muteRunnable!!, RingingForegroundService.MUTE_DURATION_MS)
     }
 
     private fun start(durationMillis: Long, challenge: DismissChallengeType, difficulty: Int) {
@@ -145,7 +164,7 @@ class TimerForegroundService : LifecycleService() {
         )
         startForeground(
             NotificationHelper.TIMER_RINGING_NOTIF_ID,
-            notificationHelper.buildTimerRingingNotification(fullScreenPendingIntent, stopRingingPendingIntent()),
+            notificationHelper.buildTimerRingingNotification(fullScreenPendingIntent),
         )
         startSoundAndVibration()
         launchRingingActivity()
@@ -174,8 +193,6 @@ class TimerForegroundService : LifecycleService() {
 
     private fun startSoundAndVibration() {
         runCatching {
-            val uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getValidRingtoneUri(this)
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
@@ -183,10 +200,27 @@ class TimerForegroundService : LifecycleService() {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build(),
                 )
-                setDataSource(this@TimerForegroundService, uri!!)
+                setDataSource(this@TimerForegroundService, Uri.parse(AlarmSounds.defaultSoundUriFor(this@TimerForegroundService)))
                 isLooping = true
                 prepare()
                 start()
+            }
+        }.onFailure {
+            runCatching {
+                val fallback = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getValidRingtoneUri(this)
+                mediaPlayer = MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                    setDataSource(this@TimerForegroundService, fallback!!)
+                    isLooping = true
+                    prepare()
+                    start()
+                }
             }
         }
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -223,7 +257,6 @@ class TimerForegroundService : LifecycleService() {
     private fun pausePendingIntent() = servicePendingIntent(ACTION_PAUSE, 1)
     private fun resumePendingIntent() = servicePendingIntent(ACTION_RESUME, 2)
     private fun cancelPendingIntent() = servicePendingIntent(ACTION_CANCEL, 3)
-    private fun stopRingingPendingIntent() = servicePendingIntent(ACTION_STOP_RINGING, 4)
 
     private fun servicePendingIntent(action: String, requestCode: Int): PendingIntent = PendingIntent.getService(
         this,
@@ -246,6 +279,7 @@ class TimerForegroundService : LifecycleService() {
         const val ACTION_RESUME = "com.fritangui.wakeup.action.TIMER_RESUME"
         const val ACTION_CANCEL = "com.fritangui.wakeup.action.TIMER_CANCEL"
         const val ACTION_STOP_RINGING = "com.fritangui.wakeup.action.TIMER_STOP_RINGING"
+        const val ACTION_MUTE_TEMPORARILY = "com.fritangui.wakeup.action.TIMER_MUTE_TEMPORARILY"
         const val EXTRA_DURATION_MILLIS = "extra_duration_millis"
         const val EXTRA_CHALLENGE = "extra_challenge"
         const val EXTRA_DIFFICULTY = "extra_difficulty"

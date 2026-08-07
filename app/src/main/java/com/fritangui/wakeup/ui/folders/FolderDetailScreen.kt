@@ -2,6 +2,11 @@
 
 package com.fritangui.wakeup.ui.folders
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
@@ -64,6 +71,7 @@ fun FolderDetailScreen(
     val subjects by viewModel.subjects.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val alarms by viewModel.alarms.collectAsState()
+    val isPinned by viewModel.isPinned.collectAsState()
     var tabIndex by remember { mutableIntStateOf(0) }
     val isReadOnly = folder?.isActive != true
     val tabs = listOf("Materias", "Tareas", "Alarmas")
@@ -74,6 +82,14 @@ fun FolderDetailScreen(
                 title = { Text(folder?.name ?: "") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Volver") }
+                },
+                actions = {
+                    IconButton(onClick = viewModel::togglePinned) {
+                        Icon(
+                            if (isPinned) Icons.Default.Star else Icons.Outlined.StarOutline,
+                            contentDescription = if (isPinned) "Quitar como carpeta principal" else "Marcar como carpeta principal",
+                        )
+                    }
                 },
             )
         },
@@ -97,11 +113,17 @@ fun FolderDetailScreen(
                     Tab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
                 }
             }
-            when (tabIndex) {
-                0 -> SubjectsTab(subjects) { onOpenSubject(viewModel.folderId, it) }
-                1 -> TasksTab(tasks, onToggle = viewModel::setTaskCompleted) { onOpenTask(viewModel.folderId, it) }
-                else -> AlarmsTab(alarms, readOnly = isReadOnly, onToggle = viewModel::setAlarmEnabled) {
-                    onOpenAlarm(viewModel.folderId, it)
+            AnimatedContent(
+                targetState = tabIndex,
+                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
+                label = "folder_tab",
+            ) { index ->
+                when (index) {
+                    0 -> SubjectsTab(subjects) { onOpenSubject(viewModel.folderId, it) }
+                    1 -> TasksTab(tasks, onToggle = viewModel::setTaskCompleted) { onOpenTask(viewModel.folderId, it) }
+                    else -> AlarmsTab(alarms, readOnly = isReadOnly, onToggle = viewModel::setAlarmEnabled) {
+                        onOpenAlarm(viewModel.folderId, it)
+                    }
                 }
             }
         }
@@ -116,7 +138,7 @@ private fun SubjectsTab(subjects: List<SubjectWithSessions>, onClick: (Long) -> 
     }
     LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
         items(subjects, key = { it.subject.id }) { entry ->
-            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onClick(entry.subject.id) }) {
+            Card(modifier = Modifier.fillMaxWidth().animateItem().padding(vertical = 6.dp).clickable { onClick(entry.subject.id) }) {
                 Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(14.dp).background(Color(entry.subject.colorArgb), CircleShape))
                     Column(modifier = Modifier.padding(start = 12.dp)) {
@@ -146,7 +168,7 @@ private fun TasksTab(tasks: List<TaskEntity>, onToggle: (Long, Boolean) -> Unit,
     }
     LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
         items(tasks, key = { it.id }) { task ->
-            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onClick(task.id) }) {
+            Card(modifier = Modifier.fillMaxWidth().animateItem().padding(vertical = 6.dp).clickable { onClick(task.id) }) {
                 Row(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle(task.id, it) })
                     Column {
@@ -174,7 +196,7 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
     }
     LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
         items(alarms, key = { it.id }) { alarm ->
-            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onClick(alarm.id) }) {
+            Card(modifier = Modifier.fillMaxWidth().animateItem().padding(vertical = 6.dp).clickable { onClick(alarm.id) }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,

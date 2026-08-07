@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "3516c18faef70bea1dab113f6b0496d3",
+    "identityHash": "adb470d75fda0c49886b858cb2519de3",
     "entities": [
       {
         "tableName": "folders",
@@ -298,7 +298,7 @@
       },
       {
         "tableName": "alarms",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `folderId` INTEGER, `label` TEXT NOT NULL, `hour` INTEGER NOT NULL, `minute` INTEGER NOT NULL, `repeatDaysBitmask` INTEGER NOT NULL, `oneShotDateEpochDay` INTEGER, `isEnabled` INTEGER NOT NULL, `dismissChallenge` TEXT NOT NULL, `challengeDifficulty` INTEGER NOT NULL, `soundUri` TEXT, `vibrate` INTEGER NOT NULL, `preAlarmNotificationMinutesBefore` INTEGER NOT NULL, `skipNextOccurrence` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `folders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `folderId` INTEGER, `label` TEXT NOT NULL, `hour` INTEGER NOT NULL, `minute` INTEGER NOT NULL, `repeatDaysBitmask` INTEGER NOT NULL, `oneShotDateEpochDay` INTEGER, `isEnabled` INTEGER NOT NULL, `dismissChallenge` TEXT NOT NULL, `challengeDifficulty` INTEGER NOT NULL, `soundUri` TEXT, `vibrate` INTEGER NOT NULL, `preAlarmNotificationMinutesBefore` INTEGER NOT NULL, `skipNextOccurrence` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `lastTriggeredAtEpochMillis` INTEGER, FOREIGN KEY(`folderId`) REFERENCES `folders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -383,6 +383,18 @@
             "columnName": "skipNextOccurrence",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastTriggeredAtEpochMillis",
+            "columnName": "lastTriggeredAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": false
           }
         ],
         "primaryKey": {
@@ -580,7 +592,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3516c18faef70bea1dab113f6b0496d3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'adb470d75fda0c49886b858cb2519de3')"
     ]
   }
 }

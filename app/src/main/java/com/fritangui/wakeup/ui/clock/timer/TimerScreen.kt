@@ -1,5 +1,13 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalAnimationApi::class)
+
 package com.fritangui.wakeup.ui.clock.timer
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
+import com.fritangui.wakeup.ui.components.WheelPicker
 
 private val CHALLENGE_LABELS = mapOf(
     DismissChallengeType.NONE to "Ninguno",
@@ -37,7 +46,8 @@ private val CHALLENGE_LABELS = mapOf(
     DismissChallengeType.TYPE_PHRASE to "Escribir una frase",
 )
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+private enum class TimerPhase { IDLE, RUNNING, RINGING }
+
 @Composable
 fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     val state by viewModel.timerState.collectAsState()
@@ -47,83 +57,128 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     var secondsInput by remember { mutableIntStateOf(0) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
 
-    val isIdle = state.totalMillis == 0L && !state.isRinging
+    val phase = when {
+        state.isRinging -> TimerPhase.RINGING
+        state.totalMillis > 0L -> TimerPhase.RUNNING
+        else -> TimerPhase.IDLE
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (isIdle) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                NumberStepper(value = minutesInput, suffix = "min", onChange = { minutesInput = it.coerceIn(0, 180) })
-                Text(" : ", style = MaterialTheme.typography.headlineMedium)
-                NumberStepper(value = secondsInput, suffix = "s", onChange = { secondsInput = it.coerceIn(0, 59) })
-            }
-
-            ExposedDropdownMenuBox(
-                expanded = challengeMenuExpanded,
-                onExpandedChange = { challengeMenuExpanded = it },
-                modifier = Modifier.padding(top = 24.dp),
-            ) {
-                OutlinedTextField(
-                    value = CHALLENGE_LABELS.getValue(challengePref.type),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Reto para apagarlo") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+        AnimatedContent(
+            targetState = phase,
+            transitionSpec = { (fadeIn(tween(220)) togetherWith fadeOut(tween(160))) },
+            label = "timer_phase",
+        ) { currentPhase ->
+            when (currentPhase) {
+                TimerPhase.IDLE -> TimerIdleContent(
+                    minutesInput = minutesInput,
+                    secondsInput = secondsInput,
+                    onMinutesChange = { minutesInput = it },
+                    onSecondsChange = { secondsInput = it },
+                    challengeLabel = CHALLENGE_LABELS.getValue(challengePref.type),
+                    challengeMenuExpanded = challengeMenuExpanded,
+                    onChallengeMenuExpandedChange = { challengeMenuExpanded = it },
+                    onChallengeSelected = { type -> viewModel.setChallengePref(type, challengePref.difficulty); challengeMenuExpanded = false },
+                    onStart = {
+                        val totalMillis = (minutesInput * 60L + secondsInput) * 1000L
+                        if (totalMillis > 0) viewModel.start(totalMillis, challengePref.type, challengePref.difficulty)
+                    },
                 )
-                ExposedDropdownMenu(expanded = challengeMenuExpanded, onDismissRequest = { challengeMenuExpanded = false }) {
-                    CHALLENGE_LABELS.forEach { (type, text) ->
-                        DropdownMenuItem(
-                            text = { Text(text) },
-                            onClick = {
-                                viewModel.setChallengePref(type, challengePref.difficulty)
-                                challengeMenuExpanded = false
-                            },
-                        )
-                    }
-                }
+                TimerPhase.RUNNING -> TimerRunningContent(
+                    remainingMillis = state.remainingMillis,
+                    totalMillis = state.totalMillis,
+                    isRunning = state.isRunning,
+                    onPause = viewModel::pause,
+                    onResume = viewModel::resume,
+                    onStop = viewModel::cancel,
+                )
+                TimerPhase.RINGING -> Text("¡Sonando! Ábrelo desde la notificación", style = MaterialTheme.typography.titleMedium)
             }
-
-            Button(
-                onClick = {
-                    val totalMillis = (minutesInput * 60L + secondsInput) * 1000L
-                    if (totalMillis > 0) viewModel.start(totalMillis, challengePref.type, challengePref.difficulty)
-                },
-                enabled = minutesInput > 0 || secondsInput > 0,
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            ) { Text("Iniciar") }
-        } else if (!state.isRinging) {
-            val progress = if (state.totalMillis > 0) state.remainingMillis.toFloat() / state.totalMillis else 0f
-            TimerProgressIndicator(progress)
-            Text(formatMillis(state.remainingMillis), style = MaterialTheme.typography.displayLarge)
-            Row(modifier = Modifier.padding(top = 24.dp)) {
-                if (state.isRunning) {
-                    OutlinedButton(onClick = viewModel::pause, modifier = Modifier.padding(end = 8.dp)) { Text("Pausar") }
-                } else {
-                    OutlinedButton(onClick = viewModel::resume, modifier = Modifier.padding(end = 8.dp)) { Text("Reanudar") }
-                }
-                Button(onClick = viewModel::cancel) { Text("Cancelar") }
-            }
-        } else {
-            Text("¡Sonando! Ábrelo desde la notificación", style = MaterialTheme.typography.titleMedium)
         }
     }
 }
 
 @Composable
-private fun TimerProgressIndicator(progress: Float) {
-    CircularProgressIndicator(progress = { progress }, modifier = Modifier.padding(bottom = 16.dp))
+private fun TimerIdleContent(
+    minutesInput: Int,
+    secondsInput: Int,
+    onMinutesChange: (Int) -> Unit,
+    onSecondsChange: (Int) -> Unit,
+    challengeLabel: String,
+    challengeMenuExpanded: Boolean,
+    onChallengeMenuExpandedChange: (Boolean) -> Unit,
+    onChallengeSelected: (DismissChallengeType) -> Unit,
+    onStart: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("min", style = MaterialTheme.typography.labelMedium)
+                WheelPicker(value = minutesInput, range = 0..180, onValueChange = onMinutesChange)
+            }
+            Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("seg", style = MaterialTheme.typography.labelMedium)
+                WheelPicker(value = secondsInput, range = 0..59, onValueChange = onSecondsChange)
+            }
+        }
+
+        ExposedDropdownMenuBox(
+            expanded = challengeMenuExpanded,
+            onExpandedChange = onChallengeMenuExpandedChange,
+            modifier = Modifier.padding(top = 24.dp),
+        ) {
+            OutlinedTextField(
+                value = challengeLabel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Reto para apagarlo") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
+            )
+            ExposedDropdownMenu(expanded = challengeMenuExpanded, onDismissRequest = { onChallengeMenuExpandedChange(false) }) {
+                CHALLENGE_LABELS.forEach { (type, text) ->
+                    DropdownMenuItem(text = { Text(text) }, onClick = { onChallengeSelected(type) })
+                }
+            }
+        }
+
+        Button(
+            onClick = onStart,
+            enabled = minutesInput > 0 || secondsInput > 0,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        ) { Text("Iniciar") }
+    }
 }
 
 @Composable
-private fun NumberStepper(value: Int, suffix: String, onChange: (Int) -> Unit) {
+private fun TimerRunningContent(
+    remainingMillis: Long,
+    totalMillis: Long,
+    isRunning: Boolean,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onStop: () -> Unit,
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        OutlinedButton(onClick = { onChange(value + if (suffix == "min") 1 else 5) }) { Text("+") }
-        Text("$value $suffix", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 4.dp))
-        OutlinedButton(onClick = { onChange(value - if (suffix == "min") 1 else 5) }) { Text("−") }
+        val targetProgress = if (totalMillis > 0) remainingMillis.toFloat() / totalMillis else 0f
+        // Ni siquiera hace falta que el tick se vea "saltar": se anima suave entre cada valor,
+        // así que aunque el servicio actualice cada 500ms, visualmente es una transición continua.
+        val animatedProgress by animateFloatAsState(targetValue = targetProgress, animationSpec = tween(450), label = "timer_progress")
+        CircularProgressIndicator(progress = { animatedProgress }, modifier = Modifier.padding(bottom = 16.dp))
+        Text(formatMillis(remainingMillis), style = MaterialTheme.typography.displayLarge)
+        Row(modifier = Modifier.padding(top = 24.dp)) {
+            if (isRunning) {
+                OutlinedButton(onClick = onPause, modifier = Modifier.padding(end = 8.dp)) { Text("Pausar") }
+            } else {
+                OutlinedButton(onClick = onResume, modifier = Modifier.padding(end = 8.dp)) { Text("Reanudar") }
+            }
+            Button(onClick = onStop) { Text("Apagar") }
+        }
     }
 }
 

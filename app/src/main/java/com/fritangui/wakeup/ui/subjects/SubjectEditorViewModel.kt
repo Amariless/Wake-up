@@ -39,21 +39,30 @@ class SubjectEditorViewModel @Inject constructor(
         .flatMapLatest { id -> if (id == null) flowOf(null) else subjectRepository.observeById(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Guarda nombre/profesor/color. Si es una materia nueva, la crea y habilita la sección de horarios. */
+    /**
+     * Guarda nombre/profesor/color. Si es una materia nueva, la crea (upsert) y
+     * habilita la sección de horarios. Si ya existe, usa `update` en vez de
+     * `upsert` a propósito: `upsert` usa `Insert(REPLACE)`, que ante un choque
+     * de clave primaria borra la fila vieja e inserta una nueva — y como
+     * [com.fritangui.wakeup.data.db.entity.ClassSessionEntity] tiene
+     * `onDelete = CASCADE` hacia la materia, eso borraba silenciosamente todos
+     * sus horarios cada vez que solo querías cambiar el nombre o el color.
+     */
     fun saveBasicInfo(name: String, professor: String, colorArgb: Int, onSaved: (Long) -> Unit) {
         if (name.isBlank()) return
         viewModelScope.launch {
             val id = _currentSubjectId.value
-            val entity = SubjectEntity(
-                id = id ?: 0L,
-                folderId = folderId,
-                name = name.trim(),
-                colorArgb = colorArgb,
-                professor = professor.trim(),
-            )
-            val savedId = subjectRepository.upsert(entity)
-            _currentSubjectId.value = savedId
-            onSaved(savedId)
+            if (id != null) {
+                subjectRepository.update(
+                    SubjectEntity(id = id, folderId = folderId, name = name.trim(), colorArgb = colorArgb, professor = professor.trim()),
+                )
+                onSaved(id)
+            } else {
+                val entity = SubjectEntity(folderId = folderId, name = name.trim(), colorArgb = colorArgb, professor = professor.trim())
+                val savedId = subjectRepository.upsert(entity)
+                _currentSubjectId.value = savedId
+                onSaved(savedId)
+            }
         }
     }
 

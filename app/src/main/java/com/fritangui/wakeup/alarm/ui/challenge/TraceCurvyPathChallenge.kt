@@ -17,8 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -29,26 +29,34 @@ import kotlin.math.sin
 /**
  * Reto de "seguir la línea": una curva senoidal con varias ondulaciones cruza
  * la pantalla y el usuario debe recorrerla completa con el dedo, de inicio a
- * fin, sin despegarse más de una banda de tolerancia ni soltar el dedo. Exige
- * atención sostenida y coordinación fina, más difícil de hacer dormido que un
- * simple botón.
+ * fin, sin soltar. La banda de tolerancia es generosa a propósito (más ancha
+ * que el grosor visible del trazo) para que no se sienta injusto: exige
+ * atención sostenida, no precisión milimétrica.
  */
 @Composable
 fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
     val waves = (2 + difficulty).coerceIn(2, 6)
+    // Más generoso que antes, y un poco más angosto en dificultades altas — pero nunca por debajo de 90px.
+    val tolerancePx = (130f - difficulty * 15f).coerceAtLeast(90f)
     var progressFraction by remember { mutableFloatStateOf(0f) }
     var offTrack by remember { mutableStateOf(false) }
 
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val lineColor = MaterialTheme.colorScheme.primary
+    val startColor = MaterialTheme.colorScheme.tertiary
+    val endColor = MaterialTheme.colorScheme.error
+    val cursorColor = MaterialTheme.colorScheme.secondary
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text("Recorre la línea completa con el dedo, sin salirte ni soltar")
-        if (offTrack) Text("Te saliste de la línea, vuelve a intentar", color = MaterialTheme.colorScheme.error)
+        Text("Recorre la línea completa con el dedo, sin soltar")
+        if (offTrack) Text("Un poco más cerca de la línea…", color = MaterialTheme.colorScheme.error)
         LinearProgressIndicator(progress = { progressFraction }, modifier = Modifier.fillMaxWidth())
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(280.dp)) {
             val widthPx = constraints.maxWidth.toFloat()
             val heightPx = constraints.maxHeight.toFloat()
-            val tolerancePx = 60f
             val samples = remember(widthPx, heightPx, waves) { buildCurvyPathSamples(widthPx, heightPx, waves) }
+            var cursorIndex by remember(samples) { mutableFloatStateOf(0f) }
 
             Canvas(
                 modifier = Modifier
@@ -57,34 +65,41 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
                     .pointerInput(waves, widthPx, heightPx) {
                         if (samples.isEmpty()) return@pointerInput
                         var progressIndex = 0
+                        val lookahead = (samples.size * 0.15f).toInt().coerceAtLeast(6)
+                        val retreatOnMiss = (samples.size * 0.06f).toInt().coerceAtLeast(2)
                         detectDragGestures(
                             onDragStart = { start ->
-                                progressIndex = if (distanceTo(start, samples[0]) < tolerancePx) 0 else -1
+                                progressIndex = if (distanceTo(start, samples[0]) < tolerancePx * 1.3f) 0 else -1
                                 progressFraction = 0f
+                                cursorIndex = 0f
                                 offTrack = false
                             },
                             onDrag = { change, _ ->
                                 if (progressIndex < 0) return@detectDragGestures
-                                // Avanza mientras el punto quede cerca de alguno de los siguientes puntos de la curva.
                                 var advanced = progressIndex
-                                val lookahead = (samples.size * 0.08f).toInt().coerceAtLeast(4)
                                 for (i in progressIndex until minOf(progressIndex + lookahead, samples.size)) {
                                     if (distanceTo(change.position, samples[i]) < tolerancePx) advanced = i
                                 }
                                 if (distanceTo(change.position, samples[advanced]) > tolerancePx) {
+                                    // Más permisivo: solo retrocede un poco, no se pierde todo el avance.
                                     offTrack = true
-                                    progressIndex = -1
-                                    progressFraction = 0f
+                                    progressIndex = (progressIndex - retreatOnMiss).coerceAtLeast(0)
+                                    cursorIndex = progressIndex.toFloat()
+                                    progressFraction = progressIndex.toFloat() / (samples.size - 1)
                                     return@detectDragGestures
                                 }
+                                offTrack = false
                                 progressIndex = advanced
+                                cursorIndex = progressIndex.toFloat()
                                 progressFraction = progressIndex.toFloat() / (samples.size - 1)
                                 if (progressIndex >= samples.size - 2) onCompleted()
                             },
                             onDragEnd = {
                                 if (progressIndex in 0 until samples.size - 2) {
-                                    offTrack = true
-                                    progressFraction = 0f
+                                    // Soltar antes de tiempo también retrocede un poco en vez de perder todo.
+                                    progressIndex = (progressIndex - retreatOnMiss).coerceAtLeast(0)
+                                    cursorIndex = progressIndex.toFloat()
+                                    progressFraction = progressIndex.toFloat() / (samples.size - 1)
                                 }
                             },
                         )
@@ -95,10 +110,15 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
                         moveTo(samples[0].x, samples[0].y)
                         samples.drop(1).forEach { lineTo(it.x, it.y) }
                     }
-                    drawPath(path, color = Color(0xFF9AA5B1), style = Stroke(width = tolerancePx * 2, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-                    drawPath(path, color = Color(0xFF3D5AFE), style = Stroke(width = 6f))
-                    drawCircle(Color(0xFF00BFA6), radius = 16f, center = samples.first())
-                    drawCircle(Color(0xFFEF5350), radius = 16f, center = samples.last())
+                    // Banda de tolerancia (guía visual de cuánto margen hay de verdad).
+                    drawPath(path, color = trackColor, style = Stroke(width = tolerancePx * 2, cap = StrokeCap.Round))
+                    // Línea principal.
+                    drawPath(path, color = lineColor, style = Stroke(width = 10f, cap = StrokeCap.Round))
+                    drawCircle(startColor, radius = 18f, center = samples.first())
+                    drawCircle(endColor, radius = 18f, center = samples.last())
+                    // Cursor: dónde va el usuario ahora mismo en la curva.
+                    val idx = cursorIndex.toInt().coerceIn(0, samples.size - 1)
+                    drawCircle(cursorColor, radius = 22f, center = samples[idx])
                 }
             }
         }

@@ -1,5 +1,11 @@
 package com.fritangui.wakeup.ui
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
@@ -13,10 +19,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -37,33 +45,53 @@ import com.fritangui.wakeup.ui.settings.SettingsScreen
 import com.fritangui.wakeup.ui.subjects.SubjectEditorScreen
 import com.fritangui.wakeup.ui.tasks.TaskEditorScreen
 
-private data class BottomDestination(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
-
-private val BOTTOM_DESTINATIONS = listOf(
-    BottomDestination(Routes.HOME, "Inicio", Icons.Default.Home),
-    BottomDestination(Routes.FOLDERS, "Carpetas", Icons.Default.Folder),
-    BottomDestination(Routes.CLOCK, "Reloj", Icons.Default.Alarm),
-    BottomDestination(Routes.SCREEN_TIME, "Bienestar", Icons.Default.AccessTime),
-    BottomDestination(Routes.SETTINGS, "Ajustes", Icons.Default.Settings),
+/**
+ * [navRoute] es a dónde navegar al tocar el tab (puede ser una ruta concreta,
+ * p.ej. "folder/7"). [matchPattern] es el patrón contra el que se compara el
+ * destino actual para saber si el tab debe verse seleccionado — tienen que
+ * ir separados porque [androidx.navigation.NavDestination.route] siempre
+ * expone el patrón ("folder/{folderId}"), nunca la ruta ya resuelta.
+ */
+private data class BottomDestination(
+    val navRoute: String,
+    val matchPattern: String,
+    val label: String,
+    val icon: ImageVector,
 )
 
 @Composable
-fun WakeUpNavHost() {
+fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination
+    val currentDestination = backStackEntry?.destination
+    val pinnedFolder by mainNavViewModel.pinnedFolder.collectAsState()
+
+    val bottomDestinations = listOf(
+        BottomDestination(Routes.HOME, Routes.HOME, "Inicio", Icons.Default.Home),
+        if (pinnedFolder != null) {
+            BottomDestination(Routes.folderDetail(pinnedFolder!!.id), Routes.FOLDER_DETAIL, pinnedFolder!!.name, Icons.Default.Folder)
+        } else {
+            BottomDestination(Routes.FOLDERS, Routes.FOLDERS, "Carpetas", Icons.Default.Folder)
+        },
+        BottomDestination(Routes.CLOCK, Routes.CLOCK, "Reloj", Icons.Default.Alarm),
+        BottomDestination(Routes.SCREEN_TIME, Routes.SCREEN_TIME, "Bienestar", Icons.Default.AccessTime),
+        BottomDestination(Routes.SETTINGS, Routes.SETTINGS, "Ajustes", Icons.Default.Settings),
+    )
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                BOTTOM_DESTINATIONS.forEach { dest ->
+                bottomDestinations.forEach { dest ->
                     NavigationBarItem(
-                        selected = currentRoute?.hierarchy?.any { it.route == dest.route } == true,
+                        selected = currentDestination?.hierarchy?.any { it.route == dest.matchPattern } == true,
                         onClick = {
-                            navController.navigate(dest.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            // A propósito SIN saveState/restoreState: varias pantallas (Bloqueo, Xiaomi,
+                            // Dev tools) son alcanzables desde más de un tab, y combinar eso con guardar/
+                            // restaurar el estado de cada tab hacía que la navegación se "mezclara" entre
+                            // Bienestar y Ajustes después de un rato. Cada tap en un tab navega limpio.
+                            navController.navigate(dest.navRoute) {
+                                popUpTo(Routes.HOME) { inclusive = false }
                                 launchSingleTop = true
-                                restoreState = true
                             }
                         },
                         icon = { Icon(dest.icon, contentDescription = dest.label) },
@@ -77,6 +105,10 @@ fun WakeUpNavHost() {
             navController = navController,
             startDestination = Routes.HOME,
             modifier = Modifier.padding(padding),
+            enterTransition = { defaultEnterTransition() },
+            exitTransition = { defaultExitTransition() },
+            popEnterTransition = { defaultPopEnterTransition() },
+            popExitTransition = { defaultPopExitTransition() },
         ) {
             composable(Routes.HOME) { HomeScreen() }
 
@@ -156,3 +188,17 @@ fun WakeUpNavHost() {
         }
     }
 }
+
+private const val NAV_ANIM_MS = 260
+
+private fun AnimatedContentTransitionScope<*>.defaultEnterTransition() =
+    slideInHorizontally(animationSpec = tween(NAV_ANIM_MS), initialOffsetX = { it / 4 }) + fadeIn(tween(NAV_ANIM_MS))
+
+private fun AnimatedContentTransitionScope<*>.defaultExitTransition() =
+    slideOutHorizontally(animationSpec = tween(NAV_ANIM_MS), targetOffsetX = { -it / 4 }) + fadeOut(tween(NAV_ANIM_MS))
+
+private fun AnimatedContentTransitionScope<*>.defaultPopEnterTransition() =
+    slideInHorizontally(animationSpec = tween(NAV_ANIM_MS), initialOffsetX = { -it / 4 }) + fadeIn(tween(NAV_ANIM_MS))
+
+private fun AnimatedContentTransitionScope<*>.defaultPopExitTransition() =
+    slideOutHorizontally(animationSpec = tween(NAV_ANIM_MS), targetOffsetX = { it / 4 }) + fadeOut(tween(NAV_ANIM_MS))

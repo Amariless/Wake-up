@@ -2,6 +2,11 @@
 
 package com.fritangui.wakeup.ui.clock
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -44,10 +49,16 @@ fun ClockScreen(onOpenAlarm: (Long) -> Unit, onNewAlarm: () -> Unit) {
                     Tab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
                 }
             }
-            when (tabIndex) {
-                0 -> AlarmsListScreen(onOpenAlarm = onOpenAlarm)
-                1 -> TimerScreen()
-                else -> StopwatchScreen()
+            AnimatedContent(
+                targetState = tabIndex,
+                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
+                label = "clock_tab",
+            ) { index ->
+                when (index) {
+                    0 -> AlarmsListScreen(onOpenAlarm = onOpenAlarm)
+                    1 -> TimerScreen()
+                    else -> StopwatchScreen()
+                }
             }
         }
     }

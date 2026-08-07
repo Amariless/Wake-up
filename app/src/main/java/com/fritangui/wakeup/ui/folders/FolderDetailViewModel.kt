@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fritangui.wakeup.alarm.AlarmController
+import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.dao.SubjectWithSessions
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.FolderEntity
@@ -15,6 +16,7 @@ import com.fritangui.wakeup.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,12 +29,23 @@ class FolderDetailViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     alarmRepository: AlarmRepository,
     private val alarmController: AlarmController,
+    private val settingsDataStore: SettingsDataStore,
 ) : ViewModel() {
 
     val folderId: Long = checkNotNull(savedStateHandle["folderId"])
 
     val folder: StateFlow<FolderEntity?> = folderRepository.observeById(folderId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val isPinned: StateFlow<Boolean> = settingsDataStore.pinnedFolderId
+        .map { it == folderId }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun togglePinned() {
+        viewModelScope.launch {
+            settingsDataStore.setPinnedFolderId(if (isPinned.value) null else folderId)
+        }
+    }
 
     val subjects: StateFlow<List<SubjectWithSessions>> = subjectRepository.observeWithSessionsByFolder(folderId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
