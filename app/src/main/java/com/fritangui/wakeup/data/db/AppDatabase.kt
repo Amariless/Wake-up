@@ -30,7 +30,13 @@ import com.fritangui.wakeup.data.db.entity.UsageAlertRuleEntity
         BlockRuleEntity::class,
         BlockSurfaceUsageEntity::class,
     ],
-    version = 1,
+    // Se subió a 2 porque se agregaron columnas a AlarmEntity (createdAtEpochMillis,
+    // lastTriggeredAtEpochMillis) y la tabla block_surface_usage sin bumpear la versión —
+    // eso rompía la verificación de integridad de Room y crasheaba la app al abrir en
+    // cualquier instalación que ya tuviera la base de datos vieja creada. No hay migración
+    // explícita porque el proyecto aún no tiene datos de usuarios reales que preservar
+    // (fallbackToDestructiveMigration recrea las tablas, ver DatabaseModule).
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
