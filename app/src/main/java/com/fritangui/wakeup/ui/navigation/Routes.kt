@@ -14,6 +14,7 @@ object Routes {
     const val XIAOMI_ONBOARDING = "xiaomi_onboarding"
     const val SETTINGS = "settings"
     const val DEV_TOOLS = "dev_tools"
+    const val UPDATE = "update"
 
     fun folderDetail(folderId: Long) = "folder/$folderId"
 

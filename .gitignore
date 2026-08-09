@@ -15,4 +15,8 @@ app/debug/
 *.aab
 *.keystore
 *.jks
+# Excepción a propósito: keystore fijo de sideload (no es una llave de producción/Play Store,
+# ver comentario en app/build.gradle.kts) — necesita estar en el repo para que CI y tu PC
+# firmen igual y las actualizaciones se instalen sin perder datos.
+!/keystore/wakeup-sideload.jks
 .kotlin/

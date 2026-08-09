@@ -56,6 +56,10 @@ object PermissionStatus {
         return servicesString.split(':').any { it.equals(expectedComponent, ignoreCase = true) }
     }
 
+    /** Necesario para poder instalar el APK descargado desde el buscador de actualizaciones. */
+    fun canInstallPackages(context: Context): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.packageManager.canRequestPackageInstalls() else true
+
     /** No hay API pública para saber si el autostart de MIUI está activo: se le pide al usuario que lo confirme visualmente. */
     fun isXiaomiDevice(): Boolean = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) ||
         Build.MANUFACTURER.equals("Redmi", ignoreCase = true) ||

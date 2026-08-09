@@ -15,12 +15,30 @@ android {
         applicationId = "com.fritangui.wakeup"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        // CI sobreescribe esto con -PversionCode=<run_number> para que el número de versión
+        // instalado coincida siempre con el sufijo del tag del release de GitHub (ver
+        // .github/workflows/release.yml y update/UpdateChecker.kt).
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toIntOrNull() ?: 2
+        versionName = (project.findProperty("appVersionName") as String?) ?: "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+        buildConfigField("String", "GITHUB_REPO", "\"Amariless/Wake-up\"")
+    }
+
+    // Firma fija y compartida entre máquinas (en vez del debug.keystore que Android
+    // Studio genera distinto por PC): así una APK compilada por CI y otra compilada en
+    // tu PC se pueden instalar una encima de la otra como "actualización" sin perder los
+    // datos guardados (Room/DataStore). No es para publicar en Play Store, solo para que
+    // el flujo de sideload + auto-actualización de esta app sea consistente.
+    signingConfigs {
+        create("sideload") {
+            storeFile = file("../keystore/wakeup-sideload.jks")
+            storePassword = "wakeupsideload"
+            keyAlias = "wakeup"
+            keyPassword = "wakeupsideload"
         }
     }
 
@@ -29,11 +47,13 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            signingConfig = signingConfigs.getByName("sideload")
             buildConfigField("boolean", "DEV_TOOLS_ENABLED", "true")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("sideload")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "DEV_TOOLS_ENABLED", "false")
         }

@@ -44,6 +44,14 @@ object PermissionIntents {
     fun ignoreBatteryOptimizations(context: Context): Intent =
         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.fromParts("package", context.packageName, null))
 
+    /** Pantalla de "instalar apps desconocidas" para esta app, necesaria para instalar el APK actualizado. */
+    fun manageUnknownAppSources(context: Context): Intent =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.fromParts("package", context.packageName, null))
+        } else {
+            openAppSettings(context)
+        }
+
     /** Panel de autostart de MIUI. Varía entre versiones de MIUI/HyperOS; cae al listado general si no existe. */
     fun xiaomiAutoStart(context: Context): Intent {
         val candidates = listOf(

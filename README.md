@@ -86,7 +86,35 @@ app/src/test/     Unit tests de la lógica de dominio (domain/)
 
 ## Generar un APK para instalar directo (sideload)
 
-Desde Android Studio: `Build` → `Build App Bundle(s) / APK(s)` → `Build APK(s)`. El archivo queda en `app/build/outputs/apk/debug/`. Cópialo al teléfono e instálalo (activa "Instalar apps de fuentes desconocidas" para el explorador de archivos que uses).
+**Opción rápida (recomendada): que la propia app se actualice sola.**
+Cada push a `main` en GitHub compila un APK automáticamente y lo publica como
+[Release](https://github.com/Amariless/Wake-up/releases) (ver
+`.github/workflows/release.yml`). Dentro de la app: **Ajustes → Buscar
+actualizaciones** revisa ese repositorio, descarga el `.apk` más nuevo y te
+deja instalarlo con un toque — así no hay que estar pasando el archivo a mano
+por cable/nube cada vez que cambia algo.
+
+**Opción manual (para la primera instalación):** desde Android Studio,
+`Build` → `Build App Bundle(s) / APK(s)` → `Build APK(s)`; el archivo queda
+en `app/build/outputs/apk/debug/`. O descarga el `.apk` directo del
+[último release en GitHub](https://github.com/Amariless/Wake-up/releases/latest).
+Cópialo al teléfono y ábrelo (la primera vez Android te pedirá permitir
+"Instalar apps desconocidas" para la app que lo abra).
+
+### Por qué las actualizaciones no borran tus datos
+
+Room (tus carpetas/materias/tareas/alarmas) y DataStore (tus ajustes) viven
+en el almacenamiento **interno propio de la app** — Android ya aísla esa
+carpeta automáticamente por app y por cuenta de usuario del teléfono (si el
+celular tiene varios perfiles/usuarios, cada uno tiene su propia copia), y
+**nunca se borra al actualizar**, solo al desinstalar o si tú mismo limpias
+los datos desde Ajustes del sistema. Lo único que sí puede romper eso es que
+una actualización venga firmada con una llave distinta (ahí Android obliga a
+desinstalar primero) — por eso todas las builds, tanto las que compilas vos
+en Android Studio como las que arma GitHub Actions, usan la **misma llave de
+firma fija** (`keystore/wakeup-sideload.jks`, ver `app/build.gradle.kts`): así
+cualquier actualización se instala "encima" de la anterior y tus datos
+quedan intactos.
 
 ## Ideas para seguir mejorando
 

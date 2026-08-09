@@ -44,6 +44,7 @@ import com.fritangui.wakeup.ui.screentime.ScreenTimeScreen
 import com.fritangui.wakeup.ui.settings.SettingsScreen
 import com.fritangui.wakeup.ui.subjects.SubjectEditorScreen
 import com.fritangui.wakeup.ui.tasks.TaskEditorScreen
+import com.fritangui.wakeup.ui.update.UpdateScreen
 
 /**
  * [navRoute] es a dónde navegar al tocar el tab (puede ser una ruta concreta,
@@ -181,10 +182,13 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
                     onOpenScreenTime = { navController.navigate(Routes.SCREEN_TIME) },
                     onOpenBlocking = { navController.navigate(Routes.BLOCKING) },
                     onOpenDevTools = { navController.navigate(Routes.DEV_TOOLS) },
+                    onOpenUpdate = { navController.navigate(Routes.UPDATE) },
                 )
             }
 
             composable(Routes.DEV_TOOLS) { DevToolsScreen() }
+
+            composable(Routes.UPDATE) { UpdateScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }

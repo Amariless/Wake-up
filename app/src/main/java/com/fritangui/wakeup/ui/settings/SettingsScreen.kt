@@ -32,6 +32,7 @@ fun SettingsScreen(
     onOpenScreenTime: () -> Unit,
     onOpenBlocking: () -> Unit,
     onOpenDevTools: () -> Unit,
+    onOpenUpdate: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
@@ -42,6 +43,7 @@ fun SettingsScreen(
                 Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)
             }
             HorizontalDivider()
+            SettingsLinkRow("Buscar actualizaciones", "Revisa el repositorio de GitHub por una versión nueva", onOpenUpdate)
             SettingsLinkRow("Permisos", "Notificaciones, alarmas exactas, accesibilidad y más", onOpenXiaomiWizard)
             SettingsLinkRow("Tiempo de pantalla", "Cuánto usas cada app hoy", onOpenScreenTime)
             SettingsLinkRow("Bloqueo de Reels/TikTok", "Límites diarios de scroll infinito", onOpenBlocking)
