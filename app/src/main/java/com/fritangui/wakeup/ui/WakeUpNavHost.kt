@@ -94,25 +94,43 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
         bottomBar = {
             NavigationBar {
                 bottomDestinations.forEach { dest ->
+                    // Para la carpeta fija no basta con comparar el patrón de ruta: cualquier
+                    // detalle de carpeta matchea "folder/{folderId}", así que hay que comparar
+                    // también el folderId real para no confundir "ya estoy en la carpeta fija"
+                    // con "estoy viendo otra carpeta distinta" (eso rompería el guard de abajo).
+                    val isSelected = if (dest.isPinnedFolder) {
+                        currentDestination?.route == Routes.FOLDER_DETAIL &&
+                            backStackEntry?.arguments?.getLong("folderId") == pinnedFolder?.id
+                    } else {
+                        currentDestination?.hierarchy?.any { it.route == dest.matchPattern } == true
+                    }
                     NavigationBarItem(
-                        selected = currentDestination?.hierarchy?.any { it.route == dest.matchPattern } == true,
+                        selected = isSelected,
                         onClick = {
-                            // A propósito SIN saveState/restoreState: varias pantallas (Bloqueo, Xiaomi,
-                            // Dev tools) son alcanzables desde más de un tab, y combinar eso con guardar/
-                            // restaurar el estado de cada tab hacía que la navegación se "mezclara" entre
-                            // Bienestar y Ajustes después de un rato. Cada tap en un tab navega limpio.
+                            // Si ya estás en ese tab, no hay nada que navegar: evita relanzar la
+                            // pantalla (recomposición completa + reconsulta a la BD) y la animación
+                            // de transición cada vez que se vuelve a tocar el mismo ícono.
+                            if (isSelected) return@NavigationBarItem
+                            // saveState/restoreState: cada tab conserva su estado (scroll, lo que ya
+                            // cargó de la BD) al volver a él en vez de reconstruirse desde cero cada
+                            // vez — antes esto se evitaba porque Ajustes también era un tab y comparte
+                            // pantallas (Bloqueo, Xiaomi, Dev tools) con Bienestar, lo que mezclaba sus
+                            // estados guardados; ahora que Ajustes ya no es un tab (ver #42) cada uno
+                            // de los 4 tabs tiene su propia rama independiente y esto ya no pasa.
                             if (dest.isPinnedFolder) {
                                 // Apila primero la lista de carpetas para que "atrás" desde la carpeta
                                 // principal caiga en la lista completa, no directo a Inicio.
                                 navController.navigate(Routes.FOLDERS) {
-                                    popUpTo(Routes.HOME) { inclusive = false }
+                                    popUpTo(Routes.HOME) { inclusive = false; saveState = true }
                                     launchSingleTop = true
+                                    restoreState = true
                                 }
                                 navController.navigate(dest.navRoute) { launchSingleTop = true }
                             } else {
                                 navController.navigate(dest.navRoute) {
-                                    popUpTo(Routes.HOME) { inclusive = false }
+                                    popUpTo(Routes.HOME) { inclusive = false; saveState = true }
                                     launchSingleTop = true
+                                    restoreState = true
                                 }
                             }
                         },
