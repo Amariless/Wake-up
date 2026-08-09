@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -28,6 +30,7 @@ import com.fritangui.wakeup.BuildConfig
 
 @Composable
 fun SettingsScreen(
+    onBack: () -> Unit,
     onOpenXiaomiWizard: () -> Unit,
     onOpenScreenTime: () -> Unit,
     onOpenBlocking: () -> Unit,
@@ -37,7 +40,16 @@ fun SettingsScreen(
 ) {
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Ajustes") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Ajustes") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") }
+                },
+            )
+        },
+    ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             SettingsRow("Color dinámico", "Usa los colores del fondo de tu teléfono (Android 12+)") {
                 Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)

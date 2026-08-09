@@ -3,7 +3,10 @@
 package com.fritangui.wakeup.ui.folders
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +44,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -86,8 +92,8 @@ fun FoldersScreen(
     if (showCreateDialog) {
         CreateFolderDialog(
             onDismiss = { showCreateDialog = false },
-            onCreate = {
-                viewModel.createFolder(it)
+            onCreate = { name, color ->
+                viewModel.createFolder(name, color)
                 showCreateDialog = false
             },
         )
@@ -190,21 +196,56 @@ private fun FolderRow(
 }
 
 @Composable
-private fun CreateFolderDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+private fun CreateFolderDialog(onDismiss: () -> Unit, onCreate: (String, Int) -> Unit) {
     var name by remember { mutableStateOf("") }
+    var selectedColor by remember { mutableStateOf(com.fritangui.wakeup.ui.theme.FolderColorPalette.first().toArgb()) }
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+
+    fun submit() {
+        if (name.isNotBlank()) onCreate(name, selectedColor)
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nueva carpeta") },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nombre (p.ej. \"2026-1\")") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nombre (p.ej. \"Semestre 7\")") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                )
+                Text("Color", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    com.fritangui.wakeup.ui.theme.FolderColorPalette.forEach { color ->
+                        val argb = color.toArgb()
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .then(
+                                    if (argb == selectedColor) {
+                                        Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                                .clickable { selectedColor = argb },
+                        )
+                    }
+                }
+            }
         },
-        confirmButton = { TextButton(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text("Crear") } },
+        confirmButton = { TextButton(onClick = { submit() }, enabled = name.isNotBlank()) { Text("Crear") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        runCatching { focusRequester.requestFocus() }
+    }
 }

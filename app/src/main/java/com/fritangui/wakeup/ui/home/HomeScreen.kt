@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,11 +35,22 @@ import kotlinx.datetime.toLocalDateTime
 private val DIA_CORTO = listOf("lun", "mar", "mié", "jue", "vie", "sáb", "dom")
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(onOpenSettings: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
     val nextClasses by viewModel.nextClasses.collectAsState()
     val upcomingTasks by viewModel.upcomingTasks.collectAsState()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Wake up") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Wake up") },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Ajustes")
+                    }
+                },
+            )
+        },
+    ) { padding ->
         if (nextClasses.isEmpty() && upcomingTasks.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text("Crea una carpeta con tus materias y tareas para ver tu resumen aquí")

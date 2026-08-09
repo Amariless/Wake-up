@@ -12,13 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -40,13 +39,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
 import com.fritangui.wakeup.ui.components.WheelTimePicker
 import com.fritangui.wakeup.ui.theme.FolderColorPalette
-import androidx.compose.ui.graphics.toArgb
 
 private val DIA_NOMBRES = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
 
@@ -68,18 +67,31 @@ fun SubjectEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (currentSubjectId == null) "Nueva materia" else "Editar materia") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } },
+                title = {
+                    Text(
+                        if (currentSubjectId == null) "Nueva materia" else "Editar materia",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
+                actions = {
+                    TextButton(
+                        onClick = { viewModel.saveBasicInfo(name, professor, selectedColor) {} },
+                        enabled = name.isNotBlank(),
+                    ) { Text(if (currentSubjectId == null) "Crear" else "Guardar") }
+                },
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+        Column(modifier = Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
+            Text("Información básica", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Nombre de la materia") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
                 value = professor,
@@ -108,14 +120,9 @@ fun SubjectEditorScreen(
                     )
                 }
             }
-            Button(
-                onClick = { viewModel.saveBasicInfo(name, professor, selectedColor) {} },
-                enabled = name.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            ) { Text(if (currentSubjectId == null) "Crear materia" else "Guardar cambios") }
 
             if (currentSubjectId != null) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -124,8 +131,16 @@ fun SubjectEditorScreen(
                     Text("Horarios", style = MaterialTheme.typography.titleMedium)
                     TextButton(onClick = { editingSession = null; showSessionDialog = true }) { Text("+ Agregar") }
                 }
-                LazyColumn(modifier = Modifier.padding(top = 8.dp)) {
-                    items(sessions, key = { it.id }) { session ->
+                if (sessions.isEmpty()) {
+                    Text(
+                        "Aún no tiene horario. Puedes agregar el mismo horario para varios días a la vez.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    sessions.forEach { session ->
                         Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(12.dp).clickable {
@@ -157,8 +172,8 @@ fun SubjectEditorScreen(
         SessionEditorDialog(
             initial = editingSession,
             onDismiss = { showSessionDialog = false },
-            onSave = {
-                viewModel.addOrUpdateSession(it)
+            onSave = { newSessions ->
+                newSessions.forEach { viewModel.addOrUpdateSession(it) }
                 showSessionDialog = false
             },
         )
@@ -169,9 +184,11 @@ fun SubjectEditorScreen(
 private fun SessionEditorDialog(
     initial: ClassSessionEntity?,
     onDismiss: () -> Unit,
-    onSave: (ClassSessionEntity) -> Unit,
+    onSave: (List<ClassSessionEntity>) -> Unit,
 ) {
-    var dayOfWeek by remember { mutableStateOf(initial?.dayOfWeek ?: 1) }
+    // Al crear un horario nuevo se pueden elegir varios días a la vez (misma hora/salón, p.ej. una
+    // materia que se ve martes y jueves); al editar uno ya existente se queda fijo a ese día.
+    var selectedDays by remember { mutableStateOf(setOf(initial?.dayOfWeek ?: 1)) }
     var startHour by remember { mutableStateOf((initial?.startMinuteOfDay ?: 7 * 60) / 60) }
     var startMinute by remember { mutableStateOf((initial?.startMinuteOfDay ?: 7 * 60) % 60) }
     var endHour by remember { mutableStateOf((initial?.endMinuteOfDay ?: 9 * 60) / 60) }
@@ -192,14 +209,22 @@ private fun SessionEditorDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initial == null) "Nuevo horario" else "Editar horario") },
         text = {
-            Column {
-                Text("Día")
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(if (initial == null) "Día(s)" else "Día")
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     DIA_NOMBRES.forEachIndexed { index, label ->
                         val iso = index + 1
                         FilterChip(
-                            selected = dayOfWeek == iso,
-                            onClick = { dayOfWeek = iso },
+                            selected = iso in selectedDays,
+                            onClick = {
+                                selectedDays = if (initial != null) {
+                                    setOf(iso)
+                                } else if (iso in selectedDays) {
+                                    (selectedDays - iso).ifEmpty { setOf(iso) }
+                                } else {
+                                    selectedDays + iso
+                                }
+                            },
                             label = { Text(label.take(1)) },
                             modifier = Modifier.weight(1f),
                         )
@@ -233,18 +258,19 @@ private fun SessionEditorDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onSave(
+                    val newSessions = selectedDays.sorted().map { day ->
                         ClassSessionEntity(
-                            id = initial?.id ?: 0L,
+                            id = if (initial != null && day == initial.dayOfWeek) initial.id else 0L,
                             subjectId = initial?.subjectId ?: 0L,
-                            dayOfWeek = dayOfWeek,
+                            dayOfWeek = day,
                             startMinuteOfDay = startHour * 60 + startMinute,
                             endMinuteOfDay = endHour * 60 + endMinute,
                             room = room.trim(),
-                        ),
-                    )
+                        )
+                    }
+                    onSave(newSessions)
                 },
-                enabled = room.isNotBlank() && (endHour * 60 + endMinute) > (startHour * 60 + startMinute),
+                enabled = room.isNotBlank() && selectedDays.isNotEmpty() && (endHour * 60 + endMinute) > (startHour * 60 + startMinute),
             ) { Text("Guardar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },

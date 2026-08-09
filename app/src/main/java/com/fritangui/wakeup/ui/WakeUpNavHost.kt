@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -23,7 +22,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -58,7 +59,12 @@ private data class BottomDestination(
     val matchPattern: String,
     val label: String,
     val icon: ImageVector,
+    /** true si esta es la carpeta marcada como principal (necesita apilar la lista debajo, ver #43). */
+    val isPinnedFolder: Boolean = false,
 )
+
+/** Los 4 destinos de la barra inferior; ninguna otra pantalla (detalle, editores) debería considerarse "de tab". */
+private val TOP_LEVEL_ROUTES = setOf(Routes.HOME, Routes.FOLDERS, Routes.CLOCK, Routes.SCREEN_TIME)
 
 @Composable
 fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
@@ -70,13 +76,18 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
     val bottomDestinations = listOf(
         BottomDestination(Routes.HOME, Routes.HOME, "Inicio", Icons.Default.Home),
         if (pinnedFolder != null) {
-            BottomDestination(Routes.folderDetail(pinnedFolder!!.id), Routes.FOLDER_DETAIL, pinnedFolder!!.name, Icons.Default.Folder)
+            BottomDestination(
+                Routes.folderDetail(pinnedFolder!!.id),
+                Routes.FOLDER_DETAIL,
+                pinnedFolder!!.name,
+                Icons.Default.Folder,
+                isPinnedFolder = true,
+            )
         } else {
             BottomDestination(Routes.FOLDERS, Routes.FOLDERS, "Carpetas", Icons.Default.Folder)
         },
         BottomDestination(Routes.CLOCK, Routes.CLOCK, "Reloj", Icons.Default.Alarm),
         BottomDestination(Routes.SCREEN_TIME, Routes.SCREEN_TIME, "Bienestar", Icons.Default.AccessTime),
-        BottomDestination(Routes.SETTINGS, Routes.SETTINGS, "Ajustes", Icons.Default.Settings),
     )
 
     Scaffold(
@@ -90,13 +101,23 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
                             // Dev tools) son alcanzables desde más de un tab, y combinar eso con guardar/
                             // restaurar el estado de cada tab hacía que la navegación se "mezclara" entre
                             // Bienestar y Ajustes después de un rato. Cada tap en un tab navega limpio.
-                            navController.navigate(dest.navRoute) {
-                                popUpTo(Routes.HOME) { inclusive = false }
-                                launchSingleTop = true
+                            if (dest.isPinnedFolder) {
+                                // Apila primero la lista de carpetas para que "atrás" desde la carpeta
+                                // principal caiga en la lista completa, no directo a Inicio.
+                                navController.navigate(Routes.FOLDERS) {
+                                    popUpTo(Routes.HOME) { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                                navController.navigate(dest.navRoute) { launchSingleTop = true }
+                            } else {
+                                navController.navigate(dest.navRoute) {
+                                    popUpTo(Routes.HOME) { inclusive = false }
+                                    launchSingleTop = true
+                                }
                             }
                         },
                         icon = { Icon(dest.icon, contentDescription = dest.label) },
-                        label = { Text(dest.label) },
+                        label = { Text(dest.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     )
                 }
             }
@@ -106,12 +127,12 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
             navController = navController,
             startDestination = Routes.HOME,
             modifier = Modifier.padding(padding),
-            enterTransition = { defaultEnterTransition() },
-            exitTransition = { defaultExitTransition() },
+            enterTransition = { pickEnterTransition() },
+            exitTransition = { pickExitTransition() },
             popEnterTransition = { defaultPopEnterTransition() },
             popExitTransition = { defaultPopExitTransition() },
         ) {
-            composable(Routes.HOME) { HomeScreen() }
+            composable(Routes.HOME) { HomeScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
 
             composable(Routes.FOLDERS) {
                 FoldersScreen(onOpenFolder = { navController.navigate(Routes.folderDetail(it)) })
@@ -178,6 +199,7 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
 
             composable(Routes.SETTINGS) {
                 SettingsScreen(
+                    onBack = { navController.popBackStack() },
                     onOpenXiaomiWizard = { navController.navigate(Routes.XIAOMI_ONBOARDING) },
                     onOpenScreenTime = { navController.navigate(Routes.SCREEN_TIME) },
                     onOpenBlocking = { navController.navigate(Routes.BLOCKING) },
@@ -194,12 +216,31 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
 }
 
 private const val NAV_ANIM_MS = 260
+private const val TAB_FADE_MS = 180
 
-private fun AnimatedContentTransitionScope<*>.defaultEnterTransition() =
-    slideInHorizontally(animationSpec = tween(NAV_ANIM_MS), initialOffsetX = { it / 4 }) + fadeIn(tween(NAV_ANIM_MS))
+/** Sin slide direccional entre tabs del bottom nav: no hay un "adelante/atrás" real entre ellos,
+ *  así que cualquier dirección fija se sentía "incorrecta" la mitad de las veces. Un fade simple
+ *  no tiene ese problema. El slide se reserva para cuando sí hay una jerarquía real (entrar/salir
+ *  de una pantalla de detalle), donde enter/exit vs pop-enter/pop-exit ya representan bien el sentido. */
+private fun isTopLevelSwitch(scope: AnimatedContentTransitionScope<NavBackStackEntry>): Boolean {
+    val from = scope.initialState.destination.route
+    val to = scope.targetState.destination.route
+    return from in TOP_LEVEL_ROUTES && to in TOP_LEVEL_ROUTES
+}
 
-private fun AnimatedContentTransitionScope<*>.defaultExitTransition() =
-    slideOutHorizontally(animationSpec = tween(NAV_ANIM_MS), targetOffsetX = { -it / 4 }) + fadeOut(tween(NAV_ANIM_MS))
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.pickEnterTransition() =
+    if (isTopLevelSwitch(this)) {
+        fadeIn(tween(TAB_FADE_MS))
+    } else {
+        slideInHorizontally(animationSpec = tween(NAV_ANIM_MS), initialOffsetX = { it / 4 }) + fadeIn(tween(NAV_ANIM_MS))
+    }
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.pickExitTransition() =
+    if (isTopLevelSwitch(this)) {
+        fadeOut(tween(TAB_FADE_MS))
+    } else {
+        slideOutHorizontally(animationSpec = tween(NAV_ANIM_MS), targetOffsetX = { -it / 4 }) + fadeOut(tween(NAV_ANIM_MS))
+    }
 
 private fun AnimatedContentTransitionScope<*>.defaultPopEnterTransition() =
     slideInHorizontally(animationSpec = tween(NAV_ANIM_MS), initialOffsetX = { -it / 4 }) + fadeIn(tween(NAV_ANIM_MS))

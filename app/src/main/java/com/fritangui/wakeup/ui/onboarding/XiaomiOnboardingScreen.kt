@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -27,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -37,10 +37,14 @@ import com.fritangui.wakeup.permissions.PermissionStatus
 private data class ChecklistItem(
     val title: String,
     val description: String,
-    val isXiaomiOnly: Boolean = false,
-    val isChecked: () -> Boolean,
+    /** null = Android no expone forma de saberlo (p.ej. permisos propios de MIUI); no es lo mismo que "no concedido". */
+    val isChecked: (() -> Boolean)?,
     val launch: (android.content.Context) -> Unit,
 )
+
+private const val RESTRICTED_SETTINGS_HINT = "Si Android dice \"por seguridad esta opción no está disponible\": " +
+    "ve a Ajustes del sistema → Apps → Wake up → toca el menú ⋮ (arriba a la derecha) → " +
+    "\"Permitir configuración restringida\", y vuelve a intentar. Es una protección de Android para apps instaladas fuera de Play Store, no un problema de la app."
 
 /**
  * Wizard de permisos: no hay API pública para forzar ninguno de estos ajustes,
@@ -93,7 +97,7 @@ fun XiaomiOnboardingScreen(onDone: () -> Unit) {
             add(
                 ChecklistItem(
                     "Servicio de accesibilidad",
-                    "Para poder detectar y limitar Reels/TikTok (nunca lee tus mensajes).",
+                    "Para detectar y limitar Reels/TikTok (nunca lee tus mensajes). $RESTRICTED_SETTINGS_HINT",
                     isChecked = { PermissionStatus.hasAccessibilityServiceEnabled(context) },
                     launch = { PermissionIntents.safeStart(it, PermissionIntents.accessibilitySettings()) },
                 ),
@@ -110,18 +114,18 @@ fun XiaomiOnboardingScreen(onDone: () -> Unit) {
                 add(
                     ChecklistItem(
                         "Autoinicio (MIUI)",
-                        "Sin esto, MIUI puede impedir que las alarmas suenen tras reiniciar el teléfono. Actívalo manualmente en la lista.",
-                        isXiaomiOnly = true,
-                        isChecked = { false }, // MIUI no expone una API para verificar esto
+                        "Sin esto, MIUI puede impedir que las alarmas suenen tras reiniciar el teléfono. MIUI no deja que ninguna " +
+                            "app (ni esta) revise este ajuste por código — ábrelo y confirma tú mismo que el interruptor esté activado.",
+                        isChecked = null,
                         launch = { PermissionIntents.safeStart(it, PermissionIntents.xiaomiAutoStart(it)) },
                     ),
                 )
                 add(
                     ChecklistItem(
                         "Mostrar ventanas emergentes en segundo plano (MIUI)",
-                        "Sin esto, la alarma puede no reabrirse sola si la mandas a segundo plano sin apagarla.",
-                        isXiaomiOnly = true,
-                        isChecked = { false },
+                        "Sin esto, la alarma puede no reabrirse sola si la mandas a segundo plano sin apagarla. Tampoco se puede " +
+                            "verificar por código — confirma tú mismo que esté activado.",
+                        isChecked = null,
                         launch = { PermissionIntents.safeStart(it, PermissionIntents.xiaomiBackgroundPopup(it)) },
                     ),
                 )
@@ -152,21 +156,31 @@ fun XiaomiOnboardingScreen(onDone: () -> Unit) {
 
 @Composable
 private fun ChecklistRow(item: ChecklistItem, context: android.content.Context) {
-    val checked = remember(item) { runCatching { item.isChecked() }.getOrDefault(false) }
+    // Tres estados: concedido (✓ verde), no concedido (○ gris), y "no se puede saber" (? ámbar neutro,
+    // no rojo — MIUI no expone API para varios de estos, no significa que estén realmente apagados).
+    val checked = remember(item) { item.isChecked?.let { runCatching { it() }.getOrDefault(false) } }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                if (checked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                when (checked) {
+                    true -> Icons.Default.CheckCircle
+                    false -> Icons.Default.RadioButtonUnchecked
+                    null -> Icons.Default.HelpOutline
+                },
                 contentDescription = null,
-                tint = if (checked) Color(0xFF00BFA6) else MaterialTheme.colorScheme.outline,
+                tint = when (checked) {
+                    true -> Color(0xFF00BFA6)
+                    false -> MaterialTheme.colorScheme.outline
+                    null -> Color(0xFFFFC857)
+                },
             )
             Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                 Text(item.title, style = MaterialTheme.typography.titleMedium)
                 Text(item.description, style = MaterialTheme.typography.bodyMedium)
             }
-            TextButton(onClick = { item.launch(context) }) { Text(if (checked) "Ver" else "Activar") }
+            TextButton(onClick = { item.launch(context) }) { Text(if (checked == true) "Ver" else "Activar") }
         }
     }
 }

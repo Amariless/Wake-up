@@ -23,11 +23,10 @@ class FoldersViewModel @Inject constructor(
     val folders: StateFlow<List<FolderEntity>> = folderRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun createFolder(name: String) {
+    fun createFolder(name: String, colorArgb: Int = FolderColorPalette.random().toArgb()) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            val color = FolderColorPalette.random().toArgb()
-            folderRepository.create(name.trim(), color)
+            folderRepository.create(name.trim(), colorArgb)
         }
     }
 
