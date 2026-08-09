@@ -5,6 +5,13 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * ALARM: pantalla completa + sonido en bucle + reto para apagar (el comportamiento de siempre).
+ * REMINDER: una notificación normal con su propio sonido, sin pantalla completa ni reto — para
+ * avisos que no necesitan "despertar" a nadie, solo recordar algo.
+ */
+enum class AlarmKind { ALARM, REMINDER }
+
 /** Reto que el usuario debe resolver para poder apagar la alarma o el temporizador. */
 enum class DismissChallengeType {
     NONE,
@@ -57,6 +64,9 @@ data class AlarmEntity(
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
     /** Se actualiza cada vez que la alarma efectivamente suena; usado para ordenar la lista por uso reciente. */
     val lastTriggeredAtEpochMillis: Long? = null,
+    val kind: AlarmKind = AlarmKind.ALARM,
+    /** Si está activo, se borra sola (y se cancela cualquier programación futura) justo después de sonar. */
+    val deleteAfterRing: Boolean = false,
 ) {
     companion object {
         fun dayBit(isoDayOfWeek: Int): Int = 1 shl (isoDayOfWeek - 1)

@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,9 +72,13 @@ fun FolderDetailScreen(
     val folder by viewModel.folder.collectAsState()
     val subjects by viewModel.subjects.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
+    val subjectNamesById by viewModel.subjectNamesById.collectAsState()
     val alarms by viewModel.alarms.collectAsState()
     val isPinned by viewModel.isPinned.collectAsState()
-    var tabIndex by remember { mutableIntStateOf(0) }
+    // rememberSaveable a propósito: Navigation-Compose descompone esta pantalla por completo al
+    // navegar a un editor y la vuelve a componer desde cero al volver (back), así que un simple
+    // remember perdía la pestaña seleccionada y siempre volvía a "Materias".
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     val isReadOnly = folder?.isActive != true
     val tabs = listOf("Materias", "Tareas", "Alarmas")
 
@@ -121,7 +126,7 @@ fun FolderDetailScreen(
             ) { index ->
                 when (index) {
                     0 -> SubjectsTab(subjects) { onOpenSubject(viewModel.folderId, it) }
-                    1 -> TasksTab(tasks, onToggle = viewModel::setTaskCompleted) { onOpenTask(viewModel.folderId, it) }
+                    1 -> TasksTab(tasks, subjectNamesById, onToggle = viewModel::setTaskCompleted) { onOpenTask(viewModel.folderId, it) }
                     else -> AlarmsTab(alarms, readOnly = isReadOnly, onToggle = viewModel::setAlarmEnabled) {
                         onOpenAlarm(viewModel.folderId, it)
                     }
@@ -162,7 +167,12 @@ private fun SubjectsTab(subjects: List<SubjectWithSessions>, onClick: (Long) -> 
 }
 
 @Composable
-private fun TasksTab(tasks: List<TaskEntity>, onToggle: (Long, Boolean) -> Unit, onClick: (Long) -> Unit) {
+private fun TasksTab(
+    tasks: List<TaskEntity>,
+    subjectNamesById: Map<Long, String>,
+    onToggle: (Long, Boolean) -> Unit,
+    onClick: (Long) -> Unit,
+) {
     if (tasks.isEmpty()) {
         EmptyState("Agrega tareas con o sin fecha de vencimiento")
         return
@@ -182,6 +192,14 @@ private fun TasksTab(tasks: List<TaskEntity>, onToggle: (Long, Boolean) -> Unit,
                             task.dueAtEpochMillis?.let { "Vence " + formatDueDate(it) } ?: "Sin fecha de vencimiento",
                             style = MaterialTheme.typography.bodyMedium,
                         )
+                        val subjectName = task.subjectId?.let { subjectNamesById[it] }
+                        if (subjectName != null) {
+                            Text(
+                                subjectName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
+                        }
                     }
                 }
             }

@@ -30,7 +30,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.alarm.sound.AlarmSounds
+import com.fritangui.wakeup.alarm.sound.NotificationSounds
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
+import com.fritangui.wakeup.data.db.entity.AlarmKind
 
 private val DIA_LETRAS = listOf("L", "M", "X", "J", "V", "S", "D")
 
@@ -52,7 +54,8 @@ fun AlarmsListScreen(
 
     LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
         items(alarms, key = { it.id }) { alarm ->
-            val soundUri = alarm.soundUri ?: AlarmSounds.defaultSoundUriFor(context)
+            val soundUri = alarm.soundUri
+                ?: if (alarm.kind == AlarmKind.REMINDER) NotificationSounds.defaultSoundUriFor(context) else AlarmSounds.defaultSoundUriFor(context)
             AlarmRow(
                 alarm = alarm,
                 isPreviewing = playingUri == soundUri,
@@ -82,7 +85,13 @@ private fun AlarmRow(
         ) {
             Column {
                 Text("%02d:%02d".format(alarm.hour, alarm.minute), style = MaterialTheme.typography.headlineMedium)
-                Text(alarm.label.ifBlank { "Alarma" }, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    alarm.label.ifBlank { if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma" },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (alarm.kind == AlarmKind.REMINDER) {
+                    Text("Recordatorio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                }
                 Text(repeatSummary(alarm.repeatDaysBitmask), style = MaterialTheme.typography.bodyMedium)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {

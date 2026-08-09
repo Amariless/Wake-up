@@ -2,7 +2,10 @@
 
 package com.fritangui.wakeup.ui.clock.alarms
 
+import android.media.RingtoneManager
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +26,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,7 +47,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.alarm.sound.AlarmSounds
+import com.fritangui.wakeup.alarm.sound.NotificationSounds
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
+import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.ui.components.AppTimePickerDialog
 
@@ -70,13 +78,17 @@ fun AlarmEditorScreen(
     var hour by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.hour ?: 7) }
     var minute by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.minute ?: 0) }
     var repeatBitmask by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.repeatDaysBitmask ?: 0) }
+    var kind by remember(alarm?.id) { mutableStateOf(alarm?.kind ?: AlarmKind.ALARM) }
     var challenge by remember(alarm?.id) { mutableStateOf(alarm?.dismissChallenge ?: DismissChallengeType.NONE) }
     var difficulty by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.challengeDifficulty ?: 1) }
     var vibrate by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.vibrate ?: true) }
-    var soundUri by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.soundUri) }
+    var soundUri by rememberSaveable(alarm?.id, kind) { mutableStateOf(alarm?.soundUri) }
+    var deleteAfterRing by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.deleteAfterRing ?: false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showSoundPicker by remember { mutableStateOf(false) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
+
+    val isReminder = kind == AlarmKind.REMINDER
 
     Scaffold(
         topBar = {
@@ -94,29 +106,54 @@ fun AlarmEditorScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-            TextButton(onClick = { showTimePicker = true }) {
+            // "Alarma" suena a pantalla completa con reto para apagarla; "Recordatorio" es solo una
+            // notificación normal con su propio sonido, para avisos que no necesitan despertar a nadie.
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = kind == AlarmKind.ALARM,
+                    onClick = { kind = AlarmKind.ALARM },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) { Text("Alarma") }
+                SegmentedButton(
+                    selected = kind == AlarmKind.REMINDER,
+                    onClick = { kind = AlarmKind.REMINDER },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) { Text("Recordatorio") }
+            }
+
+            TextButton(onClick = { showTimePicker = true }, modifier = Modifier.padding(top = 8.dp)) {
                 Text("%02d:%02d".format(hour, minute), style = MaterialTheme.typography.displayLarge)
             }
 
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it },
-                label = { Text("Nombre de la alarma") },
+                label = { Text(if (isReminder) "Nombre del recordatorio" else "Nombre de la alarma") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
 
             Text("Repetir", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Sin cajas ni chips (igual que en el selector de días del horario de clase): así el
+            // texto queda siempre centrado en su espacio, sin depender del padding interno de
+            // FilterChip que lo desalineaba.
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 DIA_NOMBRES.forEachIndexed { index, dayLabel ->
                     val bit = AlarmEntity.dayBit(index + 1)
                     val selected = (repeatBitmask and bit) != 0
-                    FilterChip(
-                        selected = selected,
-                        onClick = { repeatBitmask = if (selected) repeatBitmask and bit.inv() else repeatBitmask or bit },
-                        label = { Text(dayLabel) },
-                        modifier = Modifier.weight(1f),
-                    )
+                    Box(
+                        modifier = Modifier.weight(1f).clickable {
+                            repeatBitmask = if (selected) repeatBitmask and bit.inv() else repeatBitmask or bit
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            dayLabel,
+                            style = if (selected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                    }
                 }
             }
 
@@ -131,41 +168,61 @@ fun AlarmEditorScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                        Text(AlarmSounds.labelFor(context, soundUri))
+                        Text(
+                            if (isReminder) NotificationSounds.labelFor(context, soundUri) else AlarmSounds.labelFor(context, soundUri),
+                        )
                     }
                     TextButton(onClick = { showSoundPicker = true }) { Text("Cambiar") }
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            if (!isReminder) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            Text("Reto para apagarla", style = MaterialTheme.typography.titleMedium)
-            ExposedDropdownMenuBox(
-                expanded = challengeMenuExpanded,
-                onExpandedChange = { challengeMenuExpanded = it },
-                modifier = Modifier.padding(top = 8.dp),
-            ) {
-                OutlinedTextField(
-                    value = CHALLENGE_LABELS.getValue(challenge),
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                Text("Reto para apagarla", style = MaterialTheme.typography.titleMedium)
+                ExposedDropdownMenuBox(
+                    expanded = challengeMenuExpanded,
+                    onExpandedChange = { challengeMenuExpanded = it },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = CHALLENGE_LABELS.getValue(challenge),
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    )
+                    ExposedDropdownMenu(expanded = challengeMenuExpanded, onDismissRequest = { challengeMenuExpanded = false }) {
+                        CHALLENGE_LABELS.forEach { (type, text) ->
+                            DropdownMenuItem(text = { Text(text) }, onClick = { challenge = type; challengeMenuExpanded = false })
+                        }
+                    }
+                }
+
+                if (challenge != DismissChallengeType.NONE) {
+                    Text("Dificultad", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DIFFICULTY_LABELS.forEach { (value, text) ->
+                            FilterChip(selected = difficulty == value, onClick = { difficulty = value }, label = { Text(text) })
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Vibrar")
+                    Switch(checked = vibrate, onCheckedChange = { vibrate = it })
+                }
+
+                Text(
+                    "Te avisaremos 1 hora antes con una notificación silenciosa (puedes apagar solo esa vez desde ahí).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 8.dp),
                 )
-                ExposedDropdownMenu(expanded = challengeMenuExpanded, onDismissRequest = { challengeMenuExpanded = false }) {
-                    CHALLENGE_LABELS.forEach { (type, text) ->
-                        DropdownMenuItem(text = { Text(text) }, onClick = { challenge = type; challengeMenuExpanded = false })
-                    }
-                }
-            }
-
-            if (challenge != DismissChallengeType.NONE) {
-                Text("Dificultad", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DIFFICULTY_LABELS.forEach { (value, text) ->
-                        FilterChip(selected = difficulty == value, onClick = { difficulty = value }, label = { Text(text) })
-                    }
-                }
             }
 
             Row(
@@ -173,16 +230,16 @@ fun AlarmEditorScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Vibrar")
-                Switch(checked = vibrate, onCheckedChange = { vibrate = it })
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Eliminar después de sonar")
+                    Text(
+                        "Útil para algo de una sola vez: no se vuelve a guardar tras sonar.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+                Switch(checked = deleteAfterRing, onCheckedChange = { deleteAfterRing = it })
             }
-
-            Text(
-                "Te avisaremos 1 hora antes con una notificación silenciosa (puedes apagar solo esa vez desde ahí).",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(top = 8.dp),
-            )
 
             Button(
                 onClick = {
@@ -191,11 +248,13 @@ fun AlarmEditorScreen(
                         hour = hour,
                         minute = minute,
                         repeatDaysBitmask = repeatBitmask,
+                        kind = kind,
                         challenge = challenge,
                         difficulty = difficulty,
                         vibrate = vibrate,
                         soundUri = soundUri,
                         preAlarmMinutesBefore = 60,
+                        deleteAfterRing = deleteAfterRing,
                         onSaved = onBack,
                     )
                 },
@@ -214,10 +273,24 @@ fun AlarmEditorScreen(
     }
 
     if (showSoundPicker) {
-        AlarmSoundPickerDialog(
-            currentUri = soundUri,
-            onDismiss = { showSoundPicker = false },
-            onSelect = { soundUri = it; showSoundPicker = false },
-        )
+        if (isReminder) {
+            AlarmSoundPickerDialog(
+                currentUri = soundUri,
+                bundledSounds = NotificationSounds.BUNDLED.map { it.label to NotificationSounds.uriFor(context, it.rawResId) },
+                title = "Sonido del recordatorio",
+                ringtoneType = RingtoneManager.TYPE_NOTIFICATION,
+                onDismiss = { showSoundPicker = false },
+                onSelect = { soundUri = it; showSoundPicker = false },
+            )
+        } else {
+            AlarmSoundPickerDialog(
+                currentUri = soundUri,
+                bundledSounds = AlarmSounds.BUNDLED.map { it.label to AlarmSounds.uriFor(context, it.rawResId) },
+                title = "Sonido de la alarma",
+                ringtoneType = RingtoneManager.TYPE_ALARM,
+                onDismiss = { showSoundPicker = false },
+                onSelect = { soundUri = it; showSoundPicker = false },
+            )
+        }
     }
 }

@@ -226,7 +226,7 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
                 ScreenTimeScreen(onOpenBlocking = { navController.navigate(Routes.BLOCKING) })
             }
 
-            composable(Routes.BLOCKING) { BlockingScreen() }
+            composable(Routes.BLOCKING) { BlockingScreen(onBack = { navController.popBackStack() }) }
 
             composable(Routes.XIAOMI_ONBOARDING) {
                 XiaomiOnboardingScreen(onDone = { navController.popBackStack() })

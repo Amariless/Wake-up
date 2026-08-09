@@ -53,6 +53,11 @@ class FolderDetailViewModel @Inject constructor(
     val tasks: StateFlow<List<TaskEntity>> = taskRepository.observeByFolder(folderId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Nombre de materia por id, para mostrar debajo de cada tarea que tenga una asociada. */
+    val subjectNamesById: StateFlow<Map<Long, String>> = subjects
+        .map { list -> list.associate { it.subject.id to it.subject.name } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeByFolder(folderId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

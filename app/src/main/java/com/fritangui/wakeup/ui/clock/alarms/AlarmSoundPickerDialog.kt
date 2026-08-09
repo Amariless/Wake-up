@@ -24,20 +24,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.alarm.sound.AlarmSoundPreviewPlayer
-import com.fritangui.wakeup.alarm.sound.AlarmSounds
 
-/** Elegir el sonido de una alarma: los 3 sonidos propios de la app (con vista previa) o cualquier tono del sistema. */
+/**
+ * Elegir un sonido: los del banco propio de la app (con vista previa) o cualquier tono del
+ * sistema. Genérico para reutilizarlo tanto con el banco de alarmas como con el de
+ * notificaciones (los "recordatorios", ver #59) — cada llamador pasa su propia lista de
+ * (etiqueta, uri) y el tipo de selector de tonos del sistema que le corresponde.
+ */
 @Composable
 fun AlarmSoundPickerDialog(
     currentUri: String?,
+    bundledSounds: List<Pair<String, String>>,
+    title: String = "Sonido de la alarma",
+    ringtoneType: Int = RingtoneManager.TYPE_ALARM,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
 ) {
-    val context = LocalContext.current
     val previewPlayer: AlarmSoundPreviewPlayer = hiltViewModel<AlarmSoundPreviewHolderViewModel>().previewPlayer
     val playingUri by previewPlayer.playingUri.collectAsState()
 
@@ -49,15 +54,14 @@ fun AlarmSoundPickerDialog(
 
     AlertDialog(
         onDismissRequest = { previewPlayer.stop(); onDismiss() },
-        title = { Text("Sonido de la alarma") },
+        title = { Text(title) },
         text = {
             Column {
-                AlarmSounds.BUNDLED.forEach { sound ->
-                    val uri = AlarmSounds.uriFor(context, sound.rawResId)
-                    val isDefault = currentUri == null && sound == AlarmSounds.BUNDLED.first()
+                bundledSounds.forEachIndexed { index, (label, uri) ->
+                    val isDefault = currentUri == null && index == 0
                     Row2(
                         selected = currentUri == uri || isDefault,
-                        label = sound.label,
+                        label = label,
                         isPlaying = playingUri == uri,
                         onSelect = { onSelect(uri) },
                         onPreview = { previewPlayer.toggle(uri) },
@@ -66,7 +70,7 @@ fun AlarmSoundPickerDialog(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 TextButton(onClick = {
                     val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, ringtoneType)
                         putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
                         putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
                         currentUri?.let { putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it)) }

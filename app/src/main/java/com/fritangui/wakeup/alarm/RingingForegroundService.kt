@@ -106,11 +106,19 @@ class RingingForegroundService : LifecycleService() {
 
             // Rearmar la próxima ocurrencia YA (antes de que el usuario interactúe):
             // si el teléfono se queda sin batería mientras suena, la de mañana igual queda programada.
-            alarmScheduler.scheduleAlarm(alarm)
-            if (alarm.repeatDaysBitmask == 0) {
-                alarmRepository.setEnabled(alarm.id, false)
+            // Si el usuario pidió "eliminar después de sonar", en cambio, no hay próxima ocurrencia
+            // que armar: se cancela cualquier programación futura y se borra la fila de una vez
+            // (sigue sonando esta vez con normalidad; lo que cambia es que no queda guardada).
+            if (alarm.deleteAfterRing) {
+                alarmScheduler.cancelAlarm(alarm.id)
+                alarmRepository.delete(alarm)
+            } else {
+                alarmScheduler.scheduleAlarm(alarm)
+                if (alarm.repeatDaysBitmask == 0) {
+                    alarmRepository.setEnabled(alarm.id, false)
+                }
+                alarmRepository.setLastTriggered(alarm.id)
             }
-            alarmRepository.setLastTriggered(alarm.id)
 
             val fullScreenPendingIntent = PendingIntent.getActivity(
                 this@RingingForegroundService,

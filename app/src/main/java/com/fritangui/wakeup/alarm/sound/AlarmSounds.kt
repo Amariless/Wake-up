@@ -8,16 +8,20 @@ data class BundledAlarmSound(val id: String, val label: String, val rawResId: In
 
 /**
  * Banco de sonidos propio de la app. El sonido por defecto del sistema en
- * muchos emuladores/teléfonos es muy suave o no existe; estos tres se generan
+ * muchos emuladores/teléfonos es muy suave o no existe; estos se generan
  * por código (sin depender de ninguna licencia externa) para tener siempre
- * algo audible y más "enérgico" por defecto. El usuario también puede elegir
- * cualquier tono de alarma instalado en su teléfono (ver [AlarmSoundPicker]).
+ * algo audible y variado. El usuario también puede elegir cualquier tono de
+ * alarma instalado en su teléfono (ver [AlarmSoundPicker]).
  */
 object AlarmSounds {
     val BUNDLED = listOf(
         BundledAlarmSound("urgent_pulse", "Urgente (predeterminado)", R.raw.alarm_urgent_pulse),
         BundledAlarmSound("classic_beep", "Clásico", R.raw.alarm_classic_beep),
         BundledAlarmSound("gentle_chime", "Suave", R.raw.alarm_gentle_chime),
+        BundledAlarmSound("digital_beep", "Digital", R.raw.alarm_digital_beep),
+        BundledAlarmSound("rising_siren", "Sirena", R.raw.alarm_rising_siren),
+        BundledAlarmSound("marimba_urgent", "Marimba", R.raw.alarm_marimba_urgent),
+        BundledAlarmSound("classic_bell", "Campana", R.raw.alarm_classic_bell),
     )
 
     fun uriFor(context: Context, rawResId: Int): String = "android.resource://${context.packageName}/$rawResId"

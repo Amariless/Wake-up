@@ -41,11 +41,13 @@ class AlarmEditorViewModel @Inject constructor(
         hour: Int,
         minute: Int,
         repeatDaysBitmask: Int,
+        kind: com.fritangui.wakeup.data.db.entity.AlarmKind,
         challenge: com.fritangui.wakeup.data.db.entity.DismissChallengeType,
         difficulty: Int,
         vibrate: Boolean,
         soundUri: String?,
         preAlarmMinutesBefore: Int,
+        deleteAfterRing: Boolean,
         onSaved: () -> Unit,
     ) {
         viewModelScope.launch {
@@ -58,11 +60,14 @@ class AlarmEditorViewModel @Inject constructor(
                 minute = minute,
                 repeatDaysBitmask = repeatDaysBitmask,
                 isEnabled = true,
+                kind = kind,
                 dismissChallenge = challenge,
                 challengeDifficulty = difficulty,
                 vibrate = vibrate,
                 soundUri = soundUri,
-                preAlarmNotificationMinutesBefore = preAlarmMinutesBefore,
+                // Al recordatorio no le hace falta aviso previo de 1h: es él mismo el aviso.
+                preAlarmNotificationMinutesBefore = if (kind == com.fritangui.wakeup.data.db.entity.AlarmKind.REMINDER) 0 else preAlarmMinutesBefore,
+                deleteAfterRing = deleteAfterRing,
                 createdAtEpochMillis = existing?.createdAtEpochMillis ?: System.currentTimeMillis(),
                 lastTriggeredAtEpochMillis = existing?.lastTriggeredAtEpochMillis,
             )

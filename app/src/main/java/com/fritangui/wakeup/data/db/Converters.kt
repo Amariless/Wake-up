@@ -1,6 +1,7 @@
 package com.fritangui.wakeup.data.db
 
 import androidx.room.TypeConverter
+import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.data.db.entity.BlockSurface
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import kotlinx.serialization.decodeFromString
@@ -38,4 +39,11 @@ class Converters {
     @TypeConverter
     fun toBlockSurface(value: String): BlockSurface =
         runCatching { BlockSurface.valueOf(value) }.getOrDefault(BlockSurface.GENERIC_APP_TIME_LIMIT)
+
+    @TypeConverter
+    fun fromAlarmKind(value: AlarmKind): String = value.name
+
+    @TypeConverter
+    fun toAlarmKind(value: String): AlarmKind =
+        runCatching { AlarmKind.valueOf(value) }.getOrDefault(AlarmKind.ALARM)
 }

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -20,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.fritangui.wakeup.permissions.PermissionIntents
@@ -40,6 +43,9 @@ private data class ChecklistItem(
     /** null = Android no expone forma de saberlo (p.ej. permisos propios de MIUI); no es lo mismo que "no concedido". */
     val isChecked: (() -> Boolean)?,
     val launch: (android.content.Context) -> Unit,
+    /** Solo para items con [isChecked] null: le permite al usuario confirmar a mano que ya lo activó. */
+    val manualConfirmed: Boolean? = null,
+    val onManualConfirmChange: ((Boolean) -> Unit)? = null,
 )
 
 private const val RESTRICTED_SETTINGS_HINT = "Si Android dice \"por seguridad esta opción no está disponible\": " +
@@ -53,14 +59,16 @@ private const val RESTRICTED_SETTINGS_HINT = "Si Android dice \"por seguridad es
  * marcan solos al volver a la pantalla).
  */
 @Composable
-fun XiaomiOnboardingScreen(onDone: () -> Unit) {
+fun XiaomiOnboardingScreen(onDone: () -> Unit, viewModel: XiaomiOnboardingViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val isXiaomi = remember { PermissionStatus.isXiaomiDevice() }
     var refreshTick by remember { mutableStateOf(0) }
+    val autoStartConfirmed by viewModel.autoStartConfirmed.collectAsState()
+    val backgroundPopupConfirmed by viewModel.backgroundPopupConfirmed.collectAsState()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshTick++ }
 
-    val items = remember(refreshTick) {
+    val items = remember(refreshTick, autoStartConfirmed, backgroundPopupConfirmed) {
         buildList {
             add(
                 ChecklistItem(
@@ -115,18 +123,23 @@ fun XiaomiOnboardingScreen(onDone: () -> Unit) {
                     ChecklistItem(
                         "Autoinicio (MIUI)",
                         "Sin esto, MIUI puede impedir que las alarmas suenen tras reiniciar el teléfono. MIUI no deja que ninguna " +
-                            "app (ni esta) revise este ajuste por código — ábrelo y confirma tú mismo que el interruptor esté activado.",
+                            "app (ni esta) revise este ajuste por código: ábrelo, confirma que el interruptor esté activado y " +
+                            "marca la casilla de abajo para no verlo en amarillo cada vez.",
                         isChecked = null,
                         launch = { PermissionIntents.safeStart(it, PermissionIntents.xiaomiAutoStart(it)) },
+                        manualConfirmed = autoStartConfirmed,
+                        onManualConfirmChange = viewModel::setAutoStartConfirmed,
                     ),
                 )
                 add(
                     ChecklistItem(
                         "Mostrar ventanas emergentes en segundo plano (MIUI)",
                         "Sin esto, la alarma puede no reabrirse sola si la mandas a segundo plano sin apagarla. Tampoco se puede " +
-                            "verificar por código — confirma tú mismo que esté activado.",
+                            "verificar por código: confirma que esté activado y marca la casilla de abajo.",
                         isChecked = null,
                         launch = { PermissionIntents.safeStart(it, PermissionIntents.xiaomiBackgroundPopup(it)) },
+                        manualConfirmed = backgroundPopupConfirmed,
+                        onManualConfirmChange = viewModel::setBackgroundPopupConfirmed,
                     ),
                 )
             }
@@ -156,31 +169,45 @@ fun XiaomiOnboardingScreen(onDone: () -> Unit) {
 
 @Composable
 private fun ChecklistRow(item: ChecklistItem, context: android.content.Context) {
-    // Tres estados: concedido (✓ verde), no concedido (○ gris), y "no se puede saber" (? ámbar neutro,
-    // no rojo — MIUI no expone API para varios de estos, no significa que estén realmente apagados).
-    val checked = remember(item) { item.isChecked?.let { runCatching { it() }.getOrDefault(false) } }
+    // Tres estados: concedido (✓ verde), no concedido (○ gris), y "no se puede saber" (? ámbar
+    // neutro). Una confirmación manual solo puede empujar a "concedido" — nunca a "no concedido",
+    // porque seguimos sin poder comprobarlo de verdad; si el usuario no ha marcado la casilla,
+    // se queda en ámbar en vez de caer a gris (que antes se leía como "seguro que está apagado").
+    val checked = when {
+        item.manualConfirmed == true -> true
+        item.isChecked != null -> remember(item) { runCatching { item.isChecked.invoke() }.getOrDefault(false) }
+        else -> null
+    }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                when (checked) {
-                    true -> Icons.Default.CheckCircle
-                    false -> Icons.Default.RadioButtonUnchecked
-                    null -> Icons.Default.HelpOutline
-                },
-                contentDescription = null,
-                tint = when (checked) {
-                    true -> Color(0xFF00BFA6)
-                    false -> MaterialTheme.colorScheme.outline
-                    null -> Color(0xFFFFC857)
-                },
-            )
-            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                Text(item.title, style = MaterialTheme.typography.titleMedium)
-                Text(item.description, style = MaterialTheme.typography.bodyMedium)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    when (checked) {
+                        true -> Icons.Default.CheckCircle
+                        false -> Icons.Default.RadioButtonUnchecked
+                        null -> Icons.Default.HelpOutline
+                    },
+                    contentDescription = null,
+                    tint = when (checked) {
+                        true -> Color(0xFF00BFA6)
+                        false -> MaterialTheme.colorScheme.outline
+                        null -> Color(0xFFFFC857)
+                    },
+                )
+                Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                    Text(item.title, style = MaterialTheme.typography.titleMedium)
+                    Text(item.description, style = MaterialTheme.typography.bodyMedium)
+                }
+                TextButton(onClick = { item.launch(context) }) { Text(if (checked == true) "Ver" else "Activar") }
             }
-            TextButton(onClick = { item.launch(context) }) { Text(if (checked == true) "Ver" else "Activar") }
+            if (item.onManualConfirmChange != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 36.dp)) {
+                    Checkbox(checked = item.manualConfirmed == true, onCheckedChange = item.onManualConfirmChange)
+                    Text("Ya lo revisé y está activado", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
     }
 }

@@ -31,6 +31,8 @@ class SettingsDataStore @Inject constructor(
         val DEFAULT_REMINDER_DAY_BEFORE_MIN = intPreferencesKey("default_reminder_day_min")
         val TIMER_CHALLENGE_TYPE = stringPreferencesKey("timer_challenge_type")
         val TIMER_CHALLENGE_DIFFICULTY = intPreferencesKey("timer_challenge_difficulty")
+        val XIAOMI_AUTOSTART_CONFIRMED = booleanPreferencesKey("xiaomi_autostart_confirmed")
+        val XIAOMI_BACKGROUND_POPUP_CONFIRMED = booleanPreferencesKey("xiaomi_background_popup_confirmed")
     }
 
     val isXiaomiOnboardingDone: Flow<Boolean> =
@@ -78,5 +80,22 @@ class SettingsDataStore @Inject constructor(
             it[Keys.TIMER_CHALLENGE_TYPE] = type.name
             it[Keys.TIMER_CHALLENGE_DIFFICULTY] = difficulty
         }
+    }
+
+    // MIUI no expone ninguna API para comprobar estos dos permisos, así que no hay forma
+    // automática de saber si ya están activados; se deja que el propio usuario lo confirme a mano
+    // después de revisarlo, en vez de mostrarlos siempre en ámbar como "no se pudo verificar".
+    val isXiaomiAutoStartConfirmed: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.XIAOMI_AUTOSTART_CONFIRMED] ?: false }
+
+    suspend fun setXiaomiAutoStartConfirmed(confirmed: Boolean) {
+        context.dataStore.edit { it[Keys.XIAOMI_AUTOSTART_CONFIRMED] = confirmed }
+    }
+
+    val isXiaomiBackgroundPopupConfirmed: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.XIAOMI_BACKGROUND_POPUP_CONFIRMED] ?: false }
+
+    suspend fun setXiaomiBackgroundPopupConfirmed(confirmed: Boolean) {
+        context.dataStore.edit { it[Keys.XIAOMI_BACKGROUND_POPUP_CONFIRMED] = confirmed }
     }
 }

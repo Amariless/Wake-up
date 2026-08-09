@@ -17,6 +17,7 @@ object AlarmConstants {
     const val NOTIF_ID_RINGING_BASE = 90_000
     const val NOTIF_ID_PRE_ALARM_BASE = 80_000
     const val NOTIF_ID_TASK_REMINDER_BASE = 70_000
+    const val NOTIF_ID_REMINDER_BASE = 60_100
 
     /** Multiplicador para derivar request codes de PendingIntent únicos por alarma/propósito. */
     fun mainRequestCode(alarmId: Long): Int = (alarmId * 10 + 1).toInt()

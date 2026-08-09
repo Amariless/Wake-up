@@ -1,8 +1,13 @@
 package com.fritangui.wakeup.notifications
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.net.Uri
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.fritangui.wakeup.MainActivity
@@ -13,6 +18,7 @@ import com.fritangui.wakeup.alarm.AlarmConstants.ACTION_SKIP_NEXT_OCCURRENCE
 import com.fritangui.wakeup.alarm.AlarmConstants.ACTION_STOP_RINGING
 import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_ALARM_ID
 import com.fritangui.wakeup.alarm.PreAlarmReceiver
+import com.fritangui.wakeup.alarm.sound.NotificationSounds
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -88,6 +94,60 @@ class NotificationHelper @Inject constructor(
 
     fun cancelPreAlarmNotification(alarmId: Long) {
         manager.cancel(AlarmConstants.NOTIF_ID_PRE_ALARM_BASE + alarmId.toInt())
+    }
+
+    /**
+     * "Recordatorio" ([AlarmEntity.kind] == REMINDER): a diferencia de [notifyRinging], es una
+     * notificación normal y corriente — se puede descartar con un swipe, no bloquea la pantalla ni
+     * exige ningún reto. Cada sonido del banco de notificaciones vive en su propio canal: en
+     * Android 8+ el sonido de un canal ya creado no se puede cambiar después, así que en vez de un
+     * único canal "recordatorios" se crea uno por sonido (se identifican por su propio nombre de
+     * archivo, no cambian entre builds) y se reutiliza.
+     */
+    fun notifyReminder(alarm: AlarmEntity) {
+        val openIntent = PendingIntent.getActivity(
+            context,
+            AlarmConstants.showIntentRequestCode(alarm.id),
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val soundUri = alarm.soundUri ?: NotificationSounds.defaultSoundUriFor(context)
+        val channelId = ensureReminderChannel(soundUri)
+        val hh = alarm.hour.toString().padStart(2, '0')
+        val mm = alarm.minute.toString().padStart(2, '0')
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(R.drawable.ic_notification_alarm)
+            .setContentTitle(alarm.label.ifBlank { "Recordatorio" })
+            .setContentText("$hh:$mm")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSound(Uri.parse(soundUri))
+            .setContentIntent(openIntent)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(AlarmConstants.NOTIF_ID_REMINDER_BASE + alarm.id.toInt(), notification)
+    }
+
+    private fun ensureReminderChannel(soundUri: String): String {
+        val channelId = "channel_reminder_${soundUri.hashCode()}"
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return channelId
+        val platformManager = context.getSystemService(NotificationManager::class.java) ?: return channelId
+        if (platformManager.getNotificationChannel(channelId) != null) return channelId
+        val channel = NotificationChannel(channelId, "Recordatorios", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Recordatorios con sonido de notificación personalizado"
+            setSound(
+                Uri.parse(soundUri),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+        }
+        platformManager.createNotificationChannel(channel)
+        return channelId
+    }
+
+    fun cancelReminder(alarmId: Long) {
+        manager.cancel(AlarmConstants.NOTIF_ID_REMINDER_BASE + alarmId.toInt())
     }
 
     fun notifyTaskReminder(task: TaskEntity, subjectName: String?) {

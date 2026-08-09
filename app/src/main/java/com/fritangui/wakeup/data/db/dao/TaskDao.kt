@@ -17,10 +17,13 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE subjectId = :subjectId ORDER BY isCompleted, dueAtEpochMillis IS NULL, dueAtEpochMillis")
     fun observeBySubject(subjectId: Long): Flow<List<TaskEntity>>
 
+    // Las tareas sin fecha de vencimiento SÍ se incluyen (antes se excluían con
+    // "dueAtEpochMillis IS NOT NULL"), pero van al final: "dueAtEpochMillis IS NULL" ordena
+    // primero las que sí tienen fecha (0 = falso) y deja las nulas (1 = verdadero) al final.
     @Query(
-        "SELECT * FROM tasks WHERE isCompleted = 0 AND dueAtEpochMillis IS NOT NULL " +
+        "SELECT * FROM tasks WHERE isCompleted = 0 " +
             "AND folderId IN (SELECT id FROM folders WHERE isActive = 1) " +
-            "ORDER BY dueAtEpochMillis LIMIT :limit",
+            "ORDER BY dueAtEpochMillis IS NULL, dueAtEpochMillis LIMIT :limit",
     )
     fun observeUpcoming(limit: Int = 20): Flow<List<TaskEntity>>
 

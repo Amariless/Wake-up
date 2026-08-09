@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.fritangui.wakeup.data.db.entity.UsageAlertRuleEntity
 import com.fritangui.wakeup.data.repository.UsageRepository
 import com.fritangui.wakeup.domain.todayEpochDay
+import com.fritangui.wakeup.usage.ScreenTimeRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,9 +29,18 @@ private val DEFAULT_SOCIAL_PACKAGES = listOf(
 class ScreenTimeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val usageRepository: UsageRepository,
+    private val screenTimeRefresher: ScreenTimeRefresher,
 ) : ViewModel() {
 
     private val packageManager: PackageManager = context.packageManager
+
+    init {
+        // El trabajo en segundo plano (cada ~15 min vía WorkManager) no es confiable en MIUI, así
+        // que además se pide un refresco inmediato apenas se abre esta pantalla — si no, los datos
+        // se sentían desactualizados porque solo se refrescaban cuando el sistema decidía correr
+        // el Worker, que podía tardar mucho más de 15 min o no correr en absoluto.
+        viewModelScope.launch { screenTimeRefresher.refreshNow() }
+    }
 
     val todayUsage: StateFlow<List<AppUsageRow>> = usageRepository.observeForDay(todayEpochDay())
         .map { list ->
