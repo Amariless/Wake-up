@@ -43,6 +43,7 @@ import com.fritangui.wakeup.ui.navigation.Routes
 import com.fritangui.wakeup.ui.onboarding.XiaomiOnboardingScreen
 import com.fritangui.wakeup.ui.screentime.ScreenTimeScreen
 import com.fritangui.wakeup.ui.settings.SettingsScreen
+import com.fritangui.wakeup.ui.subjects.SessionEditorScreen
 import com.fritangui.wakeup.ui.subjects.SubjectEditorScreen
 import com.fritangui.wakeup.ui.tasks.TaskEditorScreen
 import com.fritangui.wakeup.ui.update.UpdateScreen
@@ -175,7 +176,23 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
                     navArgument("subjectId") { type = NavType.LongType },
                 ),
             ) {
-                SubjectEditorScreen(onBack = { navController.popBackStack() })
+                SubjectEditorScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenSession = { folderId, subjectId, sessionId ->
+                        navController.navigate(Routes.sessionEditor(folderId, subjectId, sessionId))
+                    },
+                )
+            }
+
+            composable(
+                Routes.SESSION_EDITOR,
+                arguments = listOf(
+                    navArgument("folderId") { type = NavType.LongType },
+                    navArgument("subjectId") { type = NavType.LongType },
+                    navArgument("sessionId") { type = NavType.LongType },
+                ),
+            ) { backStackEntry ->
+                SessionEditorScreen(backStackEntry = backStackEntry, onBack = { navController.popBackStack() })
             }
 
             composable(

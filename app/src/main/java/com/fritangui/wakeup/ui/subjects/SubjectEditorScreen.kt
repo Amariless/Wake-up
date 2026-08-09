@@ -2,6 +2,7 @@
 
 package com.fritangui.wakeup.ui.subjects
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,8 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,8 +44,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
-import com.fritangui.wakeup.ui.components.WheelTimePicker
 import com.fritangui.wakeup.ui.theme.FolderColorPalette
 
 private val DIA_NOMBRES = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
@@ -52,17 +51,30 @@ private val DIA_NOMBRES = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Do
 @Composable
 fun SubjectEditorScreen(
     onBack: () -> Unit,
+    onOpenSession: (folderId: Long, subjectId: Long, sessionId: Long) -> Unit,
     viewModel: SubjectEditorViewModel = hiltViewModel(),
 ) {
     val subject by viewModel.subject.collectAsState()
     val currentSubjectId by viewModel.currentSubjectId.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
 
+    val defaultColor = remember { FolderColorPalette.first().toArgb() }
     var name by rememberSaveable(subject?.id) { mutableStateOf(subject?.name ?: "") }
     var professor by rememberSaveable(subject?.id) { mutableStateOf(subject?.professor ?: "") }
-    var selectedColor by remember(subject?.id) { mutableStateOf(subject?.colorArgb ?: FolderColorPalette.first().toArgb()) }
-    var showSessionDialog by remember { mutableStateOf(false) }
-    var editingSession by remember { mutableStateOf<ClassSessionEntity?>(null) }
+    var selectedColor by remember(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+
+    // Hay cambios sin guardar si algo difiere de lo último que llegó de la BD (o, para una
+    // materia nueva que aún no existe, si el usuario ya escribió algo).
+    val isDirty = name != (subject?.name ?: "") ||
+        professor != (subject?.professor ?: "") ||
+        selectedColor != (subject?.colorArgb ?: defaultColor)
+
+    fun tryExit() {
+        if (isDirty) confirmDiscard = true else onBack()
+    }
+
+    BackHandler(onBack = ::tryExit)
 
     Scaffold(
         topBar = {
@@ -74,10 +86,17 @@ fun SubjectEditorScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
+                navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
                 actions = {
                     TextButton(
-                        onClick = { viewModel.saveBasicInfo(name, professor, selectedColor) {} },
+                        onClick = {
+                            // Al editar una materia que ya existe, "Guardar" cierra el editor (ya no
+                            // queda nada pendiente ahí). Al crearla por primera vez, en cambio, nos
+                            // quedamos en la pantalla para poder agregar sus horarios de una: si
+                            // saliéramos de una vez, habría que volver a entrar a mano para eso.
+                            val wasExisting = currentSubjectId != null
+                            viewModel.saveBasicInfo(name, professor, selectedColor) { if (wasExisting) onBack() }
+                        },
                         enabled = name.isNotBlank(),
                     ) { Text(if (currentSubjectId == null) "Crear" else "Guardar") }
                 },
@@ -129,7 +148,7 @@ fun SubjectEditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("Horarios", style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = { editingSession = null; showSessionDialog = true }) { Text("+ Agregar") }
+                    TextButton(onClick = { onOpenSession(viewModel.folderId, currentSubjectId!!, 0L) }) { Text("+ Agregar") }
                 }
                 if (sessions.isEmpty()) {
                     Text(
@@ -144,8 +163,7 @@ fun SubjectEditorScreen(
                         Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(12.dp).clickable {
-                                    editingSession = session
-                                    showSessionDialog = true
+                                    onOpenSession(viewModel.folderId, currentSubjectId!!, session.id)
                                 },
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
@@ -168,111 +186,15 @@ fun SubjectEditorScreen(
         }
     }
 
-    if (showSessionDialog) {
-        SessionEditorDialog(
-            initial = editingSession,
-            onDismiss = { showSessionDialog = false },
-            onSave = { newSessions ->
-                newSessions.forEach { viewModel.addOrUpdateSession(it) }
-                showSessionDialog = false
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("¿Salir sin guardar?") },
+            text = { Text("Tienes cambios sin guardar en esta materia. Si sales ahora se pierden.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDiscard = false; onBack() }) { Text("Salir sin guardar") }
             },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
         )
     }
-}
-
-@Composable
-private fun SessionEditorDialog(
-    initial: ClassSessionEntity?,
-    onDismiss: () -> Unit,
-    onSave: (List<ClassSessionEntity>) -> Unit,
-) {
-    // Al crear un horario nuevo se pueden elegir varios días a la vez (misma hora/salón, p.ej. una
-    // materia que se ve martes y jueves); al editar uno ya existente se queda fijo a ese día.
-    var selectedDays by remember { mutableStateOf(setOf(initial?.dayOfWeek ?: 1)) }
-    var startHour by remember { mutableStateOf((initial?.startMinuteOfDay ?: 7 * 60) / 60) }
-    var startMinute by remember { mutableStateOf((initial?.startMinuteOfDay ?: 7 * 60) % 60) }
-    var endHour by remember { mutableStateOf((initial?.endMinuteOfDay ?: 9 * 60) / 60) }
-    var endMinute by remember { mutableStateOf((initial?.endMinuteOfDay ?: 9 * 60) % 60) }
-    var room by rememberSaveable { mutableStateOf(initial?.room ?: "") }
-
-    // Al mover la hora de inicio (por interacción del usuario, no al abrir el diálogo),
-    // la de fin se adelanta sola 2 horas — se puede seguir ajustando a mano después.
-    fun applyStart(newHour: Int, newMinute: Int) {
-        startHour = newHour
-        startMinute = newMinute
-        val totalEnd = (newHour * 60 + newMinute + 120) % (24 * 60)
-        endHour = totalEnd / 60
-        endMinute = totalEnd % 60
-    }
-
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) "Nuevo horario" else "Editar horario") },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text(if (initial == null) "Día(s)" else "Día")
-                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    DIA_NOMBRES.forEachIndexed { index, label ->
-                        val iso = index + 1
-                        FilterChip(
-                            selected = iso in selectedDays,
-                            onClick = {
-                                selectedDays = if (initial != null) {
-                                    setOf(iso)
-                                } else if (iso in selectedDays) {
-                                    (selectedDays - iso).ifEmpty { setOf(iso) }
-                                } else {
-                                    selectedDays + iso
-                                }
-                            },
-                            label = { Text(label.take(1)) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-                Text("Inicio", modifier = Modifier.padding(top = 8.dp))
-                WheelTimePicker(
-                    hour = startHour,
-                    minute = startMinute,
-                    onHourChange = { applyStart(it, startMinute) },
-                    onMinuteChange = { applyStart(startHour, it) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text("Fin", modifier = Modifier.padding(top = 8.dp))
-                WheelTimePicker(
-                    hour = endHour,
-                    minute = endMinute,
-                    onHourChange = { endHour = it },
-                    onMinuteChange = { endMinute = it },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = room,
-                    onValueChange = { room = it },
-                    label = { Text("Salón") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val newSessions = selectedDays.sorted().map { day ->
-                        ClassSessionEntity(
-                            id = if (initial != null && day == initial.dayOfWeek) initial.id else 0L,
-                            subjectId = initial?.subjectId ?: 0L,
-                            dayOfWeek = day,
-                            startMinuteOfDay = startHour * 60 + startMinute,
-                            endMinuteOfDay = endHour * 60 + endMinute,
-                            room = room.trim(),
-                        )
-                    }
-                    onSave(newSessions)
-                },
-                enabled = room.isNotBlank() && selectedDays.isNotEmpty() && (endHour * 60 + endMinute) > (startHour * 60 + startMinute),
-            ) { Text("Guardar") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
-    )
 }

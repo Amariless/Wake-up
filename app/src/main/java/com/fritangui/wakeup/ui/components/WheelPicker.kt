@@ -1,10 +1,13 @@
 package com.fritangui.wakeup.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,6 +36,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
+
+/** snap() mientras se desliza/con fling (instantáneo, sin lag persiguiendo al dedo), tween al asentarse. */
+private fun <T> emphasisSpec(scrolling: Boolean): AnimationSpec<T> = if (scrolling) snap() else tween(160)
 
 /**
  * Selector tipo "rueda" (como el reloj nativo de Android): se desliza con el
@@ -96,10 +102,15 @@ fun WheelPicker(
                 val selected = index == centerIndex
                 // Nada de FontWeight.Bold de golpe: todo el énfasis viene de una escala y un color
                 // que se animan solos, así que crece/se resalta suave mientras vas girando la rueda.
-                val scale by animateFloatAsState(if (selected) 1f else 0.68f, tween(160), label = "wheel_scale")
+                // Mientras se está deslizando/con fling el cambio es instantáneo (snap): animarlo
+                // con tween mientras el índice central cambia varias veces por segundo hace que la
+                // animación vaya "persiguiendo" al dedo y se sienta con lag a velocidades altas. Al
+                // asentarse (fling terminado) sí se anima suave, que es cuando de verdad se nota.
+                val scrolling = listState.isScrollInProgress
+                val scale by animateFloatAsState(if (selected) 1f else 0.68f, emphasisSpec(scrolling), label = "wheel_scale")
                 val color by animateColorAsState(
                     if (selected) LocalContentColor.current else MaterialTheme.colorScheme.outline,
-                    tween(160),
+                    emphasisSpec(scrolling),
                     label = "wheel_color",
                 )
                 Box(modifier = Modifier.height(itemHeight).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -125,7 +136,7 @@ fun WheelTimePicker(
     onMinuteChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         WheelPicker(value = hour, range = 0..23, onValueChange = onHourChange)
         Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.width(20.dp), textAlign = TextAlign.Center)
         WheelPicker(value = minute, range = 0..59, onValueChange = onMinuteChange)

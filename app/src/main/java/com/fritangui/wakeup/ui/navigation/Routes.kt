@@ -6,6 +6,7 @@ object Routes {
     const val FOLDERS = "folders"
     const val FOLDER_DETAIL = "folder/{folderId}"
     const val SUBJECT_EDITOR = "subject/{folderId}/{subjectId}"
+    const val SESSION_EDITOR = "session/{folderId}/{subjectId}/{sessionId}"
     const val TASK_EDITOR = "task/{folderId}/{taskId}"
     const val CLOCK = "clock"
     const val ALARM_EDITOR = "alarm/{folderId}/{alarmId}"
@@ -20,6 +21,9 @@ object Routes {
 
     /** subjectId = 0 significa "crear nueva materia". */
     fun subjectEditor(folderId: Long, subjectId: Long = 0L) = "subject/$folderId/$subjectId"
+
+    /** sessionId = 0 significa "nuevo horario". La materia (subjectId) ya debe existir. */
+    fun sessionEditor(folderId: Long, subjectId: Long, sessionId: Long = 0L) = "session/$folderId/$subjectId/$sessionId"
 
     /** taskId = 0 significa "crear nueva tarea". folderId puede ser 0 si se crea desde la vista global. */
     fun taskEditor(folderId: Long, taskId: Long = 0L) = "task/$folderId/$taskId"

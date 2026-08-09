@@ -6,8 +6,13 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.fritangui.wakeup.data.db.AppDatabase
 import com.fritangui.wakeup.usage.ScreenTimeWorker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -22,6 +27,7 @@ import javax.inject.Inject
 class WakeUpApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var database: AppDatabase
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -30,6 +36,20 @@ class WakeUpApp : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannels()
         ScreenTimeWorker.enqueuePeriodic(this)
+        warmUpDatabase()
+    }
+
+    /**
+     * Abre la conexión SQLite (WAL, etc.) en un hilo de fondo apenas arranca la app, en vez de
+     * dejar que esto lo pague la primera pantalla que el usuario visite: sin esto, la primera
+     * consulta de Room de toda la sesión (la que dispara la primera pestaña que se abre) tiene
+     * que esperar a que se abra el archivo de la BD, y eso se sentía como que "la primera vez
+     * que abres una pestaña" iba más lento que las siguientes.
+     */
+    private fun warmUpDatabase() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            database.openHelper.writableDatabase
+        }
     }
 
     private fun createNotificationChannels() {
