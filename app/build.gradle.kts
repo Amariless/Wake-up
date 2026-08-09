@@ -7,6 +7,18 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+/** Cantidad de commits alcanzables desde HEAD; usado como versionCode/versionName por defecto. */
+fun gitCommitCount(): Int = try {
+    val process = ProcessBuilder("git", "rev-list", "--count", "HEAD")
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    process.waitFor()
+    process.inputStream.bufferedReader().readText().trim().toIntOrNull() ?: 1
+} catch (e: Exception) {
+    1
+}
+
 android {
     namespace = "com.fritangui.wakeup"
     compileSdk = 35
@@ -15,11 +27,16 @@ android {
         applicationId = "com.fritangui.wakeup"
         minSdk = 26
         targetSdk = 35
-        // CI sobreescribe esto con -PversionCode=<run_number> para que el número de versión
-        // instalado coincida siempre con el sufijo del tag del release de GitHub (ver
-        // .github/workflows/release.yml y update/UpdateChecker.kt).
-        versionCode = (project.findProperty("appVersionCode") as String?)?.toIntOrNull() ?: 2
-        versionName = (project.findProperty("appVersionName") as String?) ?: "1.1.0"
+        // Por defecto el versionCode es el número de commits del repo (git rev-list --count
+        // HEAD): así una build hecha a mano acá para entregar directo, y la build de CI del
+        // mismo commit, calculan siempre el mismo número sin depender de que alguien recuerde
+        // pasar -PappVersionCode. Antes había un valor fijo (2) de respaldo, que dejaba
+        // cualquier build local pegada en esa versión para siempre y hacía que el updater
+        // in-app pensara que ya estaba al día aunque hubiera releases nuevos en GitHub.
+        // CI también lo pasa explícito (ver .github/workflows/release.yml) para que el tag del
+        // release use el mismo número (comparado en update/UpdateChecker.kt).
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toIntOrNull() ?: gitCommitCount()
+        versionName = (project.findProperty("appVersionName") as String?) ?: "1.1.${gitCommitCount()}"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
