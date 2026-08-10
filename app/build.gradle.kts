@@ -108,6 +108,19 @@ android {
     }
 }
 
+// El nombre del archivo de salida por defecto de AGP es "app-<buildType>.apk" — como el buildType
+// que de verdad usamos se sigue llamando "debug" (ver arriba, ya no es debuggeable pero el nombre
+// del build type quedó igual), el .apk terminaba llamándose "app-debug.apk" aunque ya no tuviera
+// nada de "debug". Se renombra acá al nombre real de la app en vez de andar renombrando el archivo
+// a mano cada vez que se comparte.
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            (output as com.android.build.api.variant.impl.VariantOutputImpl).outputFileName.set("wake-up.apk")
+        }
+    }
+}
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }

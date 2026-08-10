@@ -60,6 +60,6 @@ jobs:
             Instálala directo en tu Android: descarga el .apk de abajo y ábrelo,
             o usa "Buscar actualizaciones" dentro de la app.
           make_latest: true
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: app/build/outputs/apk/debug/wake-up.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
