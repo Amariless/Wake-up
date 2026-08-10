@@ -71,6 +71,11 @@ class FolderDetailViewModel @Inject constructor(
         viewModelScope.launch { taskRepository.setCompleted(taskId, completed) }
     }
 
+    /** Al marcar como completada con nota/% (ver TaskListItems.kt: solo se pregunta al completar, no al desmarcar). */
+    fun completeTaskWithGrade(task: TaskEntity, gradeValue: Double?, gradeWeightPercent: Double?) {
+        viewModelScope.launch { taskRepository.setCompletedWithGrade(task.id, true, gradeValue, gradeWeightPercent) }
+    }
+
     fun deleteTask(task: TaskEntity) {
         viewModelScope.launch { alarmController.deleteTaskAndCancelReminders(task) }
     }

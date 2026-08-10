@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 /**
@@ -62,10 +63,15 @@ class WakeUpApp : Application(), Configuration.Provider {
      * consulta de Room de toda la sesión (la que dispara la primera pestaña que se abre) tiene
      * que esperar a que se abra el archivo de la BD, y eso se sentía como que "la primera vez
      * que abres una pestaña" iba más lento que las siguientes.
+     *
+     * [AppReadyState.markReady] se llama siempre al final (con o sin éxito, y como mucho a los 3s):
+     * MainActivity mantiene la pantalla de carga puesta hasta entonces, así que un límite de tiempo
+     * evita que un problema abriendo la BD deje el splash pegado para siempre.
      */
     private fun warmUpDatabase() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            database.openHelper.writableDatabase
+            runCatching { withTimeout(3_000) { database.openHelper.writableDatabase } }
+            AppReadyState.markReady()
         }
     }
 

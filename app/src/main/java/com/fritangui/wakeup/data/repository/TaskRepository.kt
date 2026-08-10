@@ -19,5 +19,7 @@ class TaskRepository @Inject constructor(
 
     suspend fun upsert(task: TaskEntity): Long = taskDao.upsert(task)
     suspend fun setCompleted(id: Long, completed: Boolean) = taskDao.setCompleted(id, completed)
+    suspend fun setCompletedWithGrade(id: Long, completed: Boolean, gradeValue: Double?, gradeWeightPercent: Double?) =
+        taskDao.setCompletedWithGrade(id, completed, gradeValue, gradeWeightPercent)
     suspend fun delete(task: TaskEntity) = taskDao.delete(task)
 }

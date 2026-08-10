@@ -43,6 +43,11 @@ data class TaskEntity(
     val dueAtEpochMillis: Long?,
     val reminderOffsetsMinutes: List<Long> = DEFAULT_REMINDER_OFFSETS,
     val isCompleted: Boolean = false,
+    /** Cuánto vale esta tarea en la nota final (p.ej. 15.0 = 15%). Se puede fijar desde que se crea
+     *  la tarea, o dejarlo para más tarde y confirmarlo/editarlo al marcarla como completada. */
+    val gradeWeightPercent: Double? = null,
+    /** La nota obtenida en esta tarea; solo tiene sentido una vez completada. */
+    val gradeValue: Double? = null,
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
 ) {
     companion object {

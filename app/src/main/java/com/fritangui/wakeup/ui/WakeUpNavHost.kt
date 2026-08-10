@@ -285,8 +285,6 @@ private fun WakeUpNavHostContent(
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
                     onOpenXiaomiWizard = { navController.navigate(Routes.XIAOMI_ONBOARDING) },
-                    onOpenScreenTime = { navController.navigate(Routes.SCREEN_TIME) },
-                    onOpenBlocking = { navController.navigate(Routes.BLOCKING) },
                     onOpenDevTools = { navController.navigate(Routes.DEV_TOOLS) },
                     onOpenUpdate = { navController.navigate(Routes.UPDATE) },
                 )

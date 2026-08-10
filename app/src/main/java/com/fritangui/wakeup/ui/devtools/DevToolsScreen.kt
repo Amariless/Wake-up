@@ -32,7 +32,6 @@ fun DevToolsScreen(viewModel: DevToolsViewModel = hiltViewModel()) {
             )
             DevButton("Poblar datos de ejemplo (carpeta+materia+tarea+alarma)") { viewModel.seedDemoData() }
             DevButton("Borrar datos de ejemplo (\"Demo 2026-1\")") { viewModel.deleteDemoData() }
-            DevButton("Simular datos de uso de pantalla") { viewModel.simulateUsageData() }
             DevButton("Forzar overlay de bloqueo") { viewModel.forceBlockOverlay() }
             Text("Inspector de nodos de accesibilidad", modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
             NodeInspectorScreen()

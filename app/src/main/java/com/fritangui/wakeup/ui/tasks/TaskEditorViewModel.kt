@@ -58,6 +58,7 @@ class TaskEditorViewModel @Inject constructor(
         subjectId: Long?,
         dueAtEpochMillis: Long?,
         reminderOffsetsMinutes: List<Long>,
+        gradeWeightPercent: Double?,
         onSaved: () -> Unit,
     ) {
         if (title.isBlank()) return
@@ -74,6 +75,11 @@ class TaskEditorViewModel @Inject constructor(
                 dueAtEpochMillis = dueAtEpochMillis,
                 reminderOffsetsMinutes = if (dueAtEpochMillis == null) emptyList() else reminderOffsetsMinutes,
                 isCompleted = _task.value?.isCompleted ?: false,
+                gradeWeightPercent = gradeWeightPercent,
+                // La nota obtenida solo se guarda al completar la tarea (ver TaskListItems.kt), no
+                // desde este editor — se conserva la que ya hubiera si se está editando una tarea
+                // que ya estaba completada.
+                gradeValue = _task.value?.gradeValue,
             )
             alarmController.saveTaskAndScheduleReminders(entity)
             widgetRefresher.refreshAll()

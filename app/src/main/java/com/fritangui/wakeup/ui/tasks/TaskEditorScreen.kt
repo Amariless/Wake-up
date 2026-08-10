@@ -45,10 +45,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.ui.components.continueListFormat
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atTime
@@ -65,9 +67,20 @@ fun TaskEditorScreen(
     val subjects by viewModel.subjectsInFolder.collectAsState()
 
     var title by rememberSaveable(task?.id) { mutableStateOf(task?.title ?: "") }
-    var description by rememberSaveable(task?.id) { mutableStateOf(task?.description ?: "") }
-    var notes by rememberSaveable(task?.id) { mutableStateOf(task?.notes ?: "") }
+    // TextFieldValue (no solo el String) para poder mover el cursor a mano al auto-continuar o
+    // salir de una lista con viñetas/numerada — ver continueListFormat.
+    var descriptionField by rememberSaveable(task?.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(task?.description ?: ""))
+    }
+    var notesField by rememberSaveable(task?.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(task?.notes ?: ""))
+    }
     var isNoteImportant by rememberSaveable(task?.id) { mutableStateOf(task?.isNoteImportant ?: false) }
+    // Cuánto vale esta tarea en la nota final; se puede dejar sin llenar acá y confirmarlo/editarlo
+    // al marcarla como completada más adelante.
+    var weightPercent by rememberSaveable(task?.id) {
+        mutableStateOf(task?.gradeWeightPercent?.let { if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString() } ?: "")
+    }
     // Para una tarea nueva, se preselecciona la última materia usada en esta misma carpeta
     // (ver TaskCreationSessionState) — se pierde si cambias de carpeta o cierras la app.
     var selectedSubjectId by rememberSaveable(task?.id) {
@@ -93,12 +106,13 @@ fun TaskEditorScreen(
         }
         viewModel.save(
             title = title,
-            description = description,
-            notes = notes,
+            description = descriptionField.text,
+            notes = notesField.text,
             isNoteImportant = isNoteImportant,
             subjectId = selectedSubjectId,
             dueAtEpochMillis = if (hasDueDate) dueAtMillis else null,
             reminderOffsetsMinutes = offsets,
+            gradeWeightPercent = weightPercent.toDoubleOrNull(),
             onSaved = onBack,
         )
     }
@@ -136,19 +150,27 @@ fun TaskEditorScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Descripción (opcional)") },
+                value = descriptionField,
+                onValueChange = { descriptionField = continueListFormat(descriptionField, it) },
+                label = { Text("Descripción (opcional). Admite listas con \"- \" o \"1. \"") },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
+                value = notesField,
+                onValueChange = { notesField = continueListFormat(notesField, it) },
                 label = { Text("Notas (opcional)") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
-            if (notes.isNotBlank()) {
+            OutlinedTextField(
+                value = weightPercent,
+                onValueChange = { weightPercent = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("% que vale en la nota final (opcional)") },
+                singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            if (notesField.text.isNotBlank()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable { isNoteImportant = !isNoteImportant },
                     verticalAlignment = Alignment.CenterVertically,

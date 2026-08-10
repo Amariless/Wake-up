@@ -19,9 +19,13 @@ import com.fritangui.wakeup.alarm.AlarmConstants.ACTION_STOP_RINGING
 import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_ALARM_ID
 import com.fritangui.wakeup.alarm.PreAlarmReceiver
 import com.fritangui.wakeup.alarm.sound.NotificationSounds
+import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.ui.components.amPmSuffix
+import com.fritangui.wakeup.ui.components.formatClockTime
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +33,7 @@ import javax.inject.Singleton
 @Singleton
 class NotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val settingsDataStore: SettingsDataStore,
 ) {
     private val manager = NotificationManagerCompat.from(context)
 
@@ -62,7 +67,11 @@ class NotificationHelper @Inject constructor(
         manager.cancel(AlarmConstants.NOTIF_ID_RINGING_BASE + alarmId.toInt())
     }
 
-    fun notifyPreAlarm(alarm: AlarmEntity) {
+    /**
+     * `suspend` porque necesita leer la preferencia de formato de hora (12h/24h) antes de armar el
+     * texto — ambos llamadores (PreAlarmReceiver, DevToolsViewModel) ya corren en una corrutina.
+     */
+    suspend fun notifyPreAlarm(alarm: AlarmEntity) {
         val openIntent = PendingIntent.getActivity(
             context,
             AlarmConstants.showIntentRequestCode(alarm.id),
@@ -78,12 +87,17 @@ class NotificationHelper @Inject constructor(
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val hh = alarm.hour.toString().padStart(2, '0')
-        val mm = alarm.minute.toString().padStart(2, '0')
+        // La hora exacta va en el TÍTULO (siempre visible aunque la notificación esté colapsada, a
+        // diferencia del contentText, que algunos launchers/OEMs ocultan hasta expandir) — antes el
+        // título solo decía "suena en 60 min" (el valor fijo configurado, no algo que dijera A QUÉ
+        // HORA sonará de verdad) y la hora quedaba solo en la segunda línea.
+        val use24Hour = settingsDataStore.use24HourFormat.first()
+        val timeText = formatClockTime(alarm.hour, alarm.minute, use24Hour) +
+            (amPmSuffix(alarm.hour, use24Hour)?.let { " $it" } ?: "")
         val notification = NotificationCompat.Builder(context, WakeUpApp.CHANNEL_PRE_ALARM)
             .setSmallIcon(R.drawable.ic_notification_alarm)
-            .setContentTitle("${alarm.label.ifBlank { "Alarma" }} suena en ${alarm.preAlarmNotificationMinutesBefore} min")
-            .setContentText("Programada para las $hh:$mm")
+            .setContentTitle("${alarm.label.ifBlank { "Alarma" }} suena a las $timeText")
+            .setContentText("En ${alarm.preAlarmNotificationMinutesBefore} min")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openIntent)
             .setAutoCancel(true)

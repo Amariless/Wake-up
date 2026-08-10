@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.BuildConfig
@@ -32,14 +36,14 @@ import com.fritangui.wakeup.BuildConfig
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenXiaomiWizard: () -> Unit,
-    onOpenScreenTime: () -> Unit,
-    onOpenBlocking: () -> Unit,
     onOpenDevTools: () -> Unit,
     onOpenUpdate: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
     val use24HourFormat by viewModel.use24HourFormat.collectAsState()
+    val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
+    val blockGraceMinutes by viewModel.blockGraceMinutes.collectAsState()
 
     Scaffold(
         topBar = {
@@ -60,10 +64,21 @@ fun SettingsScreen(
                 Switch(checked = use24HourFormat, onCheckedChange = viewModel::setUse24HourFormat)
             }
             HorizontalDivider()
+            SettingsRow("Posponer alarma", "Minutos que espera el botón \"Posponer\" al sonar una alarma") {
+                NumberStepper(value = snoozeMinutes, range = 1..30, onValueChange = viewModel::setSnoozeMinutes)
+            }
+            HorizontalDivider()
+            SettingsRow("Prórroga de bloqueo", "Minutos del botón \"X minutos más\" al alcanzar el límite de Reels/TikTok") {
+                NumberStepper(value = blockGraceMinutes, range = 1..30, onValueChange = viewModel::setBlockGraceMinutes)
+            }
+            HorizontalDivider()
             SettingsLinkRow("Buscar actualizaciones", "Revisa el repositorio de GitHub por una versión nueva", onOpenUpdate)
             SettingsLinkRow("Permisos", "Notificaciones, alarmas exactas, accesibilidad y más", onOpenXiaomiWizard)
-            SettingsLinkRow("Tiempo de pantalla", "Cuánto usas cada app hoy", onOpenScreenTime)
-            SettingsLinkRow("Bloqueo de Reels/TikTok", "Límites diarios de scroll infinito", onOpenBlocking)
+            // Tiempo de pantalla y Bloqueo de Reels/TikTok ya no están acá: la pestaña Bienestar
+            // (antes "Tiempo de pantalla") ya cubre las dos, tenerlas duplicadas en Ajustes solo
+            // confundía — y de paso, navegar hasta Bienestar por acá dejaba una entrada extra en la
+            // pila de navegación que a veces hacía que el tab de Inicio terminara cayendo ahí en
+            // vez de a Inicio.
             if (BuildConfig.DEV_TOOLS_ENABLED) {
                 HorizontalDivider()
                 SettingsLinkRow("Panel de desarrollador", "Solo en builds debug", onOpenDevTools)
@@ -91,6 +106,24 @@ private fun SettingsRow(title: String, subtitle: String, trailing: @Composable (
             Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         }
         trailing()
+    }
+}
+
+@Composable
+private fun NumberStepper(value: Int, range: IntRange, onValueChange: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { if (value - 1 in range) onValueChange(value - 1) }, enabled = value - 1 in range) {
+            Icon(Icons.Default.Remove, contentDescription = "Menos")
+        }
+        Text(
+            "$value",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(28.dp),
+        )
+        IconButton(onClick = { if (value + 1 in range) onValueChange(value + 1) }, enabled = value + 1 in range) {
+            Icon(Icons.Default.Add, contentDescription = "Más")
+        }
     }
 }
 

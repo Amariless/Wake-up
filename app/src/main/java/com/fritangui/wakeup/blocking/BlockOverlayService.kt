@@ -17,10 +17,19 @@ import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import com.fritangui.wakeup.R
 import com.fritangui.wakeup.WakeUpApp
+import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.entity.BlockSurface
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -33,16 +42,24 @@ import kotlin.time.Duration.Companion.minutes
 @AndroidEntryPoint
 class BlockOverlayService : LifecycleService() {
 
+    @Inject lateinit var settingsDataStore: SettingsDataStore
+
     private var overlayView: View? = null
     private val handler = Handler(Looper.getMainLooper())
     private var pendingCallback: Runnable? = null
+    private var graceDismissJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         val label = intent?.getStringExtra(EXTRA_LABEL) ?: "esta app"
         val surface = intent?.getStringExtra(EXTRA_SURFACE)?.let { runCatching { BlockSurface.valueOf(it) }.getOrNull() }
         startForeground(NOTIF_ID, buildBlockedNotification())
-        showBlockOverlay(label, surface)
+        // Configurable en Ajustes (ver #123); 5 min por defecto — se lee acá (no en el click del
+        // botón) para que el texto del botón ya muestre el valor real desde que aparece el overlay.
+        lifecycleScope.launch {
+            val graceMinutes = settingsDataStore.blockGraceMinutes.first()
+            showBlockOverlay(label, surface, graceMinutes)
+        }
         return START_NOT_STICKY
     }
 
@@ -54,7 +71,7 @@ class BlockOverlayService : LifecycleService() {
             .setOngoing(true)
             .build()
 
-    private fun showBlockOverlay(label: String, surface: BlockSurface?) {
+    private fun showBlockOverlay(label: String, surface: BlockSurface?, graceMinutes: Int) {
         removeCurrentOverlay()
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -84,10 +101,10 @@ class BlockOverlayService : LifecycleService() {
             }
         }
         val graceButton = Button(this).apply {
-            text = "5 minutos más"
+            text = "$graceMinutes minutos más"
             setOnClickListener {
-                if (surface != null) ReelsBlockAccessibilityService.snooze(surface, GRACE_DURATION)
-                showGraceOverlay(label)
+                if (surface != null) ReelsBlockAccessibilityService.snooze(surface, graceMinutes.minutes)
+                showGraceOverlay(label, graceMinutes)
             }
             val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             params.topMargin = 24
@@ -115,7 +132,7 @@ class BlockOverlayService : LifecycleService() {
      * así la app de abajo se sigue pudiendo usar con normalidad) pero le quita viveza a los colores
      * mientras dura la prórroga.
      */
-    private fun showGraceOverlay(label: String) {
+    private fun showGraceOverlay(label: String, graceMinutes: Int) {
         removeCurrentOverlay()
         val overlay = View(this).apply { setBackgroundColor(Color.parseColor("#AA3A3A3A")) }
         addOverlayView(overlay, touchable = false)
@@ -127,7 +144,16 @@ class BlockOverlayService : LifecycleService() {
             // snooze ya venció) y este mismo overlay de bloqueo vuelve a aparecer solo.
             removeOverlayAndStop()
         }
-        handler.postDelayed(pendingCallback!!, GRACE_DURATION.inWholeMilliseconds)
+        handler.postDelayed(pendingCallback!!, graceMinutes.minutes.inWholeMilliseconds)
+
+        // Antes el velo se quedaba pegado hasta que se acababan los 5 minutos aunque el usuario
+        // hubiera cerrado la app bloqueada bastante antes (el velo cubre TODA la pantalla, así que
+        // seguía atenuando el inicio u otras apps sin sentido). ReelsBlockAccessibilityService avisa
+        // acá en cuanto detecta que el usuario ya no sigue en esa superficie.
+        graceDismissJob?.cancel()
+        graceDismissJob = lifecycleScope.launch {
+            dismissGraceRequests.collect { removeOverlayAndStop() }
+        }
     }
 
     private fun buildGraceNotification(label: String) =
@@ -161,6 +187,8 @@ class BlockOverlayService : LifecycleService() {
     }
 
     private fun removeOverlayAndStop() {
+        graceDismissJob?.cancel()
+        graceDismissJob = null
         removeCurrentOverlay()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -184,7 +212,16 @@ class BlockOverlayService : LifecycleService() {
         private const val EXTRA_LABEL = "extra_label"
         private const val EXTRA_SURFACE = "extra_surface"
         private const val AUTO_CLOSE_FALLBACK_MS = 45_000L
-        private val GRACE_DURATION = 5.minutes
+
+        // ReelsBlockAccessibilityService detecta cuándo el usuario sale de la superficie en
+        // prórroga y avisa por acá — la instancia en ejecución (si el velo de gracia sigue activo)
+        // lo quita de inmediato en vez de esperar a que se cumplan los 5 minutos.
+        private val _dismissGraceRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+        private val dismissGraceRequests: SharedFlow<Unit> = _dismissGraceRequests.asSharedFlow()
+
+        fun requestDismissGrace() {
+            _dismissGraceRequests.tryEmit(Unit)
+        }
 
         fun intent(context: Context, label: String, surface: BlockSurface) =
             Intent(context, BlockOverlayService::class.java)

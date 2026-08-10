@@ -11,7 +11,6 @@ import com.fritangui.wakeup.alarm.RingingForegroundService
 import com.fritangui.wakeup.blocking.BlockOverlayService
 import com.fritangui.wakeup.data.db.entity.BlockSurface
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
-import com.fritangui.wakeup.data.db.entity.AppUsageDailyEntity
 import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.data.db.entity.TaskEntity
@@ -19,14 +18,11 @@ import com.fritangui.wakeup.data.repository.AlarmRepository
 import com.fritangui.wakeup.data.repository.FolderRepository
 import com.fritangui.wakeup.data.repository.SubjectRepository
 import com.fritangui.wakeup.data.repository.TaskRepository
-import com.fritangui.wakeup.data.repository.UsageRepository
-import com.fritangui.wakeup.domain.todayEpochDay
 import com.fritangui.wakeup.notifications.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.random.Random
 
 /**
  * Solo se instancia en builds debug (ver [com.fritangui.wakeup.BuildConfig.DEV_TOOLS_ENABLED]).
@@ -41,7 +37,6 @@ class DevToolsViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val alarmRepository: AlarmRepository,
     private val alarmController: AlarmController,
-    private val usageRepository: UsageRepository,
     private val notificationHelper: NotificationHelper,
 ) : ViewModel() {
 
@@ -104,19 +99,6 @@ class DevToolsViewModel @Inject constructor(
 
     fun deleteDemoData() {
         viewModelScope.launch { folderRepository.deleteByExactName("Demo 2026-1") }
-    }
-
-    fun simulateUsageData() {
-        viewModelScope.launch {
-            val today = todayEpochDay()
-            val now = System.currentTimeMillis()
-            val fakePackages = listOf(
-                "com.instagram.android" to Random.nextLong(20, 120),
-                "com.zhiliaoapp.musically" to Random.nextLong(10, 90),
-                "com.google.android.youtube" to Random.nextLong(5, 60),
-            )
-            usageRepository.saveDailySnapshot(fakePackages.map { (pkg, min) -> AppUsageDailyEntity(today, pkg, min, now) })
-        }
     }
 
     fun forceBlockOverlay() {

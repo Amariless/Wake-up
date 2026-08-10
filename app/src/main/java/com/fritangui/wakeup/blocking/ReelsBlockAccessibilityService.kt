@@ -96,6 +96,7 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
             _lastDetection.value = DetectionDebugInfo(packageName, result.surface, result.matchedIds)
 
             if (result.surface != currentSurface) {
+                notifyIfLeavingSnoozedSurface(currentSurface)
                 flushAccumulatedTime()
                 currentSurface = result.surface
                 surfaceStartedAtElapsedMs = SystemClock.elapsedRealtime()
@@ -103,11 +104,26 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
             result.surface?.let { checkLimit(it) }
         } else if (currentSurface != null) {
             // Se salió de Instagram/TikTok hacia otra app: cierra el tramo que se venía acumulando.
+            notifyIfLeavingSnoozedSurface(currentSurface)
             flushAccumulatedTime()
             currentSurface = null
         }
 
         checkAlertRules(packageName)
+    }
+
+    /**
+     * Si [surface] tenía la prórroga de "5 minutos más" activa y el usuario se acaba de salir de
+     * ella (cambió de superficie o cerró la app), avisa a [BlockOverlayService] para que quite el
+     * velo gris ya mismo — antes se quedaba atenuando la pantalla (inicio, otras apps, lo que sea)
+     * hasta que se cumplían los 5 minutos completos, sin importar que ya no hiciera falta.
+     */
+    private fun notifyIfLeavingSnoozedSurface(surface: BlockSurface?) {
+        if (surface == null) return
+        val snoozedUntil = snoozedUntilElapsedMs[surface] ?: return
+        if (SystemClock.elapsedRealtime() < snoozedUntil) {
+            BlockOverlayService.requestDismissGrace()
+        }
     }
 
     /** Persiste en Room el tiempo acumulado desde que se entró a la superficie actual. */

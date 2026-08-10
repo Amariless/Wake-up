@@ -155,6 +155,7 @@ fun FolderDetailScreen(
                         onToggle = viewModel::setTaskCompleted,
                         onClick = { onOpenTask(viewModel.folderId, it) },
                         onDelete = viewModel::deleteTask,
+                        onCompleteWithGrade = viewModel::completeTaskWithGrade,
                     )
                     else -> AlarmsTab(alarms, readOnly = isReadOnly, onToggle = viewModel::setAlarmEnabled) {
                         onOpenAlarm(viewModel.folderId, it)
@@ -236,6 +237,7 @@ private fun TasksTab(
     onToggle: (Long, Boolean) -> Unit,
     onClick: (Long) -> Unit,
     onDelete: (TaskEntity) -> Unit,
+    onCompleteWithGrade: (TaskEntity, Double?, Double?) -> Unit,
 ) {
     if (tasks.isEmpty()) {
         EmptyState("Agrega tareas con o sin fecha de vencimiento")
@@ -246,6 +248,7 @@ private fun TasksTab(
             tasks = tasks,
             subjectColorsById = subjectColorsById,
             subjectNamesById = subjectNamesById,
+            onCompleteWithGrade = onCompleteWithGrade,
             showSubjectName = true,
             onToggle = onToggle,
             onClick = onClick,

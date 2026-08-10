@@ -37,8 +37,8 @@ class AlarmRingingActivity : ComponentActivity() {
                     AlarmRingingScreen(
                         alarmId = alarmId,
                         onDismissed = { finishRinging() },
-                        onSnoozed = {
-                            alarmScheduler.scheduleSnooze(alarmId)
+                        onSnoozed = { minutes ->
+                            alarmScheduler.scheduleSnooze(alarmId, minutes)
                             finishRinging()
                         },
                     )

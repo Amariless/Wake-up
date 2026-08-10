@@ -30,12 +30,13 @@ import kotlinx.datetime.toLocalDateTime
 fun AlarmRingingScreen(
     alarmId: Long,
     onDismissed: () -> Unit,
-    onSnoozed: () -> Unit,
+    onSnoozed: (minutes: Int) -> Unit,
     viewModel: AlarmRingingViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     LaunchedEffect(alarmId) { viewModel.load(alarmId) }
     val alarm by viewModel.alarm.collectAsState()
+    val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     val challenge = alarm?.dismissChallenge ?: DismissChallengeType.NONE
 
@@ -71,8 +72,8 @@ fun AlarmRingingScreen(
                     context.startService(RingingForegroundService.muteIntent(context))
                 })
             }
-            OutlinedButton(onClick = onSnoozed, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Text("Posponer 5 minutos")
+            OutlinedButton(onClick = { onSnoozed(snoozeMinutes) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Text("Posponer $snoozeMinutes minutos")
             }
         }
     }

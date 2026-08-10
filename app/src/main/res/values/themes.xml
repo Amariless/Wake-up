@@ -11,4 +11,17 @@
     <style name="Theme.WakeUp.Alarm" parent="Theme.WakeUp">
         <item name="android:windowShowWallpaper">true</item>
     </style>
+
+    <!-- Pantalla de carga inicial (androidx.core.splashscreen): usa @mipmap/ic_launcher, el MISMO
+         recurso del ícono real de la app — si el ícono se cambia más adelante, esta pantalla lo
+         sigue automáticamente sin tocar nada acá. Se queda visible hasta que AppReadyState.isReady
+         se pone en true (ver MainActivity), para que la primera pestaña que se abra ya encuentre
+         la base de datos lista en vez de sentirse lenta/con parpadeos.
+         android:windowSplashScreenAnimatedIcon con un mipmap adaptativo funciona igual que en el
+         launcher: el sistema usa la capa de primer plano. -->
+    <style name="Theme.WakeUp.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/wake_up_background_dark</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.WakeUp</item>
+    </style>
 </resources>

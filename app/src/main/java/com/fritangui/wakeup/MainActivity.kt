@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -40,7 +41,13 @@ class MainActivity : ComponentActivity() {
     private val pendingDeepLink = mutableStateOf<WidgetDeepLink?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // installSplashScreen() debe llamarse ANTES de super.onCreate() (así lo pide la librería):
+        // muestra el ícono de la app (Theme.WakeUp.Splash → @mipmap/ic_launcher, ver themes.xml)
+        // hasta que AppReadyState.isReady se ponga en true, en vez de una pantalla en blanco
+        // mientras carga la BD y la primera pantalla.
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        splashScreen.setKeepOnScreenCondition { !AppReadyState.isReady.value }
         enableEdgeToEdge()
         pendingDeepLink.value = WidgetDeepLink.from(intent)
         setContent {

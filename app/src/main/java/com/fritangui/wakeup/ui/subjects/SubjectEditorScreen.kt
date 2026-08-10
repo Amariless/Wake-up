@@ -215,6 +215,7 @@ fun SubjectEditorScreen(
                         onToggle = viewModel::setTaskCompleted,
                         onClick = { onOpenTask(viewModel.folderId, it) },
                         onDelete = viewModel::deleteTask,
+                        onCompleteWithGrade = viewModel::completeTaskWithGrade,
                     )
                 }
             }

@@ -34,6 +34,8 @@ class SettingsDataStore @Inject constructor(
         val XIAOMI_AUTOSTART_CONFIRMED = booleanPreferencesKey("xiaomi_autostart_confirmed")
         val XIAOMI_BACKGROUND_POPUP_CONFIRMED = booleanPreferencesKey("xiaomi_background_popup_confirmed")
         val USE_24_HOUR_FORMAT = booleanPreferencesKey("use_24_hour_format")
+        val SNOOZE_MINUTES = intPreferencesKey("snooze_minutes")
+        val BLOCK_GRACE_MINUTES = intPreferencesKey("block_grace_minutes")
     }
 
     val isXiaomiOnboardingDone: Flow<Boolean> =
@@ -107,5 +109,19 @@ class SettingsDataStore @Inject constructor(
 
     suspend fun setUse24HourFormat(enabled: Boolean) {
         context.dataStore.edit { it[Keys.USE_24_HOUR_FORMAT] = enabled }
+    }
+
+    /** Minutos que pospone una alarma el botón "Posponer" de la pantalla de alarma sonando. */
+    val snoozeMinutes: Flow<Int> = context.dataStore.data.map { it[Keys.SNOOZE_MINUTES] ?: 5 }
+
+    suspend fun setSnoozeMinutes(minutes: Int) {
+        context.dataStore.edit { it[Keys.SNOOZE_MINUTES] = minutes }
+    }
+
+    /** Duración de la prórroga del botón "X minutos más" del overlay de bloqueo (Reels/TikTok). */
+    val blockGraceMinutes: Flow<Int> = context.dataStore.data.map { it[Keys.BLOCK_GRACE_MINUTES] ?: 5 }
+
+    suspend fun setBlockGraceMinutes(minutes: Int) {
+        context.dataStore.edit { it[Keys.BLOCK_GRACE_MINUTES] = minutes }
     }
 }

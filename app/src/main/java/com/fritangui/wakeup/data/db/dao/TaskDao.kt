@@ -42,6 +42,12 @@ interface TaskDao {
     @Query("UPDATE tasks SET isCompleted = :completed WHERE id = :id")
     suspend fun setCompleted(id: Long, completed: Boolean)
 
+    @Query(
+        "UPDATE tasks SET isCompleted = :completed, gradeValue = :gradeValue, " +
+            "gradeWeightPercent = :gradeWeightPercent WHERE id = :id",
+    )
+    suspend fun setCompletedWithGrade(id: Long, completed: Boolean, gradeValue: Double?, gradeWeightPercent: Double?)
+
     @Delete
     suspend fun delete(task: TaskEntity)
 

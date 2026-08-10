@@ -55,6 +55,10 @@ class SubjectEditorViewModel @Inject constructor(
         viewModelScope.launch { taskRepository.setCompleted(taskId, completed) }
     }
 
+    fun completeTaskWithGrade(task: TaskEntity, gradeValue: Double?, gradeWeightPercent: Double?) {
+        viewModelScope.launch { taskRepository.setCompletedWithGrade(task.id, true, gradeValue, gradeWeightPercent) }
+    }
+
     fun deleteTask(task: TaskEntity) {
         viewModelScope.launch { alarmController.deleteTaskAndCancelReminders(task) }
     }

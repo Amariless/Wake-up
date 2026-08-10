@@ -28,4 +28,18 @@ class SettingsViewModel @Inject constructor(
     fun setUse24HourFormat(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setUse24HourFormat(enabled) }
     }
+
+    val snoozeMinutes: StateFlow<Int> = settingsDataStore.snoozeMinutes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 5)
+
+    fun setSnoozeMinutes(minutes: Int) {
+        viewModelScope.launch { settingsDataStore.setSnoozeMinutes(minutes) }
+    }
+
+    val blockGraceMinutes: StateFlow<Int> = settingsDataStore.blockGraceMinutes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 5)
+
+    fun setBlockGraceMinutes(minutes: Int) {
+        viewModelScope.launch { settingsDataStore.setBlockGraceMinutes(minutes) }
+    }
 }
