@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package com.fritangui.wakeup.ui.subjects
 
@@ -44,7 +44,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.fritangui.wakeup.ui.theme.FolderColorPalette
+import com.fritangui.wakeup.ui.tasks.TaskListColumn
+import com.fritangui.wakeup.ui.theme.SubjectColorPalette
 
 private val DIA_NOMBRES = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
 
@@ -52,13 +53,15 @@ private val DIA_NOMBRES = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Do
 fun SubjectEditorScreen(
     onBack: () -> Unit,
     onOpenSession: (folderId: Long, subjectId: Long, sessionId: Long) -> Unit,
+    onOpenTask: (folderId: Long, taskId: Long) -> Unit,
     viewModel: SubjectEditorViewModel = hiltViewModel(),
 ) {
     val subject by viewModel.subject.collectAsState()
     val currentSubjectId by viewModel.currentSubjectId.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
+    val tasks by viewModel.tasks.collectAsState()
 
-    val defaultColor = remember { FolderColorPalette.first().toArgb() }
+    val defaultColor = remember { SubjectColorPalette.first().toArgb() }
     var name by rememberSaveable(subject?.id) { mutableStateOf(subject?.name ?: "") }
     var professor by rememberSaveable(subject?.id) { mutableStateOf(subject?.professor ?: "") }
     var selectedColor by remember(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
@@ -120,8 +123,12 @@ fun SubjectEditorScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             Text("Color", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FolderColorPalette.forEach { color ->
+            // FlowRow en vez de Row: con 16 colores (antes 8) ya no caben todos en una sola fila.
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SubjectColorPalette.forEach { color ->
                     val argb = color.toArgb()
                     Box(
                         modifier = Modifier
@@ -181,6 +188,23 @@ fun SubjectEditorScreen(
                             }
                         }
                     }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
+                Text("Tareas", style = MaterialTheme.typography.titleMedium)
+                if (tasks.isEmpty()) {
+                    Text(
+                        "Esta materia todavía no tiene tareas.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                } else {
+                    TaskListColumn(
+                        tasks = tasks,
+                        onToggle = viewModel::setTaskCompleted,
+                        onClick = { onOpenTask(viewModel.folderId, it) },
+                    )
                 }
             }
         }

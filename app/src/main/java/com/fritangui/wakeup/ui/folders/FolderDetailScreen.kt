@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,13 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.dao.SubjectWithSessions
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.ui.tasks.taskListItems
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -73,6 +72,7 @@ fun FolderDetailScreen(
     val subjects by viewModel.subjects.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val subjectNamesById by viewModel.subjectNamesById.collectAsState()
+    val subjectColorsById by viewModel.subjectColorsById.collectAsState()
     val alarms by viewModel.alarms.collectAsState()
     val isPinned by viewModel.isPinned.collectAsState()
     // rememberSaveable a propósito: Navigation-Compose descompone esta pantalla por completo al
@@ -126,7 +126,7 @@ fun FolderDetailScreen(
             ) { index ->
                 when (index) {
                     0 -> SubjectsTab(subjects) { onOpenSubject(viewModel.folderId, it) }
-                    1 -> TasksTab(tasks, subjectNamesById, onToggle = viewModel::setTaskCompleted) { onOpenTask(viewModel.folderId, it) }
+                    1 -> TasksTab(tasks, subjectNamesById, subjectColorsById, onToggle = viewModel::setTaskCompleted) { onOpenTask(viewModel.folderId, it) }
                     else -> AlarmsTab(alarms, readOnly = isReadOnly, onToggle = viewModel::setAlarmEnabled) {
                         onOpenAlarm(viewModel.folderId, it)
                     }
@@ -170,6 +170,7 @@ private fun SubjectsTab(subjects: List<SubjectWithSessions>, onClick: (Long) -> 
 private fun TasksTab(
     tasks: List<TaskEntity>,
     subjectNamesById: Map<Long, String>,
+    subjectColorsById: Map<Long, Int>,
     onToggle: (Long, Boolean) -> Unit,
     onClick: (Long) -> Unit,
 ) {
@@ -178,32 +179,14 @@ private fun TasksTab(
         return
     }
     LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
-        items(tasks, key = { it.id }) { task ->
-            Card(modifier = Modifier.fillMaxWidth().animateItem().padding(vertical = 6.dp).clickable { onClick(task.id) }) {
-                Row(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle(task.id, it) })
-                    Column {
-                        Text(
-                            task.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                        )
-                        Text(
-                            task.dueAtEpochMillis?.let { "Vence " + formatDueDate(it) } ?: "Sin fecha de vencimiento",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        val subjectName = task.subjectId?.let { subjectNamesById[it] }
-                        if (subjectName != null) {
-                            Text(
-                                subjectName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.outline,
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        taskListItems(
+            tasks = tasks,
+            subjectColorsById = subjectColorsById,
+            subjectNamesById = subjectNamesById,
+            showSubjectName = true,
+            onToggle = onToggle,
+            onClick = onClick,
+        )
     }
 }
 
@@ -243,8 +226,3 @@ private fun EmptyState(message: String) {
 }
 
 private fun formatMinutes(minuteOfDay: Int): String = "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)
-
-private fun formatDueDate(epochMillis: Long): String {
-    val dt = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
-    return "%02d/%02d %02d:%02d".format(dt.dayOfMonth, dt.monthNumber, dt.hour, dt.minute)
-}

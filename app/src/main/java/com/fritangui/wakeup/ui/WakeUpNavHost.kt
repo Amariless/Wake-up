@@ -18,8 +18,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,6 +51,7 @@ import com.fritangui.wakeup.ui.subjects.SessionEditorScreen
 import com.fritangui.wakeup.ui.subjects.SubjectEditorScreen
 import com.fritangui.wakeup.ui.tasks.TaskEditorScreen
 import com.fritangui.wakeup.ui.update.UpdateScreen
+import com.fritangui.wakeup.widget.WidgetDeepLink
 
 /**
  * [navRoute] es a dónde navegar al tocar el tab (puede ser una ruta concreta,
@@ -68,11 +73,34 @@ private data class BottomDestination(
 private val TOP_LEVEL_ROUTES = setOf(Routes.HOME, Routes.FOLDERS, Routes.CLOCK, Routes.SCREEN_TIME)
 
 @Composable
-fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
+fun WakeUpNavHost(
+    pendingDeepLink: MutableState<WidgetDeepLink?> = remember { mutableStateOf(null) },
+    mainNavViewModel: MainNavViewModel = hiltViewModel(),
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val pinnedFolder by mainNavViewModel.pinnedFolder.collectAsState()
+
+    // Al tocar una clase/tarea en un widget de home screen: arma la misma pila de navegación que
+    // tendría si hubieras llegado ahí tocando dentro de la app (Inicio → Carpetas → esa carpeta →
+    // la materia/tarea), para que "atrás" se sienta natural en vez de solo cerrar la app.
+    LaunchedEffect(pendingDeepLink.value) {
+        val target = pendingDeepLink.value ?: return@LaunchedEffect
+        navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+        navController.navigate(Routes.FOLDERS)
+        when (target) {
+            is WidgetDeepLink.Subject -> {
+                navController.navigate(Routes.folderDetail(target.folderId))
+                navController.navigate(Routes.subjectEditor(target.folderId, target.subjectId))
+            }
+            is WidgetDeepLink.Task -> {
+                navController.navigate(Routes.folderDetail(target.folderId))
+                navController.navigate(Routes.taskEditor(target.folderId, target.taskId))
+            }
+        }
+        pendingDeepLink.value = null
+    }
 
     val bottomDestinations = listOf(
         BottomDestination(Routes.HOME, Routes.HOME, "Inicio", Icons.Default.Home),
@@ -181,6 +209,7 @@ fun WakeUpNavHost(mainNavViewModel: MainNavViewModel = hiltViewModel()) {
                     onOpenSession = { folderId, subjectId, sessionId ->
                         navController.navigate(Routes.sessionEditor(folderId, subjectId, sessionId))
                     },
+                    onOpenTask = { folderId, taskId -> navController.navigate(Routes.taskEditor(folderId, taskId)) },
                 )
             }
 

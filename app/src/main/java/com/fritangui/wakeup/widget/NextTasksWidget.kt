@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -65,11 +66,13 @@ class NextTasksWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(WakeUpSurfaceContainerDark)
-                .cornerRadius(20.dp)
-                .clickable(actionStartActivity(openAppIntent)),
+                .cornerRadius(20.dp),
         ) {
             Row(
-                modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clickable(actionStartActivity(openAppIntent)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = GlanceModifier.size(8.dp).background(ColorProvider(WakeUpSecondary)).cornerRadius(4.dp)) {}
@@ -84,7 +87,7 @@ class NextTasksWidget : GlanceAppWidget() {
                 Text(
                     "Sin tareas próximas",
                     style = TextStyle(color = ColorProvider(WakeUpOutlineDark)),
-                    modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).clickable(actionStartActivity(openAppIntent)),
                 )
             } else {
                 LazyColumn(modifier = GlanceModifier.fillMaxWidth()) {
@@ -113,8 +116,12 @@ class NextTasksWidget : GlanceAppWidget() {
 
     @Composable
     private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?) {
+        val context = LocalContext.current
         Row(
-            modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clickable(actionStartActivity(WidgetDeepLink.taskIntent(context, task.folderId, task.id))),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -150,17 +157,18 @@ class NextTasksWidget : GlanceAppWidget() {
         return when (dueDate) {
             today -> "Hoy"
             LocalDate.fromEpochDays(today.toEpochDays() + 1) -> "Mañana"
-            else -> "%02d/%02d".format(dueDate.dayOfMonth, dueDate.monthNumber)
+            else -> "${dueDate.dayOfMonth} ${MES_ABREVIADO[dueDate.monthNumber - 1]}"
         }
     }
 
     private fun formatDue(epochMillis: Long): String {
         val dt = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
-        return "Vence %02d/%02d %02d:%02d".format(dt.dayOfMonth, dt.monthNumber, dt.hour, dt.minute)
+        return "Vence %d %s · %02d:%02d".format(dt.dayOfMonth, MES_ABREVIADO[dt.monthNumber - 1], dt.hour, dt.minute)
     }
 
     companion object {
         private val WakeUpSecondary = com.fritangui.wakeup.ui.theme.WakeUpSecondary
+        private val MES_ABREVIADO = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic")
     }
 }
 

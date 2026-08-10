@@ -17,6 +17,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val APK_FILE_NAME = "wakeup-update.apk"
+private const val PREFS_NAME = "wakeup_apk_download"
+private const val KEY_LAST_DOWNLOAD_ID = "last_download_id"
 
 /**
  * Descarga el APK del release con [android.app.DownloadManager] (maneja la
@@ -36,15 +38,25 @@ class ApkDownloadInstaller @Inject constructor(
             return@flow
         }
 
+        // Antes de empezar: borra el archivo de la vez anterior y también su registro viejo en
+        // DownloadManager (si no, aunque el archivo se reemplace, cada descarga deja su propia fila
+        // en el content provider de DownloadManager — eso es lo que se iba "acumulando" con el
+        // tiempo, no el archivo en sí, que siempre tuvo un nombre fijo y se borraba antes de cada
+        // descarga nueva).
         outputFile().delete()
+        removeStalePreviousDownload(manager)
+
         val request = DownloadManager.Request(Uri.parse(update.downloadUrl))
             .setTitle("Wake up · ${update.releaseName}")
             .setDescription("Descargando actualización")
             .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, APK_FILE_NAME)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            // La app ya tiene su propia UI de progreso (UpdateScreen); no hace falta que además el
+            // sistema muestre su propia notificación de descarga.
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
             .setAllowedOverMetered(true)
 
         val downloadId = manager.enqueue(request)
+        rememberDownloadId(downloadId)
 
         while (true) {
             delay(400)
@@ -52,16 +64,39 @@ class ApkDownloadInstaller @Inject constructor(
             when (status) {
                 DownloadManager.STATUS_SUCCESSFUL -> {
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outputFile())
+                    // Ya tenemos el archivo copiado a nuestro propio destino (outputFile()); el
+                    // registro de DownloadManager ya no hace falta, así que se limpia de una vez en
+                    // vez de dejarlo acumulándose para la próxima descarga.
+                    manager.remove(downloadId)
+                    forgetDownloadId()
                     emit(DownloadState.ReadyToInstall(uri))
                     return@flow
                 }
                 DownloadManager.STATUS_FAILED -> {
+                    manager.remove(downloadId)
+                    forgetDownloadId()
                     emit(DownloadState.Failed("Falló la descarga (código $reason)"))
                     return@flow
                 }
                 else -> emit(DownloadState.Downloading(progress))
             }
         }
+    }
+
+    /** Por si una descarga anterior quedó a medias (p.ej. la app se cerró antes de terminar). */
+    private fun removeStalePreviousDownload(manager: DownloadManager) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val staleId = prefs.getLong(KEY_LAST_DOWNLOAD_ID, -1L)
+        if (staleId != -1L) runCatching { manager.remove(staleId) }
+        prefs.edit().remove(KEY_LAST_DOWNLOAD_ID).apply()
+    }
+
+    private fun rememberDownloadId(id: Long) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putLong(KEY_LAST_DOWNLOAD_ID, id).apply()
+    }
+
+    private fun forgetDownloadId() {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().remove(KEY_LAST_DOWNLOAD_ID).apply()
     }
 
     private fun queryStatus(manager: DownloadManager, downloadId: Long): Triple<Int, Int, Int> {

@@ -30,6 +30,9 @@
     <!-- Actualizaciones: descargar el APK del último release de GitHub e instalarlo -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- La app ya tiene su propia UI de progreso de descarga (UpdateScreen); sin este permiso,
+         DownloadManager.Request.VISIBILITY_HIDDEN se ignora y muestra igual la notificación nativa. -->
+    <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
 
     <!-- Necesario para poder resolver nombre/ícono de apps instaladas en el dashboard de uso -->
     <queries>

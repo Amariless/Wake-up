@@ -24,12 +24,17 @@ class TaskEditorViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val alarmController: AlarmController,
     private val widgetRefresher: WidgetRefresher,
+    private val sessionState: TaskCreationSessionState,
     subjectDao: SubjectDao,
 ) : ViewModel() {
 
     val folderId: Long = checkNotNull(savedStateHandle["folderId"])
     private val taskId: Long = checkNotNull(savedStateHandle["taskId"])
     val isNew: Boolean = taskId == 0L
+
+    /** Solo aplica a tareas nuevas: la materia usada la última vez en ESTA misma carpeta. */
+    val initialSubjectIdForNew: Long? = if (isNew) sessionState.lastSubjectFor(folderId) else null
+    val skipNoSubjectConfirmation: Boolean get() = sessionState.skipNoSubjectConfirmation
 
     private val _task = MutableStateFlow<TaskEntity?>(null)
     val task: StateFlow<TaskEntity?> = _task.asStateFlow()
@@ -43,6 +48,8 @@ class TaskEditorViewModel @Inject constructor(
         }
     }
 
+    fun dontAskAgainThisSession() = sessionState.dontAskAgainThisSession()
+
     fun save(
         title: String,
         notes: String,
@@ -52,6 +59,7 @@ class TaskEditorViewModel @Inject constructor(
         onSaved: () -> Unit,
     ) {
         if (title.isBlank()) return
+        sessionState.remember(folderId, subjectId)
         viewModelScope.launch {
             val entity = TaskEntity(
                 id = taskId,

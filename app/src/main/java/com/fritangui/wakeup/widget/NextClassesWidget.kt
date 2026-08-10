@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -64,11 +65,13 @@ class NextClassesWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(WakeUpSurfaceContainerDark)
-                .cornerRadius(20.dp)
-                .clickable(actionStartActivity(openAppIntent)),
+                .cornerRadius(20.dp),
         ) {
             Row(
-                modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clickable(actionStartActivity(openAppIntent)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = GlanceModifier.size(8.dp).background(ColorProvider(WakeUpAccent)).cornerRadius(4.dp)) {}
@@ -83,7 +86,7 @@ class NextClassesWidget : GlanceAppWidget() {
                 Text(
                     "Sin clases próximas",
                     style = TextStyle(color = ColorProvider(WakeUpOutlineDark)),
-                    modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).clickable(actionStartActivity(openAppIntent)),
                 )
             } else {
                 LazyColumn(modifier = GlanceModifier.fillMaxWidth()) {
@@ -112,10 +115,16 @@ class NextClassesWidget : GlanceAppWidget() {
 
     @Composable
     private fun ClassRow(occurrence: UpcomingClassOccurrence) {
+        val context = LocalContext.current
         Row(
             modifier = GlanceModifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clickable(
+                    actionStartActivity(
+                        WidgetDeepLink.subjectIntent(context, occurrence.folderId, occurrence.subjectId),
+                    ),
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(

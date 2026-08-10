@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
 import com.fritangui.wakeup.data.db.entity.SubjectEntity
+import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.data.repository.SubjectRepository
+import com.fritangui.wakeup.data.repository.TaskRepository
 import com.fritangui.wakeup.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +24,7 @@ import javax.inject.Inject
 class SubjectEditorViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val subjectRepository: SubjectRepository,
+    private val taskRepository: TaskRepository,
     private val widgetRefresher: WidgetRefresher,
 ) : ViewModel() {
 
@@ -38,6 +41,15 @@ class SubjectEditorViewModel @Inject constructor(
     val subject: StateFlow<SubjectEntity?> = _currentSubjectId
         .flatMapLatest { id -> if (id == null) flowOf(null) else subjectRepository.observeById(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Tareas asociadas a esta materia, para mostrarlas debajo del horario (ver #71). */
+    val tasks: StateFlow<List<TaskEntity>> = _currentSubjectId
+        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else taskRepository.observeBySubject(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setTaskCompleted(taskId: Long, completed: Boolean) {
+        viewModelScope.launch { taskRepository.setCompleted(taskId, completed) }
+    }
 
     /**
      * Guarda nombre/profesor/color. Si es una materia nueva, la crea (upsert) y

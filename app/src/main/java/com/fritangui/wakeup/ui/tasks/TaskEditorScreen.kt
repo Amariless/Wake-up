@@ -1,14 +1,21 @@
 package com.fritangui.wakeup.ui.tasks
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -34,8 +41,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -54,7 +64,11 @@ fun TaskEditorScreen(
 
     var title by rememberSaveable(task?.id) { mutableStateOf(task?.title ?: "") }
     var notes by rememberSaveable(task?.id) { mutableStateOf(task?.notes ?: "") }
-    var selectedSubjectId by rememberSaveable(task?.id) { mutableStateOf(task?.subjectId) }
+    // Para una tarea nueva, se preselecciona la última materia usada en esta misma carpeta
+    // (ver TaskCreationSessionState) — se pierde si cambias de carpeta o cierras la app.
+    var selectedSubjectId by rememberSaveable(task?.id) {
+        mutableStateOf(task?.subjectId ?: viewModel.initialSubjectIdForNew)
+    }
     var hasDueDate by rememberSaveable(task?.id) { mutableStateOf(task?.dueAtEpochMillis != null) }
     var dueAtMillis by rememberSaveable(task?.id) { mutableStateOf(task?.dueAtEpochMillis) }
     var reminderWeekBefore by rememberSaveable(task?.id) {
@@ -65,6 +79,32 @@ fun TaskEditorScreen(
     }
     var showDatePicker by remember { mutableStateOf(false) }
     var subjectMenuExpanded by remember { mutableStateOf(false) }
+    var showNoSubjectConfirm by remember { mutableStateOf(false) }
+    var dontAskAgainChecked by remember { mutableStateOf(false) }
+
+    fun doSave() {
+        val offsets = buildList {
+            if (reminderWeekBefore) add(7 * 24 * 60L)
+            if (reminderDayBefore) add(24 * 60L)
+        }
+        viewModel.save(
+            title = title,
+            notes = notes,
+            subjectId = selectedSubjectId,
+            dueAtEpochMillis = if (hasDueDate) dueAtMillis else null,
+            reminderOffsetsMinutes = offsets,
+            onSaved = onBack,
+        )
+    }
+
+    fun onSaveClicked() {
+        if (selectedSubjectId == null && !viewModel.skipNoSubjectConfirmation) {
+            dontAskAgainChecked = false
+            showNoSubjectConfirm = true
+        } else {
+            doSave()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -96,16 +136,22 @@ fun TaskEditorScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
 
+            val selectedSubject = subjects.find { it.id == selectedSubjectId }
             ExposedDropdownMenuBox(
                 expanded = subjectMenuExpanded,
                 onExpandedChange = { subjectMenuExpanded = it },
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 OutlinedTextField(
-                    value = subjects.find { it.id == selectedSubjectId }?.name ?: "Sin materia asociada",
+                    value = selectedSubject?.name ?: "Sin materia asociada",
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Materia (opcional)") },
+                    leadingIcon = if (selectedSubject != null) {
+                        { ColorDot(selectedSubject.colorArgb) }
+                    } else {
+                        null
+                    },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectMenuExpanded) },
                     modifier = Modifier.fillMaxWidth().menuAnchor(),
                 )
@@ -120,6 +166,7 @@ fun TaskEditorScreen(
                     subjects.forEach { subject ->
                         DropdownMenuItem(
                             text = { Text(subject.name) },
+                            leadingIcon = { ColorDot(subject.colorArgb) },
                             onClick = { selectedSubjectId = subject.id; subjectMenuExpanded = false },
                         )
                     }
@@ -153,24 +200,40 @@ fun TaskEditorScreen(
             }
 
             Button(
-                onClick = {
-                    val offsets = buildList {
-                        if (reminderWeekBefore) add(7 * 24 * 60L)
-                        if (reminderDayBefore) add(24 * 60L)
-                    }
-                    viewModel.save(
-                        title = title,
-                        notes = notes,
-                        subjectId = selectedSubjectId,
-                        dueAtEpochMillis = if (hasDueDate) dueAtMillis else null,
-                        reminderOffsetsMinutes = offsets,
-                        onSaved = onBack,
-                    )
-                },
+                onClick = ::onSaveClicked,
                 enabled = title.isNotBlank() && (!hasDueDate || dueAtMillis != null),
                 modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
             ) { Text("Guardar") }
         }
+    }
+
+    if (showNoSubjectConfirm) {
+        AlertDialog(
+            onDismissRequest = { showNoSubjectConfirm = false },
+            title = { Text("¿Guardar sin materia asignada?") },
+            text = {
+                Column {
+                    Text("Esta tarea no quedará asociada a ninguna materia.")
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable {
+                            dontAskAgainChecked = !dontAskAgainChecked
+                        },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = dontAskAgainChecked, onCheckedChange = { dontAskAgainChecked = it })
+                        Text("No preguntar de nuevo esta sesión")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (dontAskAgainChecked) viewModel.dontAskAgainThisSession()
+                    showNoSubjectConfirm = false
+                    doSave()
+                }) { Text("Guardar de todos modos") }
+            },
+            dismissButton = { TextButton(onClick = { showNoSubjectConfirm = false }) { Text("Cancelar") } },
+        )
     }
 
     if (showDatePicker) {
@@ -193,6 +256,11 @@ fun TaskEditorScreen(
             DatePicker(state = state)
         }
     }
+}
+
+@Composable
+private fun ColorDot(colorArgb: Int) {
+    Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(Color(colorArgb)))
 }
 
 @Composable

@@ -213,7 +213,7 @@ fun AlarmEditorScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Vibrar")
+                    Text("Vibrar", style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = vibrate, onCheckedChange = { vibrate = it })
                 }
 
@@ -223,15 +223,20 @@ fun AlarmEditorScreen(
                     color = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             }
 
+            // Distinto de "Vibrar": esto borra la alarma/recordatorio de la lista después de que
+            // suene, en vez de solo activar/desactivar la vibración. Con su propio divisor arriba
+            // para que no se confundan como si fuera el mismo interruptor repetido.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Eliminar después de sonar")
+                    Text("Eliminar después de sonar", style = MaterialTheme.typography.bodyLarge)
                     Text(
                         "Útil para algo de una sola vez: no se vuelve a guardar tras sonar.",
                         style = MaterialTheme.typography.bodySmall,

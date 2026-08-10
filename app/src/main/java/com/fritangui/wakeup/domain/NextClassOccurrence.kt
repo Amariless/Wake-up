@@ -12,6 +12,7 @@ import kotlinx.datetime.toLocalDateTime
 /** Una ocurrencia concreta (fecha real, no solo "los lunes") de una sesión de clase. */
 data class UpcomingClassOccurrence(
     val subjectId: Long,
+    val folderId: Long,
     val subjectName: String,
     val colorArgb: Int,
     val room: String,
@@ -50,6 +51,7 @@ fun computeNextClassOccurrences(
 
             occurrences += UpcomingClassOccurrence(
                 subjectId = entry.subject.id,
+                folderId = entry.subject.folderId,
                 subjectName = entry.subject.name,
                 colorArgb = entry.subject.colorArgb,
                 room = session.room,

@@ -58,6 +58,11 @@ class FolderDetailViewModel @Inject constructor(
         .map { list -> list.associate { it.subject.id to it.subject.name } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /** Color de materia por id, para la barra lateral de cada tarea en la lista. */
+    val subjectColorsById: StateFlow<Map<Long, Int>> = subjects
+        .map { list -> list.associate { it.subject.id to it.subject.colorArgb } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeByFolder(folderId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

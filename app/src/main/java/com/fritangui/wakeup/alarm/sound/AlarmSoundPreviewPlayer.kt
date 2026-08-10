@@ -11,7 +11,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Reproduce un sonido de alarma una sola vez, para el botón de "previsualizar" del editor y la lista de alarmas. */
+/**
+ * Reproduce un sonido una sola vez, para el botón de "previsualizar" del editor y la lista de
+ * alarmas. A propósito usa `USAGE_MEDIA` (el volumen normal/multimedia del teléfono) y NO
+ * `USAGE_ALARM`: la previsualización es solo para escuchar cómo suena, no la alarma real sonando
+ * — si usara el stream de alarma, se oiría al volumen de alarma (que en muchos teléfonos está al
+ * máximo o en un nivel totalmente distinto al que el usuario tiene puesto para música/notis) y
+ * quedaba desproporcionadamente fuerte o silenciosa según el volumen de alarma configurado en el
+ * sistema, no el que el usuario esperaría al tocar "previsualizar". El sonido real de la alarma
+ * (cuando de verdad suena, ver [com.fritangui.wakeup.alarm.RingingForegroundService]) sigue usando
+ * `USAGE_ALARM` sin cambios.
+ */
 @Singleton
 class AlarmSoundPreviewPlayer @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -31,7 +41,7 @@ class AlarmSoundPreviewPlayer @Inject constructor(
             player = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build(),
                 )
