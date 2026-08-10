@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.ui.components.AppTimePickerDialog
+import com.fritangui.wakeup.ui.components.ClockTimeText
 import com.fritangui.wakeup.ui.components.continueListFormat
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -88,6 +90,14 @@ fun TaskEditorScreen(
     }
     var hasDueDate by rememberSaveable(task?.id) { mutableStateOf(task?.dueAtEpochMillis != null) }
     var dueAtMillis by rememberSaveable(task?.id) { mutableStateOf(task?.dueAtEpochMillis) }
+    // 11:59pm del mismo día por defecto (lo más común: "entregar antes de que acabe el día"), pero
+    // editable — se guarda aparte de la fecha para no perderlo si el usuario solo cambia la fecha.
+    var dueHour by rememberSaveable(task?.id) {
+        mutableStateOf(task?.dueAtEpochMillis?.let { epochToLocalDateTime(it).hour } ?: 23)
+    }
+    var dueMinute by rememberSaveable(task?.id) {
+        mutableStateOf(task?.dueAtEpochMillis?.let { epochToLocalDateTime(it).minute } ?: 59)
+    }
     var reminderWeekBefore by rememberSaveable(task?.id) {
         mutableStateOf(task?.reminderOffsetsMinutes?.contains(7 * 24 * 60L) ?: true)
     }
@@ -95,6 +105,7 @@ fun TaskEditorScreen(
         mutableStateOf(task?.reminderOffsetsMinutes?.contains(24 * 60L) ?: true)
     }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var subjectMenuExpanded by remember { mutableStateOf(false) }
     var showNoSubjectConfirm by remember { mutableStateOf(false) }
     var dontAskAgainChecked by remember { mutableStateOf(false) }
@@ -243,7 +254,12 @@ fun TaskEditorScreen(
 
             if (hasDueDate) {
                 val label = dueAtMillis?.let { formatDate(it) } ?: "Elegir fecha"
-                TextButton(onClick = { showDatePicker = true }) { Text(label) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showDatePicker = true }) { Text(label) }
+                    TextButton(onClick = { showTimePicker = true }) {
+                        ClockTimeText(dueHour, dueMinute, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
 
                 Text("Recordarme", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
                 ReminderToggleRow("1 semana antes", reminderWeekBefore) { reminderWeekBefore = it }
@@ -295,9 +311,10 @@ fun TaskEditorScreen(
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { pickedUtcMidnight ->
-                        // El picker trabaja en UTC a medianoche; lo llevamos a las 23:59 hora local de ese día.
+                        // El picker trabaja en UTC a medianoche; se combina con la hora ya elegida
+                        // (23:59 por defecto, ver arriba, o la que se haya puesto a mano).
                         val date = Instant.fromEpochMilliseconds(pickedUtcMidnight).toLocalDateTime(TimeZone.UTC).date
-                        dueAtMillis = date.atTime(23, 59).toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
+                        dueAtMillis = date.atTime(dueHour, dueMinute).toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
                     }
                     showDatePicker = false
                 }) { Text("Aceptar") }
@@ -307,7 +324,27 @@ fun TaskEditorScreen(
             DatePicker(state = state)
         }
     }
+
+    if (showTimePicker) {
+        AppTimePickerDialog(
+            initialHour = dueHour,
+            initialMinute = dueMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { h, m ->
+                dueHour = h
+                dueMinute = m
+                // Si ya había una fecha elegida, la conserva y solo cambia la hora.
+                val date = dueAtMillis?.let { epochToLocalDateTime(it).date }
+                    ?: kotlinx.datetime.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                dueAtMillis = date.atTime(h, m).toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
+                showTimePicker = false
+            },
+        )
+    }
 }
+
+private fun epochToLocalDateTime(epochMillis: Long) =
+    Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
 
 @Composable
 private fun ColorDot(colorArgb: Int) {

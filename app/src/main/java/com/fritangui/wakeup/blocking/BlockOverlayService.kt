@@ -127,14 +127,15 @@ class BlockOverlayService : LifecycleService() {
 
     /**
      * Android no deja que una app normal (sin el permiso de sistema WRITE_SECURE_SETTINGS, que solo
-     * se puede otorgar por ADB) prenda la escala de grises real de todo el sistema. Esto se le
-     * acerca: un velo gris translúcido encima de todo, que no bloquea el toque (FLAG_NOT_TOUCHABLE,
-     * así la app de abajo se sigue pudiendo usar con normalidad) pero le quita viveza a los colores
-     * mientras dura la prórroga.
+     * se puede otorgar por ADB) prenda la escala de grises real de todo el sistema — un overlay
+     * como este solo puede DIBUJAR encima, no puede "desaturar" lo que ya renderizó otra app. Esto
+     * se le acerca lo más posible sin ese permiso: un gris neutro bien opaco (no un tinte suave)
+     * para que casi cualquier color de abajo se perciba apagado/gris a simple vista, en vez de un
+     * velo translúcido que se notaba más "oscurecido" que "blanco y negro".
      */
     private fun showGraceOverlay(label: String, graceMinutes: Int) {
         removeCurrentOverlay()
-        val overlay = View(this).apply { setBackgroundColor(Color.parseColor("#AA3A3A3A")) }
+        val overlay = View(this).apply { setBackgroundColor(Color.parseColor("#E64A4A4A")) }
         addOverlayView(overlay, touchable = false)
         startForeground(NOTIF_ID, buildGraceNotification(label))
 

@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -33,7 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.TaskEntity
@@ -41,6 +41,8 @@ import com.fritangui.wakeup.domain.UpcomingClassOccurrence
 import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
+import com.fritangui.wakeup.ui.theme.WakeUpPrimary
+import com.fritangui.wakeup.ui.theme.WakeUpSecondary
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -87,38 +89,88 @@ fun HomeScreen(onOpenSettings: () -> Unit, viewModel: HomeViewModel = hiltViewMo
             return@Scaffold
         }
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            item { SectionTitle("Próximas clases") }
-            if (nextClasses.isEmpty()) {
-                item { EmptyRow("No hay clases próximas") }
-            } else {
-                // Igual que en el widget: agrupadas con un encabezado por día, en vez de una lista
-                // plana donde había que fijarse en la fecha de cada tarjeta para saber a cuál día
-                // pertenecía.
-                var lastDay: Int? = null
-                nextClasses.forEach { occurrence ->
-                    val day = occurrence.start.dayOfWeek.value
-                    if (day != lastDay) {
-                        lastDay = day
-                        item(key = "day_$day") { DayHeader(DIA_LARGO[day - 1]) }
+            item {
+                // Misma "tarjeta" completa que ya se ve en los widgets de home screen (fondo propio +
+                // encabezado con punto de color), no solo las filas de adentro — así Inicio no se
+                // siente como una versión recortada de lo que ya hay en el widget.
+                WidgetStyleCard(
+                    title = "Próximas clases",
+                    dotColor = WakeUpPrimary,
+                    isEmpty = nextClasses.isEmpty(),
+                    emptyText = "No hay clases próximas",
+                ) {
+                    var lastDay: Int? = null
+                    nextClasses.forEach { occurrence ->
+                        val day = occurrence.start.dayOfWeek.value
+                        if (day != lastDay) {
+                            lastDay = day
+                            DayHeader(DIA_LARGO[day - 1])
+                        }
+                        ClassRow(occurrence)
                     }
-                    item(key = "class_${occurrence.subjectId}_${occurrence.start}") { ClassRow(occurrence) }
                 }
             }
-            item { SectionTitle("Próximas tareas", topPadding = 24.dp) }
-            if (upcomingTasks.isEmpty()) {
-                item { EmptyRow("No hay tareas próximas") }
-            } else {
-                items(upcomingTasks, key = { it.id }) { task ->
-                    TaskRow(task, subjectColorsById[task.subjectId], task.subjectId?.let { subjectNamesById[it] })
+            item {
+                WidgetStyleCard(
+                    title = "Próximas tareas",
+                    dotColor = WakeUpSecondary,
+                    isEmpty = upcomingTasks.isEmpty(),
+                    emptyText = "No hay tareas próximas",
+                    topPadding = 16.dp,
+                ) {
+                    upcomingTasks.forEach { task ->
+                        TaskRow(task, subjectColorsById[task.subjectId], task.subjectId?.let { subjectNamesById[it] })
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * Misma "tarjeta" que arman los widgets de home screen: fondo propio con esquinas redondeadas y un
+ * encabezado con un punto de color + título en negrilla, en vez de un simple `Text` de sección
+ * flotando sobre el fondo de la pantalla.
+ */
 @Composable
-private fun SectionTitle(text: String, topPadding: Dp = 0.dp) {
-    Text(text, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = topPadding, bottom = 8.dp))
+private fun WidgetStyleCard(
+    title: String,
+    dotColor: Color,
+    isEmpty: Boolean,
+    emptyText: String,
+    topPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = topPadding)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+        if (isEmpty) {
+            Text(
+                emptyText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            )
+        } else {
+            Column(modifier = Modifier.padding(bottom = 12.dp), content = content)
+        }
+    }
 }
 
 @Composable
@@ -127,30 +179,20 @@ private fun DayHeader(label: String) {
         label,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.outline,
-        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
     )
 }
 
 @Composable
-private fun EmptyRow(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
-}
-
-/**
- * Mismo lenguaje visual que las filas de los widgets de home screen (barra de color de la materia
- * + tarjeta interna con esquinas redondeadas), para que Inicio no se sienta como una versión más
- * pobre de lo que ya se ve en el widget.
- */
-@Composable
-private fun DecoratedRow(accentColor: Color, content: @Composable ColumnScope.() -> Unit) {
+private fun ItemRow(accentColor: Color, content: @Composable ColumnScope.() -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
                 .width(4.dp)
-                .height(44.dp)
+                .height(40.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(accentColor),
         )
@@ -169,26 +211,24 @@ private fun DecoratedRow(accentColor: Color, content: @Composable ColumnScope.()
 @Composable
 private fun ClassRow(occurrence: UpcomingClassOccurrence) {
     val use24Hour = LocalUse24HourFormat.current
-    DecoratedRow(accentColor = Color(occurrence.colorArgb)) {
+    ItemRow(accentColor = Color(occurrence.colorArgb)) {
         Text(occurrence.subjectName, style = MaterialTheme.typography.titleMedium)
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                "${formatClockTime(occurrence.start.hour, occurrence.start.minute, use24Hour)}" +
-                    (amPmSuffix(occurrence.start.hour, use24Hour)?.let { " $it" } ?: "") +
-                    "–${formatClockTime(occurrence.end.hour, occurrence.end.minute, use24Hour)}" +
-                    (amPmSuffix(occurrence.end.hour, use24Hour)?.let { " $it" } ?: "") +
-                    " · ${occurrence.room}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.outline,
-            )
-        }
+        Text(
+            "${formatClockTime(occurrence.start.hour, occurrence.start.minute, use24Hour)}" +
+                (amPmSuffix(occurrence.start.hour, use24Hour)?.let { " $it" } ?: "") +
+                "–${formatClockTime(occurrence.end.hour, occurrence.end.minute, use24Hour)}" +
+                (amPmSuffix(occurrence.end.hour, use24Hour)?.let { " $it" } ?: "") +
+                " · ${occurrence.room}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.outline,
+        )
     }
 }
 
 @Composable
 private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?, subjectName: String?) {
     val use24Hour = LocalUse24HourFormat.current
-    DecoratedRow(accentColor = subjectColorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.secondary) {
+    ItemRow(accentColor = subjectColorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.secondary) {
         Text(task.title, style = MaterialTheme.typography.titleMedium)
         val dueText = task.dueAtEpochMillis?.let {
             val dt = Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.currentSystemDefault())

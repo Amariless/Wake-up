@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -57,6 +58,19 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
     /** "Botón 5 minutos más" del overlay: deja pasar el límite de esa superficie hasta este instante. */
     private val snoozedUntilElapsedMs = mutableMapOf<BlockSurface, Long>()
 
+    // El tiempo solo se guardaba en Room al detectar que se salió de la superficie (cambio de app o
+    // de pestaña). Si en cambio la app se cerraba de golpe (deslizarla fuera de Recientes, matar el
+    // proceso) nunca llegaba ese evento de "salida" y el tramo en curso se perdía entero — cerrar y
+    // volver a abrir Instagram así "reseteaba" el conteo real y dejaba saltarse el límite. Con este
+    // flush periódico, como mucho se pierden unos segundos en vez de sesiones completas.
+    private var lastPeriodicFlushAtElapsedMs: Long = 0L
+
+    // Detección de "se salió de la superficie en prórroga" con un poco de margen: el detector de
+    // Reels es una heurística (ver ReelsNodeDetector) y puede parpadear un instante entre estados
+    // parecidos — sin este margen, el velo gris de "5 minutos más" se quitaba solo a los pocos
+    // eventos de haberlo activado aunque el usuario siguiera ahí.
+    private var leaveDebounceJob: Job? = null
+
     // Aviso de "llevas X min en redes sociales": se revisa como mucho cada ALERT_RECHECK_INTERVAL_MS
     // (llegan muchos eventos de accesibilidad por segundo, no hace falta comprobar en cada uno) y
     // como mucho una vez por regla por día (si no, reabrir la app después de ya haber avisado hoy
@@ -96,15 +110,17 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
             _lastDetection.value = DetectionDebugInfo(packageName, result.surface, result.matchedIds)
 
             if (result.surface != currentSurface) {
-                notifyIfLeavingSnoozedSurface(currentSurface)
+                scheduleLeaveCheckIfSnoozed(currentSurface)
                 flushAccumulatedTime()
                 currentSurface = result.surface
                 surfaceStartedAtElapsedMs = SystemClock.elapsedRealtime()
+            } else {
+                result.surface?.let { periodicFlush(it) }
             }
             result.surface?.let { checkLimit(it) }
         } else if (currentSurface != null) {
             // Se salió de Instagram/TikTok hacia otra app: cierra el tramo que se venía acumulando.
-            notifyIfLeavingSnoozedSurface(currentSurface)
+            scheduleLeaveCheckIfSnoozed(currentSurface)
             flushAccumulatedTime()
             currentSurface = null
         }
@@ -113,16 +129,24 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Si [surface] tenía la prórroga de "5 minutos más" activa y el usuario se acaba de salir de
-     * ella (cambió de superficie o cerró la app), avisa a [BlockOverlayService] para que quite el
-     * velo gris ya mismo — antes se quedaba atenuando la pantalla (inicio, otras apps, lo que sea)
-     * hasta que se cumplían los 5 minutos completos, sin importar que ya no hiciera falta.
+     * Si [surface] tenía la prórroga de "5 minutos más" activa y el usuario PARECE haber salido de
+     * ella (cambió de superficie o cerró la app), espera un momento antes de avisarle a
+     * [BlockOverlayService] que quite el velo — no al toque, porque el detector de Reels es una
+     * heurística que puede confundirse un instante entre pantallas parecidas (ver
+     * ReelsNodeDetector), y disparar el aviso en cada parpadeo hacía que el velo se quitara solo
+     * casi de inmediato después de activarlo. Si para cuando pasa ese margen [currentSurface] ya
+     * volvió a ser la misma superficie, no se avisa nada (era solo ruido de detección).
      */
-    private fun notifyIfLeavingSnoozedSurface(surface: BlockSurface?) {
+    private fun scheduleLeaveCheckIfSnoozed(surface: BlockSurface?) {
         if (surface == null) return
         val snoozedUntil = snoozedUntilElapsedMs[surface] ?: return
-        if (SystemClock.elapsedRealtime() < snoozedUntil) {
-            BlockOverlayService.requestDismissGrace()
+        if (SystemClock.elapsedRealtime() >= snoozedUntil) return
+        leaveDebounceJob?.cancel()
+        leaveDebounceJob = scope.launch {
+            delay(LEAVE_DEBOUNCE_MS)
+            if (currentSurface != surface) {
+                BlockOverlayService.requestDismissGrace()
+            }
         }
     }
 
@@ -134,6 +158,24 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
         scope.launch {
             usageRepository.addSurfaceUsageMillis(todayEpochDay(), surface, elapsed)
         }
+    }
+
+    /**
+     * Igual que [flushAccumulatedTime] pero sin esperar a que se salga de la superficie: se llama
+     * como mucho cada [PERIODIC_FLUSH_INTERVAL_MS] mientras se sigue en la misma, y reinicia el
+     * punto de partida — así, si el usuario cierra la app de un tirón (deslizarla en Recientes),
+     * como mucho se pierden unos segundos de conteo en vez de la sesión completa.
+     */
+    private fun periodicFlush(surface: BlockSurface) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastPeriodicFlushAtElapsedMs < PERIODIC_FLUSH_INTERVAL_MS) return
+        lastPeriodicFlushAtElapsedMs = now
+        val elapsed = now - surfaceStartedAtElapsedMs
+        if (elapsed <= 0) return
+        scope.launch {
+            usageRepository.addSurfaceUsageMillis(todayEpochDay(), surface, elapsed)
+        }
+        surfaceStartedAtElapsedMs = now
     }
 
     private fun checkLimit(surface: BlockSurface) {
@@ -207,6 +249,7 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
         rulesWatcherJob?.cancel()
         alertRulesWatcherJob?.cancel()
         commandsJob?.cancel()
+        leaveDebounceJob?.cancel()
         _isRunning.value = false
         super.onDestroy()
     }
@@ -222,6 +265,8 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
         val lastDetection: StateFlow<DetectionDebugInfo?> = _lastDetection.asStateFlow()
 
         private const val ALERT_RECHECK_INTERVAL_MS = 20_000L
+        private const val PERIODIC_FLUSH_INTERVAL_MS = 15_000L
+        private const val LEAVE_DEBOUNCE_MS = 2_500L
 
         // El overlay de bloqueo (otro proceso/componente, no un AccessibilityService) no puede
         // llamar directo a performGlobalAction ni tocar el estado de instancia de este servicio;
