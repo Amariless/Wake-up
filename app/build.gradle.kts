@@ -69,8 +69,13 @@ android {
             // applicationId (.debug) y firma que ya tenías instalada, así que sigue actualizando
             // en el mismo lugar sin perder datos — solo cambia esta bandera.
             isDebuggable = false
+            // El sufijo del applicationId (".debug") se queda: es lo que hace que esta build se
+            // instale siempre en el mismo lugar que la anterior sin perder datos — cambiarlo
+            // ahora movería la app a un applicationId distinto, que Android trata como una app
+            // aparte (instalación nueva, sin tus datos actuales). El sufijo del NOMBRE de versión
+            // ("-debug") en cambio era solo texto — ya no tiene sentido mostrarlo ahora que esta
+            // build no es debuggeable, así que se quita.
             applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
             signingConfig = signingConfigs.getByName("sideload")
             buildConfigField("boolean", "DEV_TOOLS_ENABLED", "true")
         }
