@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -47,7 +50,10 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
     val weeklyAverage = if (weekly.isNotEmpty()) weekly.sumOf { it.totalMinutes } / weekly.size else 0L
 
     Scaffold(topBar = { TopAppBar(title = { Text("Tiempo de pantalla") }) }) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+        // Sin scroll el contenido (permiso, hoy, semana+gráfico, hasta 10 apps, avisos, y el botón
+        // de bloqueo) podía no caber en pantallas más chicas — el botón de abajo quedaba cortado o
+        // pegado sin aire, dando la sensación de que "no pertenecía a nada".
+        Column(modifier = Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             if (!hasUsageAccess) {
                 Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -119,7 +125,8 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
                 }
             }
 
-            TextButton(onClick = onOpenBlocking, modifier = Modifier.padding(top = 16.dp)) {
+            HorizontalDivider(modifier = Modifier.padding(top = 24.dp))
+            TextButton(onClick = onOpenBlocking, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)) {
                 Text("Configurar bloqueo de Reels/TikTok →")
             }
         }

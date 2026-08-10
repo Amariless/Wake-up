@@ -2,6 +2,7 @@ package com.fritangui.wakeup.widget
 
 import com.fritangui.wakeup.data.repository.SubjectRepository
 import com.fritangui.wakeup.data.repository.TaskRepository
+import com.fritangui.wakeup.data.repository.UsageRepository
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -19,6 +20,7 @@ import android.content.Context
 interface WidgetEntryPoint {
     fun subjectRepository(): SubjectRepository
     fun taskRepository(): TaskRepository
+    fun usageRepository(): UsageRepository
 }
 
 fun widgetEntryPoint(context: Context): WidgetEntryPoint =

@@ -3,5 +3,6 @@
     <string name="app_name">Wake up</string>
     <string name="widget_next_classes_description">Próximas clases</string>
     <string name="widget_next_tasks_description">Próximas tareas</string>
+    <string name="widget_screen_time_description">Tiempo de pantalla</string>
     <string name="accessibility_service_description">Wake up usa este servicio solo para detectar cuándo estás viendo Reels de Instagram (u otro contenido tipo scroll infinito configurado) y avisarte o bloquearlo al llegar a tu límite diario. No lee mensajes ni datos personales, y nunca toca la bandeja de Mensajes Directos.</string>
 </resources>

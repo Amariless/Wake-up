@@ -1,10 +1,5 @@
 package com.fritangui.wakeup.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -31,21 +26,23 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
 
-/** snap() mientras se desliza/con fling (instantáneo, sin lag persiguiendo al dedo), tween al asentarse. */
-private fun <T> emphasisSpec(scrolling: Boolean): AnimationSpec<T> = if (scrolling) snap() else tween(160)
-
 /**
- * Selector tipo "rueda" (como el reloj nativo de Android): se desliza con el
- * dedo en cualquier dirección para subir o bajar el valor, en vez de tener
- * que tocar repetidamente un botón de "+1" que solo avanza. El número
- * seleccionado crece y se resalta con una animación continua mientras se
- * desliza (no es un salto de golpe a negrilla).
+ * Selector tipo "rueda" (como el reloj nativo de Android/MIUI): se desliza con el dedo en
+ * cualquier dirección para subir o bajar el valor, en vez de tener que tocar repetidamente un
+ * botón de "+1". El número seleccionado se resalta (más grande, más opaco) y el efecto es
+ * continuo: cada ítem visible calcula su propio "qué tan cerca está del centro" a partir de su
+ * posición real de scroll (en píxeles) en cada frame, así que crece/decrece y aparece/se
+ * desvanece de forma perfectamente fluida a medida que pasa por el centro — nunca "salta" de golpe
+ * de un estilo a otro, ni mientras se desliza ni al asentarse, porque no hay ningún estado
+ * discreto de por medio (nada de animateFloatAsState persiguiendo un valor "seleccionado sí/no").
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -63,6 +60,7 @@ fun WheelPicker(
     val halfVisible = visibleCount / 2
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = (items.indexOf(value)).coerceAtLeast(0))
     val flingBehavior = rememberSnapFlingBehavior(listState)
+    val itemHeightPx = with(LocalDensity.current) { itemHeight.toPx() }
 
     val centerIndex by remember {
         derivedStateOf {
@@ -91,6 +89,9 @@ fun WheelPicker(
         }
     }
 
+    val dimColor = MaterialTheme.colorScheme.outline
+    val emphasisColor = LocalContentColor.current
+
     Box(modifier = modifier.width(width).height(itemHeight * visibleCount), contentAlignment = Alignment.Center) {
         LazyColumn(
             state = listState,
@@ -99,20 +100,18 @@ fun WheelPicker(
             modifier = Modifier.fillMaxHeight().fillMaxWidth(),
         ) {
             itemsIndexed(items) { index, item ->
-                val selected = index == centerIndex
-                // Nada de FontWeight.Bold de golpe: todo el énfasis viene de una escala y un color
-                // que se animan solos, así que crece/se resalta suave mientras vas girando la rueda.
-                // Mientras se está deslizando/con fling el cambio es instantáneo (snap): animarlo
-                // con tween mientras el índice central cambia varias veces por segundo hace que la
-                // animación vaya "persiguiendo" al dedo y se sienta con lag a velocidades altas. Al
-                // asentarse (fling terminado) sí se anima suave, que es cuando de verdad se nota.
-                val scrolling = listState.isScrollInProgress
-                val scale by animateFloatAsState(if (selected) 1f else 0.68f, emphasisSpec(scrolling), label = "wheel_scale")
-                val color by animateColorAsState(
-                    if (selected) LocalContentColor.current else MaterialTheme.colorScheme.outline,
-                    emphasisSpec(scrolling),
-                    label = "wheel_color",
-                )
+                // 't' va de 1 (justo en el centro) a 0 (a halfVisible ítems de distancia o más),
+                // calculado a partir de la posición real de layout de ESTE ítem en cada frame — por
+                // eso no hace falta ninguna animación aparte, el propio scroll ya es la animación.
+                val info = listState.layoutInfo
+                val viewportCenter = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+                val itemInfo = info.visibleItemsInfo.firstOrNull { it.index == index }
+                val centerOffsetPx = itemInfo?.let { (it.offset + it.size / 2f) - viewportCenter }
+                val distanceInItems = if (centerOffsetPx != null) abs(centerOffsetPx) / itemHeightPx else halfVisible.toFloat()
+                val t = (1f - (distanceInItems / halfVisible.toFloat())).coerceIn(0f, 1f)
+                val scale = 0.68f + 0.32f * t
+                val color = lerp(dimColor, emphasisColor, t)
+
                 Box(modifier = Modifier.height(itemHeight).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(
                         label(item),

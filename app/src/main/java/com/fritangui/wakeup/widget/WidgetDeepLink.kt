@@ -12,6 +12,7 @@ import com.fritangui.wakeup.MainActivity
 sealed class WidgetDeepLink {
     data class Subject(val folderId: Long, val subjectId: Long) : WidgetDeepLink()
     data class Task(val folderId: Long, val taskId: Long) : WidgetDeepLink()
+    data object ScreenTime : WidgetDeepLink()
 
     companion object {
         private const val EXTRA_TYPE = "widget_deeplink_type"
@@ -19,6 +20,7 @@ sealed class WidgetDeepLink {
         private const val EXTRA_ITEM_ID = "widget_deeplink_item_id"
         private const val TYPE_SUBJECT = "subject"
         private const val TYPE_TASK = "task"
+        private const val TYPE_SCREEN_TIME = "screen_time"
 
         fun subjectIntent(context: Context, folderId: Long, subjectId: Long): Intent =
             Intent(context, MainActivity::class.java).apply {
@@ -34,8 +36,14 @@ sealed class WidgetDeepLink {
                 putExtra(EXTRA_ITEM_ID, taskId)
             }
 
+        fun screenTimeIntent(context: Context): Intent =
+            Intent(context, MainActivity::class.java).apply {
+                putExtra(EXTRA_TYPE, TYPE_SCREEN_TIME)
+            }
+
         fun from(intent: Intent?): WidgetDeepLink? {
             val type = intent?.getStringExtra(EXTRA_TYPE) ?: return null
+            if (type == TYPE_SCREEN_TIME) return ScreenTime
             val folderId = intent.getLongExtra(EXTRA_FOLDER_ID, -1L)
             val itemId = intent.getLongExtra(EXTRA_ITEM_ID, -1L)
             if (folderId < 0 || itemId < 0) return null

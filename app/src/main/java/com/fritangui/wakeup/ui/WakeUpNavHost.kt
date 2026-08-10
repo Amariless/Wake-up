@@ -88,15 +88,19 @@ fun WakeUpNavHost(
     LaunchedEffect(pendingDeepLink.value) {
         val target = pendingDeepLink.value ?: return@LaunchedEffect
         navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
-        navController.navigate(Routes.FOLDERS)
         when (target) {
             is WidgetDeepLink.Subject -> {
+                navController.navigate(Routes.FOLDERS)
                 navController.navigate(Routes.folderDetail(target.folderId))
                 navController.navigate(Routes.subjectEditor(target.folderId, target.subjectId))
             }
             is WidgetDeepLink.Task -> {
+                navController.navigate(Routes.FOLDERS)
                 navController.navigate(Routes.folderDetail(target.folderId))
                 navController.navigate(Routes.taskEditor(target.folderId, target.taskId))
+            }
+            WidgetDeepLink.ScreenTime -> {
+                navController.navigate(Routes.SCREEN_TIME)
             }
         }
         pendingDeepLink.value = null

@@ -9,6 +9,7 @@ import com.fritangui.wakeup.alarm.AlarmConstants
 import com.fritangui.wakeup.alarm.AlarmController
 import com.fritangui.wakeup.alarm.RingingForegroundService
 import com.fritangui.wakeup.blocking.BlockOverlayService
+import com.fritangui.wakeup.data.db.entity.BlockSurface
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.AppUsageDailyEntity
 import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
@@ -119,6 +120,6 @@ class DevToolsViewModel @Inject constructor(
     }
 
     fun forceBlockOverlay() {
-        context.startService(BlockOverlayService.intent(context, "Reels (prueba)"))
+        context.startService(BlockOverlayService.intent(context, "Reels (prueba)", BlockSurface.INSTAGRAM_REELS))
     }
 }

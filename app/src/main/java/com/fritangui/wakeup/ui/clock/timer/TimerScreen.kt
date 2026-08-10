@@ -53,6 +53,7 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     val state by viewModel.timerState.collectAsState()
     val challengePref by viewModel.challengePref.collectAsState()
 
+    var hoursInput by remember { mutableIntStateOf(0) }
     var minutesInput by remember { mutableIntStateOf(5) }
     var secondsInput by remember { mutableIntStateOf(0) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
@@ -75,8 +76,10 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
         ) { currentPhase ->
             when (currentPhase) {
                 TimerPhase.IDLE -> TimerIdleContent(
+                    hoursInput = hoursInput,
                     minutesInput = minutesInput,
                     secondsInput = secondsInput,
+                    onHoursChange = { hoursInput = it },
                     onMinutesChange = { minutesInput = it },
                     onSecondsChange = { secondsInput = it },
                     challengeLabel = CHALLENGE_LABELS.getValue(challengePref.type),
@@ -84,7 +87,7 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
                     onChallengeMenuExpandedChange = { challengeMenuExpanded = it },
                     onChallengeSelected = { type -> viewModel.setChallengePref(type, challengePref.difficulty); challengeMenuExpanded = false },
                     onStart = {
-                        val totalMillis = (minutesInput * 60L + secondsInput) * 1000L
+                        val totalMillis = (hoursInput * 3600L + minutesInput * 60L + secondsInput) * 1000L
                         if (totalMillis > 0) viewModel.start(totalMillis, challengePref.type, challengePref.difficulty)
                     },
                 )
@@ -104,8 +107,10 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
 
 @Composable
 private fun TimerIdleContent(
+    hoursInput: Int,
     minutesInput: Int,
     secondsInput: Int,
+    onHoursChange: (Int) -> Unit,
     onMinutesChange: (Int) -> Unit,
     onSecondsChange: (Int) -> Unit,
     challengeLabel: String,
@@ -117,8 +122,13 @@ private fun TimerIdleContent(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("h", style = MaterialTheme.typography.labelMedium)
+                WheelPicker(value = hoursInput, range = 0..23, onValueChange = onHoursChange)
+            }
+            Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("min", style = MaterialTheme.typography.labelMedium)
-                WheelPicker(value = minutesInput, range = 0..180, onValueChange = onMinutesChange)
+                WheelPicker(value = minutesInput, range = 0..59, onValueChange = onMinutesChange)
             }
             Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -149,7 +159,7 @@ private fun TimerIdleContent(
 
         Button(
             onClick = onStart,
-            enabled = minutesInput > 0 || secondsInput > 0,
+            enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         ) { Text("Iniciar") }
     }
@@ -184,5 +194,8 @@ private fun TimerRunningContent(
 
 private fun formatMillis(millis: Long): String {
     val totalSeconds = millis / 1000
-    return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, seconds) else "%02d:%02d".format(minutes, seconds)
 }

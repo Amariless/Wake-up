@@ -19,5 +19,6 @@ class WidgetRefresher @Inject constructor(
     suspend fun refreshAll() {
         NextClassesWidget().updateAll(context)
         NextTasksWidget().updateAll(context)
+        ScreenTimeWidget().updateAll(context)
     }
 }
