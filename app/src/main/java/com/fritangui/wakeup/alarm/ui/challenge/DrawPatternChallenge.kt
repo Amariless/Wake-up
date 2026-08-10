@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlin.math.hypot
@@ -82,6 +84,26 @@ fun DrawPatternChallenge(difficulty: Int, onCompleted: () -> Unit) {
                         center = offset,
                         style = Stroke(width = if (done) 8f else 4f),
                     )
+                }
+                // El número de orden sobre cada punto: antes solo aparecían como círculos idénticos
+                // y había que adivinar por dónde empezar. Se dibuja con Canvas nativo (Compose no
+                // tiene drawText en DrawScope) para no montar N composables Text encima.
+                drawIntoCanvas { canvas ->
+                    val textPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.WHITE
+                        textSize = 30f
+                        textAlign = android.graphics.Paint.Align.CENTER
+                        isAntiAlias = true
+                        isFakeBoldText = true
+                    }
+                    dots.forEachIndexed { index, offset ->
+                        canvas.nativeCanvas.drawText(
+                            (index + 1).toString(),
+                            offset.x,
+                            offset.y + textPaint.textSize / 3,
+                            textPaint,
+                        )
+                    }
                 }
                 if (nextExpected > 1) {
                     for (i in 1 until nextExpected) {

@@ -35,16 +35,25 @@ fun ShakeChallenge(difficulty: Int, onCompleted: () -> Unit) {
         val sensorManager = context.getSystemService<SensorManager>()
         val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         var lastShakeAtMs = 0L
+        // Debe volver a bajar de este umbral antes de que cuente la siguiente sacudida. Sin esto,
+        // una sola sacudida muy fuerte mantenía el acelerómetro por encima de SHAKE_THRESHOLD_G
+        // durante varios ciclos seguidos del sensor, y cada ciclo (separado solo por el debounce de
+        // tiempo) sumaba una sacudida — así el reto se completaba "de un solo golpe" con un
+        // movimiento brusco en vez de pedir varias sacudidas reales de ida y vuelta.
+        var armed = true
 
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 val (x, y, z) = event.values
                 val gForce = sqrt((x * x + y * y + z * z).toDouble()) / SensorManager.GRAVITY_EARTH
                 val now = System.currentTimeMillis()
-                if (gForce > SHAKE_THRESHOLD_G && now - lastShakeAtMs > SHAKE_DEBOUNCE_MS) {
+                if (armed && gForce > SHAKE_THRESHOLD_G && now - lastShakeAtMs > SHAKE_DEBOUNCE_MS) {
                     lastShakeAtMs = now
+                    armed = false
                     shakeCount++
                     if (shakeCount >= requiredShakes) onCompleted()
+                } else if (!armed && gForce < SHAKE_REARM_G) {
+                    armed = true
                 }
             }
 
@@ -68,4 +77,5 @@ fun ShakeChallenge(difficulty: Int, onCompleted: () -> Unit) {
 }
 
 private const val SHAKE_THRESHOLD_G = 2.2
+private const val SHAKE_REARM_G = 1.4
 private const val SHAKE_DEBOUNCE_MS = 250L

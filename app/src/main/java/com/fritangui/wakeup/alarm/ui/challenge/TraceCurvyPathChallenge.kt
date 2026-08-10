@@ -2,6 +2,7 @@ package com.fritangui.wakeup.alarm.ui.challenge
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,7 +50,18 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text("Recorre la línea completa con el dedo, sin soltar")
-        if (offTrack) Text("Un poco más cerca de la línea…", color = MaterialTheme.colorScheme.error)
+        // Alto fijo reservado para el aviso: antes el texto solo aparecía cuando offTrack era true,
+        // así que todo lo de abajo (la barra de progreso, el propio trazo) se movía de golpe cada
+        // vez que aparecía o desaparecía — eso era el "salto a lo loco" que se veía.
+        Box(modifier = Modifier.fillMaxWidth().height(20.dp)) {
+            if (offTrack) {
+                Text(
+                    "Un poco más cerca de la línea…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
         LinearProgressIndicator(progress = { progressFraction }, modifier = Modifier.fillMaxWidth())
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(280.dp)) {
@@ -67,12 +79,21 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
                         var progressIndex = 0
                         val lookahead = (samples.size * 0.15f).toInt().coerceAtLeast(6)
                         val retreatOnMiss = (samples.size * 0.06f).toInt().coerceAtLeast(2)
+                        // Cuántos eventos de arrastre seguidos fuera de tolerancia hacen falta antes
+                        // de considerar que "de verdad" se salió (en vez de reaccionar al primer
+                        // evento, que con el dedo temblando cerca del borde de la tolerancia
+                        // alternaba on/off en cada frame — el mensaje parpadeaba y el progreso
+                        // retrocedía de a poquito en cada uno de esos frames, dando la sensación de
+                        // saltar sin control).
+                        val missThreshold = 4
+                        var missStreak = 0
                         detectDragGestures(
                             onDragStart = { start ->
                                 progressIndex = if (distanceTo(start, samples[0]) < tolerancePx * 1.3f) 0 else -1
                                 progressFraction = 0f
                                 cursorIndex = 0f
                                 offTrack = false
+                                missStreak = 0
                             },
                             onDrag = { change, _ ->
                                 if (progressIndex < 0) return@detectDragGestures
@@ -80,19 +101,27 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
                                 for (i in progressIndex until minOf(progressIndex + lookahead, samples.size)) {
                                     if (distanceTo(change.position, samples[i]) < tolerancePx) advanced = i
                                 }
-                                if (distanceTo(change.position, samples[advanced]) > tolerancePx) {
-                                    // Más permisivo: solo retrocede un poco, no se pierde todo el avance.
+                                val onTrack = advanced > progressIndex || distanceTo(change.position, samples[progressIndex]) < tolerancePx
+                                if (onTrack) {
+                                    missStreak = 0
+                                    offTrack = false
+                                    progressIndex = advanced
+                                    cursorIndex = progressIndex.toFloat()
+                                    progressFraction = progressIndex.toFloat() / (samples.size - 1)
+                                    if (progressIndex >= samples.size - 2) onCompleted()
+                                    return@detectDragGestures
+                                }
+                                missStreak++
+                                if (missStreak >= missThreshold) {
+                                    // Retrocede una sola vez por racha de fallos, no en cada frame
+                                    // mientras sigue fuera — si no, el progreso se desplomaba a cada
+                                    // instante (~60 veces por segundo) mientras el dedo seguía fuera.
                                     offTrack = true
                                     progressIndex = (progressIndex - retreatOnMiss).coerceAtLeast(0)
                                     cursorIndex = progressIndex.toFloat()
                                     progressFraction = progressIndex.toFloat() / (samples.size - 1)
-                                    return@detectDragGestures
+                                    missStreak = 0
                                 }
-                                offTrack = false
-                                progressIndex = advanced
-                                cursorIndex = progressIndex.toFloat()
-                                progressFraction = progressIndex.toFloat() / (samples.size - 1)
-                                if (progressIndex >= samples.size - 2) onCompleted()
                             },
                             onDragEnd = {
                                 if (progressIndex in 0 until samples.size - 2) {
@@ -101,6 +130,8 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
                                     cursorIndex = progressIndex.toFloat()
                                     progressFraction = progressIndex.toFloat() / (samples.size - 1)
                                 }
+                                offTrack = false
+                                missStreak = 0
                             },
                         )
                     },

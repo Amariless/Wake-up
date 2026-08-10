@@ -11,6 +11,7 @@ import kotlinx.datetime.atTime
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration
 
 /**
  * Cálculo puro (sin AlarmManager, testeable) de la próxima vez que debe sonar
@@ -63,5 +64,23 @@ object AlarmTiming {
             if (candidate > nowInstant) return candidate
         }
         return null // bitmask sin días marcados
+    }
+
+    /**
+     * Formatea una duración como "2d 4h 15m" (omitiendo las unidades más
+     * grandes cuando son cero) para mostrar cuánto falta para que suene una
+     * alarma, tanto en la lista como en el mensaje al guardar.
+     */
+    fun formatRemaining(remaining: Duration): String {
+        if (remaining.isNegative()) return "en cualquier momento"
+        val totalMinutes = remaining.inWholeMinutes
+        val days = totalMinutes / (24 * 60)
+        val hours = (totalMinutes % (24 * 60)) / 60
+        val minutes = totalMinutes % 60
+        return buildString {
+            if (days > 0) append("${days}d ")
+            if (days > 0 || hours > 0) append("${hours}h ")
+            append("${minutes}m")
+        }
     }
 }

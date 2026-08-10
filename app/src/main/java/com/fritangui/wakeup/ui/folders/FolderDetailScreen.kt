@@ -63,7 +63,9 @@ import com.fritangui.wakeup.data.db.dao.SubjectWithSessions
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.domain.AlarmTiming
 import com.fritangui.wakeup.ui.tasks.taskListItems
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -268,6 +270,15 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
                             style = MaterialTheme.typography.headlineMedium,
                         )
                         Text(alarm.label.ifBlank { "Alarma" }, style = MaterialTheme.typography.bodyMedium)
+                        val now = remember { Clock.System.now() }
+                        val trigger = AlarmTiming.nextTrigger(alarm, now = now)
+                        if (trigger != null) {
+                            Text(
+                                "Faltan ${AlarmTiming.formatRemaining(trigger - now)}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
+                        }
                     }
                     Switch(checked = alarm.isEnabled, enabled = !readOnly, onCheckedChange = { onToggle(alarm.id, it) })
                 }

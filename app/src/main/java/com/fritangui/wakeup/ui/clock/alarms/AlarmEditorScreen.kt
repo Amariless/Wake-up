@@ -31,11 +31,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -78,6 +81,12 @@ fun AlarmEditorScreen(
 ) {
     val context = LocalContext.current
     val alarm by viewModel.alarm.collectAsState()
+    val savedFeedback by viewModel.savedFeedback.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(savedFeedback) {
+        savedFeedback?.let { snackbarHostState.showSnackbar(it) }
+    }
 
     var label by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.label ?: "") }
     var hour by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.hour ?: 7) }
@@ -110,6 +119,7 @@ fun AlarmEditorScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             // "Alarma" suena a pantalla completa con reto para apagarla; "Recordatorio" es solo una

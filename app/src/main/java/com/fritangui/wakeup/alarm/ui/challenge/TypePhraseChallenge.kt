@@ -4,7 +4,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -14,9 +19,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlin.random.Random
 
@@ -38,13 +45,31 @@ fun TypePhraseChallenge(difficulty: Int, onCompleted: () -> Unit) {
     var isWrong by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Text("Escribe exactamente esta frase:")
-        Text(
-            text = "“$target”",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 8.dp),
-        )
+        Text("Escribe exactamente esta frase:", style = MaterialTheme.typography.bodyLarge)
+
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    Icons.Default.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                Text(
+                    text = "“$target”",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
         OutlinedTextField(
             value = input,
             onValueChange = {
@@ -54,10 +79,18 @@ fun TypePhraseChallenge(difficulty: Int, onCompleted: () -> Unit) {
             label = { Text("Tu respuesta") },
             singleLine = true,
             isError = isWrong,
+            textStyle = MaterialTheme.typography.bodyLarge,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         )
-        if (isWrong) Text("No coincide, revisa mayúsculas y tildes", color = MaterialTheme.colorScheme.error)
+        if (isWrong) {
+            Text(
+                "No coincide, revisa mayúsculas y tildes",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
         Button(
             onClick = {
                 if (input.trim().equals(target, ignoreCase = false)) {
@@ -66,7 +99,7 @@ fun TypePhraseChallenge(difficulty: Int, onCompleted: () -> Unit) {
                     isWrong = true
                 }
             },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         ) {
             Text("Confirmar")
         }
