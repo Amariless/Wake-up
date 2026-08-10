@@ -35,6 +35,8 @@ import androidx.glance.unit.ColorProvider
 import com.fritangui.wakeup.MainActivity
 import com.fritangui.wakeup.domain.UpcomingClassOccurrence
 import com.fritangui.wakeup.domain.computeNextClassOccurrences
+import com.fritangui.wakeup.ui.components.amPmSuffix
+import com.fritangui.wakeup.ui.components.formatClockTime
 import com.fritangui.wakeup.ui.theme.WakeUpOnPrimary
 import com.fritangui.wakeup.ui.theme.WakeUpOutlineDark
 import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerDark
@@ -52,15 +54,16 @@ class NextClassesWidget : GlanceAppWidget() {
         val entryPoint = widgetEntryPoint(context)
         val subjects = entryPoint.subjectRepository().observeWithSessionsForActiveFolders().first()
         val occurrences = computeNextClassOccurrences(subjects, limit = 12)
+        val use24Hour = entryPoint.settingsDataStore().use24HourFormat.first()
         val openAppIntent = Intent(context, MainActivity::class.java)
 
         provideContent {
-            WidgetContent(occurrences, openAppIntent)
+            WidgetContent(occurrences, use24Hour, openAppIntent)
         }
     }
 
     @Composable
-    private fun WidgetContent(items: List<UpcomingClassOccurrence>, openAppIntent: Intent) {
+    private fun WidgetContent(items: List<UpcomingClassOccurrence>, use24Hour: Boolean, openAppIntent: Intent) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -97,7 +100,7 @@ class NextClassesWidget : GlanceAppWidget() {
                             lastDay = day
                             item { DayHeader(DIA_LARGO[day - 1]) }
                         }
-                        item { ClassRow(occurrence) }
+                        item { ClassRow(occurrence, use24Hour) }
                     }
                 }
             }
@@ -114,7 +117,7 @@ class NextClassesWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun ClassRow(occurrence: UpcomingClassOccurrence) {
+    private fun ClassRow(occurrence: UpcomingClassOccurrence, use24Hour: Boolean) {
         val context = LocalContext.current
         Row(
             modifier = GlanceModifier
@@ -147,9 +150,11 @@ class NextClassesWidget : GlanceAppWidget() {
                     style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Medium, fontSize = 13.sp),
                 )
                 Text(
-                    "%02d:%02d–%02d:%02d · %s".format(
-                        occurrence.start.hour, occurrence.start.minute,
-                        occurrence.end.hour, occurrence.end.minute,
+                    "%s%s–%s%s · %s".format(
+                        formatClockTime(occurrence.start.hour, occurrence.start.minute, use24Hour),
+                        amPmSuffix(occurrence.start.hour, use24Hour)?.let { " $it" } ?: "",
+                        formatClockTime(occurrence.end.hour, occurrence.end.minute, use24Hour),
+                        amPmSuffix(occurrence.end.hour, use24Hour)?.let { " $it" } ?: "",
                         occurrence.room,
                     ),
                     style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 12.sp),

@@ -17,6 +17,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -38,6 +39,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import com.fritangui.wakeup.ui.blocking.BlockingScreen
 import com.fritangui.wakeup.ui.clock.ClockScreen
+import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
 import com.fritangui.wakeup.ui.clock.alarms.AlarmEditorScreen
 import com.fritangui.wakeup.ui.devtools.DevToolsScreen
 import com.fritangui.wakeup.ui.folders.FolderDetailScreen
@@ -81,7 +83,21 @@ fun WakeUpNavHost(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val pinnedFolder by mainNavViewModel.pinnedFolder.collectAsState()
+    val use24HourFormat by mainNavViewModel.use24HourFormat.collectAsState()
 
+    CompositionLocalProvider(LocalUse24HourFormat provides use24HourFormat) {
+        WakeUpNavHostContent(pendingDeepLink, navController, backStackEntry, currentDestination, pinnedFolder)
+    }
+}
+
+@Composable
+private fun WakeUpNavHostContent(
+    pendingDeepLink: MutableState<WidgetDeepLink?>,
+    navController: androidx.navigation.NavHostController,
+    backStackEntry: NavBackStackEntry?,
+    currentDestination: androidx.navigation.NavDestination?,
+    pinnedFolder: com.fritangui.wakeup.data.db.entity.FolderEntity?,
+) {
     // Al tocar una clase/tarea en un widget de home screen: arma la misma pila de navegación que
     // tendría si hubieras llegado ahí tocando dentro de la app (Inicio → Carpetas → esa carpeta →
     // la materia/tarea), para que "atrás" se sienta natural en vez de solo cerrar la app.

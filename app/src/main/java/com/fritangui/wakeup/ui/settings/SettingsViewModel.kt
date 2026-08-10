@@ -21,4 +21,11 @@ class SettingsViewModel @Inject constructor(
     fun setDynamicColorEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setDynamicColorEnabled(enabled) }
     }
+
+    val use24HourFormat: StateFlow<Boolean> = settingsDataStore.use24HourFormat
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setUse24HourFormat(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setUse24HourFormat(enabled) }
+    }
 }

@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalContentColor
@@ -43,6 +43,12 @@ import kotlin.math.abs
  * desvanece de forma perfectamente fluida a medida que pasa por el centro — nunca "salta" de golpe
  * de un estilo a otro, ni mientras se desliza ni al asentarse, porque no hay ningún estado
  * discreto de por medio (nada de animateFloatAsState persiguiendo un valor "seleccionado sí/no").
+ *
+ * [loop] hace que el scroll dé la vuelta indefinidamente en cualquier dirección (arriba del
+ * primer valor aparece el último, y viceversa) en vez de topar con un final — útil para horas
+ * (0-23) y segundos/minutos (0-59) del temporizador, donde "no hay nada arriba del todo" se
+ * sentía raro. Por dentro se logra repitiendo la lista de valores muchas veces y arrancando bien
+ * en el medio de esa repetición, así hay margen de sobra para girar sin toparse con un final real.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -54,11 +60,25 @@ fun WheelPicker(
     itemHeight: Dp = 52.dp,
     visibleCount: Int = 5,
     width: Dp = 88.dp,
+    loop: Boolean = false,
     label: (Int) -> String = { it.toString().padStart(2, '0') },
 ) {
     val items = remember(range) { range.toList() }
+    val itemCount = items.size
+    val loopRepeats = if (loop) 4000 else 1
+    val virtualCount = itemCount * loopRepeats
+    fun valueAt(virtualIndex: Int): Int = items[((virtualIndex % itemCount) + itemCount) % itemCount]
+
     val halfVisible = visibleCount / 2
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (items.indexOf(value)).coerceAtLeast(0))
+    val initialIndex = remember(range) {
+        if (loop) {
+            val middleRepeat = (loopRepeats / 2) * itemCount
+            (middleRepeat + items.indexOf(value).coerceAtLeast(0)).coerceIn(0, virtualCount - 1)
+        } else {
+            items.indexOf(value).coerceAtLeast(0)
+        }
+    }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val flingBehavior = rememberSnapFlingBehavior(listState)
     val itemHeightPx = with(LocalDensity.current) { itemHeight.toPx() }
 
@@ -77,16 +97,27 @@ fun WheelPicker(
         snapshotFlow { listState.isScrollInProgress to centerIndex }
             .distinctUntilChanged()
             .collect { (scrolling, index) ->
-                if (!scrolling) items.getOrNull(index)?.let { if (it != value) onValueChange(it) }
+                if (!scrolling) {
+                    val newValue = valueAt(index)
+                    if (newValue != value) onValueChange(newValue)
+                }
             }
     }
 
-    // Si 'value' cambia desde afuera de la rueda (p.ej. al abrir el diálogo con un horario existente).
+    // Si 'value' cambia desde afuera de la rueda (p.ej. al abrir el diálogo con un horario
+    // existente): busca el índice virtual más cercano al actual que ya represente ese valor, en
+    // vez de siempre saltar hacia adelante — así el salto visual es el más corto posible.
     LaunchedEffect(value) {
-        val targetIndex = items.indexOf(value)
-        if (targetIndex >= 0 && targetIndex != centerIndex && !listState.isScrollInProgress) {
-            listState.scrollToItem(targetIndex)
-        }
+        if (listState.isScrollInProgress) return@LaunchedEffect
+        if (valueAt(centerIndex) == value) return@LaunchedEffect
+        val targetOffsetInCycle = items.indexOf(value)
+        if (targetOffsetInCycle < 0) return@LaunchedEffect
+        val currentOffsetInCycle = ((centerIndex % itemCount) + itemCount) % itemCount
+        val forward = (targetOffsetInCycle - currentOffsetInCycle + itemCount) % itemCount
+        val backward = forward - itemCount
+        val steps = if (abs(forward) <= abs(backward)) forward else backward
+        val target = (centerIndex + steps).coerceIn(0, virtualCount - 1)
+        listState.scrollToItem(target)
     }
 
     val dimColor = MaterialTheme.colorScheme.outline
@@ -99,7 +130,7 @@ fun WheelPicker(
             contentPadding = PaddingValues(vertical = itemHeight * halfVisible),
             modifier = Modifier.fillMaxHeight().fillMaxWidth(),
         ) {
-            itemsIndexed(items) { index, item ->
+            items(count = virtualCount, key = { it }) { index ->
                 // 't' va de 1 (justo en el centro) a 0 (a halfVisible ítems de distancia o más),
                 // calculado a partir de la posición real de layout de ESTE ítem en cada frame — por
                 // eso no hace falta ninguna animación aparte, el propio scroll ya es la animación.
@@ -114,7 +145,7 @@ fun WheelPicker(
 
                 Box(modifier = Modifier.height(itemHeight).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(
-                        label(item),
+                        label(valueAt(index)),
                         style = MaterialTheme.typography.headlineMedium,
                         color = color,
                         modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale },

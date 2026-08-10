@@ -33,6 +33,7 @@ class SettingsDataStore @Inject constructor(
         val TIMER_CHALLENGE_DIFFICULTY = intPreferencesKey("timer_challenge_difficulty")
         val XIAOMI_AUTOSTART_CONFIRMED = booleanPreferencesKey("xiaomi_autostart_confirmed")
         val XIAOMI_BACKGROUND_POPUP_CONFIRMED = booleanPreferencesKey("xiaomi_background_popup_confirmed")
+        val USE_24_HOUR_FORMAT = booleanPreferencesKey("use_24_hour_format")
     }
 
     val isXiaomiOnboardingDone: Flow<Boolean> =
@@ -97,5 +98,14 @@ class SettingsDataStore @Inject constructor(
 
     suspend fun setXiaomiBackgroundPopupConfirmed(confirmed: Boolean) {
         context.dataStore.edit { it[Keys.XIAOMI_BACKGROUND_POPUP_CONFIRMED] = confirmed }
+    }
+
+    // Por defecto apagado (12h con AM/PM chico): es el formato que la mayoría espera ver de
+    // entrada en un reloj/alarma; quien prefiera 24h lo puede activar en Ajustes.
+    val use24HourFormat: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.USE_24_HOUR_FORMAT] ?: false }
+
+    suspend fun setUse24HourFormat(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.USE_24_HOUR_FORMAT] = enabled }
     }
 }

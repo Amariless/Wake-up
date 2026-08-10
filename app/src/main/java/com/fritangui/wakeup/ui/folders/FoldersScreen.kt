@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -59,6 +60,7 @@ fun FoldersScreen(
     viewModel: FoldersViewModel = hiltViewModel(),
 ) {
     val folders by viewModel.folders.collectAsState()
+    val pinnedFolderId by viewModel.pinnedFolderId.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -78,6 +80,7 @@ fun FoldersScreen(
                 items(folders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
+                        isPinned = folder.id == pinnedFolderId,
                         onClick = { onOpenFolder(folder.id) },
                         onTerminate = { viewModel.terminateFolder(folder.id) },
                         onReactivate = { viewModel.reactivateFolder(folder.id) },
@@ -103,6 +106,7 @@ fun FoldersScreen(
 @Composable
 private fun FolderRow(
     folder: FolderEntity,
+    isPinned: Boolean,
     onClick: () -> Unit,
     onTerminate: () -> Unit,
     onReactivate: () -> Unit,
@@ -129,6 +133,24 @@ private fun FolderRow(
                     style = MaterialTheme.typography.titleLarge,
                     textDecoration = if (!folder.isActive) TextDecoration.LineThrough else null,
                 )
+                // Marca clara de cuál es tu carpeta principal: si no, una carpeta vieja marcada como
+                // principal puede quedar enterrada bajo carpetas más nuevas en la lista y dar la
+                // sensación de que "desapareció" al volver acá desde su propio detalle.
+                if (isPinned) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            " Principal",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 if (!folder.isActive) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(

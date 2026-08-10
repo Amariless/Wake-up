@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
@@ -38,6 +40,7 @@ import com.fritangui.wakeup.alarm.sound.NotificationSounds
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.domain.AlarmTiming
+import com.fritangui.wakeup.ui.components.ClockTimeText
 import kotlinx.datetime.Clock
 
 private val DIA_LETRAS = listOf("L", "M", "X", "J", "V", "S", "D")
@@ -69,21 +72,54 @@ fun AlarmsListScreen(
         return
     }
 
+    // Secciones separadas (no solo una etiqueta chica) para que quede clarísimo que un Recordatorio
+    // es distinto de una Alarma: es solo una notificación normal, no algo que "suena" y haya que
+    // apagar completando un reto.
+    val realAlarms = alarms.filter { it.kind == AlarmKind.ALARM }
+    val reminders = alarms.filter { it.kind == AlarmKind.REMINDER }
+
     LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
-        items(alarms, key = { it.id }) { alarm ->
-            val soundUri = alarm.soundUri
-                ?: if (alarm.kind == AlarmKind.REMINDER) NotificationSounds.defaultSoundUriFor(context) else AlarmSounds.defaultSoundUriFor(context)
-            AlarmRow(
-                alarm = alarm,
-                now = now,
-                isPreviewing = playingUri == soundUri,
-                onClick = { onOpenAlarm(alarm.id) },
-                onToggle = { viewModel.setEnabled(alarm.id, it) },
-                onPreview = { viewModel.previewPlayer.toggle(soundUri) },
-                modifier = Modifier.animateItem(placementSpec = tween(220)),
-            )
+        if (realAlarms.isNotEmpty()) {
+            item(key = "header_alarms") { SectionHeader("Alarmas") }
+            items(realAlarms, key = { it.id }) { alarm ->
+                val soundUri = alarm.soundUri ?: AlarmSounds.defaultSoundUriFor(context)
+                AlarmRow(
+                    alarm = alarm,
+                    now = now,
+                    isPreviewing = playingUri == soundUri,
+                    onClick = { onOpenAlarm(alarm.id) },
+                    onToggle = { viewModel.setEnabled(alarm.id, it) },
+                    onPreview = { viewModel.previewPlayer.toggle(soundUri) },
+                    modifier = Modifier.animateItem(placementSpec = tween(220)),
+                )
+            }
+        }
+        if (reminders.isNotEmpty()) {
+            item(key = "header_reminders") { SectionHeader("Recordatorios", topPadding = if (realAlarms.isNotEmpty()) 20.dp else 0.dp) }
+            items(reminders, key = { it.id }) { alarm ->
+                val soundUri = alarm.soundUri ?: NotificationSounds.defaultSoundUriFor(context)
+                AlarmRow(
+                    alarm = alarm,
+                    now = now,
+                    isPreviewing = playingUri == soundUri,
+                    onClick = { onOpenAlarm(alarm.id) },
+                    onToggle = { viewModel.setEnabled(alarm.id, it) },
+                    onPreview = { viewModel.previewPlayer.toggle(soundUri) },
+                    modifier = Modifier.animateItem(placementSpec = tween(220)),
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun SectionHeader(text: String, topPadding: androidx.compose.ui.unit.Dp = 0.dp) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.outline,
+        modifier = Modifier.padding(top = topPadding, bottom = 4.dp),
+    )
 }
 
 @Composable
@@ -102,23 +138,30 @@ private fun AlarmRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
-                Text("%02d:%02d".format(alarm.hour, alarm.minute), style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    alarm.label.ifBlank { if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma" },
-                    style = MaterialTheme.typography.bodyMedium,
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                // Ícono distinto (campana vs. despertador) además de la sección separada: un
+                // Recordatorio es solo una notificación normal, no algo que suene y haya que apagar.
+                Icon(
+                    if (alarm.kind == AlarmKind.REMINDER) Icons.Default.Notifications else Icons.Default.Alarm,
+                    contentDescription = null,
+                    tint = if (alarm.kind == AlarmKind.REMINDER) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 12.dp),
                 )
-                if (alarm.kind == AlarmKind.REMINDER) {
-                    Text("Recordatorio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                }
-                Text(repeatSummary(alarm.repeatDaysBitmask), style = MaterialTheme.typography.bodyMedium)
-                val trigger = AlarmTiming.nextTrigger(alarm, now = now)
-                if (trigger != null) {
+                Column {
+                    ClockTimeText(alarm.hour, alarm.minute, style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        "Faltan ${AlarmTiming.formatRemaining(trigger - now)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.outline,
+                        alarm.label.ifBlank { if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma" },
+                        style = MaterialTheme.typography.bodyMedium,
                     )
+                    Text(repeatSummary(alarm.repeatDaysBitmask), style = MaterialTheme.typography.bodyMedium)
+                    val trigger = AlarmTiming.nextTrigger(alarm, now = now)
+                    if (trigger != null) {
+                        Text(
+                            "Faltan ${AlarmTiming.formatRemaining(trigger - now)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {

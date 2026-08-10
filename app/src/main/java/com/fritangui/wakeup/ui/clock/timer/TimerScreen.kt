@@ -14,11 +14,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -120,21 +126,15 @@ private fun TimerIdleContent(
     onStart: () -> Unit,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es cuál.
+        // Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier dirección (arriba
+        // de la hora 0 aparece la 23, arriba del segundo 0 el 59...) en vez de topar con un final.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("h", style = MaterialTheme.typography.labelMedium)
-                WheelPicker(value = hoursInput, range = 0..23, onValueChange = onHoursChange)
-            }
+            WheelPicker(value = hoursInput, range = 0..23, onValueChange = onHoursChange, loop = true)
             Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("min", style = MaterialTheme.typography.labelMedium)
-                WheelPicker(value = minutesInput, range = 0..59, onValueChange = onMinutesChange)
-            }
+            WheelPicker(value = minutesInput, range = 0..59, onValueChange = onMinutesChange, loop = true)
             Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("seg", style = MaterialTheme.typography.labelMedium)
-                WheelPicker(value = secondsInput, range = 0..59, onValueChange = onSecondsChange)
-            }
+            WheelPicker(value = secondsInput, range = 0..59, onValueChange = onSecondsChange, loop = true)
         }
 
         ExposedDropdownMenuBox(
@@ -157,11 +157,16 @@ private fun TimerIdleContent(
             }
         }
 
-        Button(
+        // Mismo botón circular relleno que usa el cronómetro para "Iniciar", en vez de un botón de
+        // ancho completo con texto — para que ambas pantallas del reloj se sientan consistentes.
+        FilledIconButton(
             onClick = onStart,
             enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0,
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-        ) { Text("Iniciar") }
+            modifier = Modifier.padding(top = 24.dp).size(72.dp),
+            shape = CircleShape,
+        ) {
+            Icon(Icons.Default.PlayArrow, contentDescription = "Iniciar", modifier = Modifier.size(32.dp))
+        }
     }
 }
 

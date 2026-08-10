@@ -20,11 +20,22 @@ class HomeViewModel @Inject constructor(
     taskRepository: TaskRepository,
 ) : ViewModel() {
 
-    val nextClasses: StateFlow<List<UpcomingClassOccurrence>> = subjectRepository
-        .observeWithSessionsForActiveFolders()
+    private val subjectsWithSessions = subjectRepository.observeWithSessionsForActiveFolders()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val nextClasses: StateFlow<List<UpcomingClassOccurrence>> = subjectsWithSessions
         .map { computeNextClassOccurrences(it, limit = 6) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val upcomingTasks: StateFlow<List<TaskEntity>> = taskRepository.observeUpcoming(limit = 6)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Color/nombre de materia por id, para decorar cada tarea igual que ya hacen los widgets. */
+    val subjectColorsById: StateFlow<Map<Long, Int>> = subjectsWithSessions
+        .map { list -> list.associate { it.subject.id to it.subject.colorArgb } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    val subjectNamesById: StateFlow<Map<Long, String>> = subjectsWithSessions
+        .map { list -> list.associate { it.subject.id to it.subject.name } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 }

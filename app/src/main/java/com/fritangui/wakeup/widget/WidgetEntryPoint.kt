@@ -1,5 +1,6 @@
 package com.fritangui.wakeup.widget
 
+import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.repository.SubjectRepository
 import com.fritangui.wakeup.data.repository.TaskRepository
 import com.fritangui.wakeup.data.repository.UsageRepository
@@ -21,6 +22,7 @@ interface WidgetEntryPoint {
     fun subjectRepository(): SubjectRepository
     fun taskRepository(): TaskRepository
     fun usageRepository(): UsageRepository
+    fun settingsDataStore(): SettingsDataStore
 }
 
 fun widgetEntryPoint(context: Context): WidgetEntryPoint =

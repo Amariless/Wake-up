@@ -23,4 +23,8 @@ class MainNavViewModel @Inject constructor(
     val pinnedFolder: StateFlow<FolderEntity?> = settingsDataStore.pinnedFolderId
         .flatMapLatest { id -> if (id == null) flowOf(null) else folderRepository.observeById(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Ver [com.fritangui.wakeup.ui.components.LocalUse24HourFormat]. */
+    val use24HourFormat: StateFlow<Boolean> = settingsDataStore.use24HourFormat
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 }

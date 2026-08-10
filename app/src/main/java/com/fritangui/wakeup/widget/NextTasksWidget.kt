@@ -34,6 +34,8 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.fritangui.wakeup.MainActivity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.ui.components.amPmSuffix
+import com.fritangui.wakeup.ui.components.formatClockTime
 import com.fritangui.wakeup.ui.theme.WakeUpOnPrimary
 import com.fritangui.wakeup.ui.theme.WakeUpOutlineDark
 import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerDark
@@ -54,10 +56,11 @@ class NextTasksWidget : GlanceAppWidget() {
         val subjects = entryPoint.subjectRepository().observeWithSessionsForActiveFolders().first()
         val subjectColors = subjects.associate { it.subject.id to it.subject.colorArgb }
         val subjectNames = subjects.associate { it.subject.id to it.subject.name }
+        val use24Hour = entryPoint.settingsDataStore().use24HourFormat.first()
         val openAppIntent = Intent(context, MainActivity::class.java)
 
         provideContent {
-            WidgetContent(tasks, subjectColors, subjectNames, openAppIntent)
+            WidgetContent(tasks, subjectColors, subjectNames, use24Hour, openAppIntent)
         }
     }
 
@@ -66,6 +69,7 @@ class NextTasksWidget : GlanceAppWidget() {
         items: List<TaskEntity>,
         subjectColors: Map<Long, Int>,
         subjectNames: Map<Long, String>,
+        use24Hour: Boolean,
         openAppIntent: Intent,
     ) {
         Column(
@@ -104,7 +108,7 @@ class NextTasksWidget : GlanceAppWidget() {
                             lastGroup = group
                             item { DayHeader(group) }
                         }
-                        item { TaskRow(task, subjectColors[task.subjectId], task.subjectId?.let { subjectNames[it] }) }
+                        item { TaskRow(task, subjectColors[task.subjectId], task.subjectId?.let { subjectNames[it] }, use24Hour) }
                     }
                 }
             }
@@ -121,7 +125,7 @@ class NextTasksWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?, subjectName: String?) {
+    private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?, subjectName: String?, use24Hour: Boolean) {
         val context = LocalContext.current
         Row(
             modifier = GlanceModifier
@@ -150,7 +154,7 @@ class NextTasksWidget : GlanceAppWidget() {
                     style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Medium, fontSize = 13.sp),
                 )
                 if (task.dueAtEpochMillis != null) {
-                    Text(formatDue(task.dueAtEpochMillis), style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 12.sp))
+                    Text(formatDue(task.dueAtEpochMillis, use24Hour), style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 12.sp))
                 }
                 // Menos contraste que la fecha (fecha ya usa WakeUpOutlineDark): la materia es
                 // información secundaria, no hace falta que compita visualmente con lo demás.
@@ -179,9 +183,11 @@ class NextTasksWidget : GlanceAppWidget() {
         }
     }
 
-    private fun formatDue(epochMillis: Long): String {
+    private fun formatDue(epochMillis: Long, use24Hour: Boolean): String {
         val dt = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
-        return "Vence %d %s · %02d:%02d".format(dt.dayOfMonth, MES_ABREVIADO[dt.monthNumber - 1], dt.hour, dt.minute)
+        val time = formatClockTime(dt.hour, dt.minute, use24Hour)
+        val suffix = amPmSuffix(dt.hour, use24Hour)?.let { " $it" } ?: ""
+        return "Vence %d %s · %s%s".format(dt.dayOfMonth, MES_ABREVIADO[dt.monthNumber - 1], time, suffix)
     }
 
     companion object {

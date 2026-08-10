@@ -24,7 +24,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.AlertDialog
@@ -61,9 +63,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.dao.SubjectWithSessions
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
+import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.domain.AlarmTiming
+import com.fritangui.wakeup.ui.components.ClockTimeText
 import com.fritangui.wakeup.ui.tasks.taskListItems
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -264,20 +268,30 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column {
-                        Text(
-                            "%02d:%02d".format(alarm.hour, alarm.minute),
-                            style = MaterialTheme.typography.headlineMedium,
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        // Distinto de una alarma real: un Recordatorio es solo una notificación,
+                        // no algo que suene y haya que apagar (ver AlarmsListScreen para el mismo criterio).
+                        Icon(
+                            if (alarm.kind == AlarmKind.REMINDER) Icons.Default.Notifications else Icons.Default.Alarm,
+                            contentDescription = null,
+                            tint = if (alarm.kind == AlarmKind.REMINDER) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 12.dp),
                         )
-                        Text(alarm.label.ifBlank { "Alarma" }, style = MaterialTheme.typography.bodyMedium)
-                        val now = remember { Clock.System.now() }
-                        val trigger = AlarmTiming.nextTrigger(alarm, now = now)
-                        if (trigger != null) {
+                        Column {
+                            ClockTimeText(alarm.hour, alarm.minute, style = MaterialTheme.typography.headlineMedium)
                             Text(
-                                "Faltan ${AlarmTiming.formatRemaining(trigger - now)}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.outline,
+                                alarm.label.ifBlank { if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma" },
+                                style = MaterialTheme.typography.bodyMedium,
                             )
+                            val now = remember { Clock.System.now() }
+                            val trigger = AlarmTiming.nextTrigger(alarm, now = now)
+                            if (trigger != null) {
+                                Text(
+                                    "Faltan ${AlarmTiming.formatRemaining(trigger - now)}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.outline,
+                                )
+                            }
                         }
                     }
                     Switch(checked = alarm.isEnabled, enabled = !readOnly, onCheckedChange = { onToggle(alarm.id, it) })

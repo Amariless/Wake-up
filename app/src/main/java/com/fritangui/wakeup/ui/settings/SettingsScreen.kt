@@ -39,6 +39,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
+    val use24HourFormat by viewModel.use24HourFormat.collectAsState()
 
     Scaffold(
         topBar = {
@@ -53,6 +54,10 @@ fun SettingsScreen(
         Column(modifier = Modifier.padding(padding)) {
             SettingsRow("Color dinámico", "Usa los colores del fondo de tu teléfono (Android 12+)") {
                 Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)
+            }
+            HorizontalDivider()
+            SettingsRow("Formato de 24 horas", "Si está apagado, se muestra la hora en 12h con AM/PM") {
+                Switch(checked = use24HourFormat, onCheckedChange = viewModel::setUse24HourFormat)
             }
             HorizontalDivider()
             SettingsLinkRow("Buscar actualizaciones", "Revisa el repositorio de GitHub por una versión nueva", onOpenUpdate)

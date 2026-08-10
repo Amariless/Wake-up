@@ -59,6 +59,7 @@ import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.ui.components.AppTimePickerDialog
+import com.fritangui.wakeup.ui.components.ClockTimeText
 
 // "M" para miércoles (no "X"): se sobreentiende por la posición entre martes y jueves.
 private val DIA_NOMBRES = listOf("L", "M", "M", "J", "V", "S", "D")
@@ -138,7 +139,7 @@ fun AlarmEditorScreen(
             }
 
             TextButton(onClick = { showTimePicker = true }, modifier = Modifier.padding(top = 8.dp)) {
-                Text("%02d:%02d".format(hour, minute), style = MaterialTheme.typography.displayLarge)
+                ClockTimeText(hour, minute, style = MaterialTheme.typography.displayLarge)
             }
 
             OutlinedTextField(
