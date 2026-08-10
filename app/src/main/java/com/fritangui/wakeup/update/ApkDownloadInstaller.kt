@@ -63,12 +63,15 @@ class ApkDownloadInstaller @Inject constructor(
             val (status, progress, reason) = queryStatus(manager, downloadId)
             when (status) {
                 DownloadManager.STATUS_SUCCESSFUL -> {
+                    // OJO: NO llamar a manager.remove(downloadId) acá. DownloadManager.remove()
+                    // no solo borra su registro interno — también borra el archivo en disco que
+                    // acaba de descargar. Hacerlo justo aquí borraba el APK antes de que el
+                    // instalador del sistema llegara a leerlo, y por eso Android mostraba "se
+                    // produjo un error en el análisis del paquete" (el FileProvider apuntaba a un
+                    // archivo que ya no existía). El registro viejo de DownloadManager se limpia
+                    // solo, de forma segura, al empezar la SIGUIENTE descarga (ver
+                    // removeStalePreviousDownload) — para entonces ya no hace falta el archivo.
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outputFile())
-                    // Ya tenemos el archivo copiado a nuestro propio destino (outputFile()); el
-                    // registro de DownloadManager ya no hace falta, así que se limpia de una vez en
-                    // vez de dejarlo acumulándose para la próxima descarga.
-                    manager.remove(downloadId)
-                    forgetDownloadId()
                     emit(DownloadState.ReadyToInstall(uri))
                     return@flow
                 }
