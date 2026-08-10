@@ -55,7 +55,10 @@ class AlarmEditorViewModel @Inject constructor(
             val entity = AlarmEntity(
                 id = alarmId,
                 folderId = folderId,
-                label = label.trim(),
+                // "Despertar" es solo el placeholder que se ve en el campo (nunca hay que borrarlo
+                // para escribir un nombre propio); si de verdad se deja vacío, se guarda ese mismo
+                // texto en vez de una cadena vacía.
+                label = label.trim().ifBlank { "Despertar" },
                 hour = hour,
                 minute = minute,
                 repeatDaysBitmask = repeatDaysBitmask,

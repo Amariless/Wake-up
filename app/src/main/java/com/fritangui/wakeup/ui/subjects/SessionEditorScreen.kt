@@ -146,7 +146,17 @@ fun SessionEditorScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
 
-            Text("Inicio", style = MaterialTheme.typography.titleMedium)
+            // Arriba de las ruedas de hora a propósito: quedaba al final, así que al enfocarlo el
+            // teclado lo tapaba (y encima había que hacer scroll para encontrarlo).
+            OutlinedTextField(
+                value = room,
+                onValueChange = { room = it },
+                label = { Text("Salón") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Text("Inicio", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
             WheelTimePicker(
                 hour = startHour,
                 minute = startMinute,
@@ -161,17 +171,7 @@ fun SessionEditorScreen(
                 minute = endMinute,
                 onHourChange = { endHour = it },
                 onMinuteChange = { endMinute = it },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
-
-            OutlinedTextField(
-                value = room,
-                onValueChange = { room = it },
-                label = { Text("Salón") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 24.dp),
             )
         }
     }

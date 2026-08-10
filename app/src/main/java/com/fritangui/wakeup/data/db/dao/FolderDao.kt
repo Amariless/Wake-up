@@ -37,4 +37,8 @@ interface FolderDao {
 
     @Delete
     suspend fun delete(folder: FolderEntity)
+
+    /** Para limpieza puntual (p.ej. borrar datos de ejemplo por nombre exacto). */
+    @Query("DELETE FROM folders WHERE name = :name")
+    suspend fun deleteByName(name: String)
 }

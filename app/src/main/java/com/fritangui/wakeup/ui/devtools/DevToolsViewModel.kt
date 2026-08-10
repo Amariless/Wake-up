@@ -101,6 +101,10 @@ class DevToolsViewModel @Inject constructor(
         }
     }
 
+    fun deleteDemoData() {
+        viewModelScope.launch { folderRepository.deleteByExactName("Demo 2026-1") }
+    }
+
     fun simulateUsageData() {
         viewModelScope.launch {
             val today = todayEpochDay()

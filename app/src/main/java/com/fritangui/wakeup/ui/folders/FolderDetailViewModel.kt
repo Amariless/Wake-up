@@ -8,6 +8,7 @@ import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.dao.SubjectWithSessions
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.FolderEntity
+import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.data.repository.AlarmRepository
 import com.fritangui.wakeup.data.repository.FolderRepository
@@ -25,7 +26,7 @@ import javax.inject.Inject
 class FolderDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     folderRepository: FolderRepository,
-    subjectRepository: SubjectRepository,
+    private val subjectRepository: SubjectRepository,
     private val taskRepository: TaskRepository,
     alarmRepository: AlarmRepository,
     private val alarmController: AlarmController,
@@ -68,6 +69,16 @@ class FolderDetailViewModel @Inject constructor(
 
     fun setTaskCompleted(taskId: Long, completed: Boolean) {
         viewModelScope.launch { taskRepository.setCompleted(taskId, completed) }
+    }
+
+    fun deleteTask(task: TaskEntity) {
+        viewModelScope.launch { alarmController.deleteTaskAndCancelReminders(task) }
+    }
+
+    /** Borra la materia y sus horarios (cascada). Las tareas que tenía asociadas no se borran,
+     *  solo quedan sin materia (ver SET_NULL en la FK de TaskEntity). */
+    fun deleteSubject(subject: SubjectEntity) {
+        viewModelScope.launch { subjectRepository.delete(subject) }
     }
 
     fun setAlarmEnabled(alarmId: Long, enabled: Boolean) {

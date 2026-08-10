@@ -28,6 +28,9 @@ class FolderRepository @Inject constructor(
 
     suspend fun delete(folder: FolderEntity) = folderDao.delete(folder)
 
+    /** Borra por nombre exacto (con todo lo que cuelgue de ella vía cascada). Ver DevTools' seedDemoData. */
+    suspend fun deleteByExactName(name: String) = folderDao.deleteByName(name)
+
     /**
      * Marca la carpeta como terminada: deja de aparecer como activa (se archiva,
      * de solo lectura en la UI) y desactiva todas sus alarmas propias. La

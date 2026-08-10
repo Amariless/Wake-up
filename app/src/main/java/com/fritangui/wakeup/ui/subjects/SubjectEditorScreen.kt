@@ -191,7 +191,17 @@ fun SubjectEditorScreen(
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
-                Text("Tareas", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Tareas", style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = {
+                        viewModel.presetNewTaskToThisSubject()
+                        onOpenTask(viewModel.folderId, 0L)
+                    }) { Text("+ Agregar") }
+                }
                 if (tasks.isEmpty()) {
                     Text(
                         "Esta materia todavía no tiene tareas.",
@@ -204,6 +214,7 @@ fun SubjectEditorScreen(
                         tasks = tasks,
                         onToggle = viewModel::setTaskCompleted,
                         onClick = { onOpenTask(viewModel.folderId, it) },
+                        onDelete = viewModel::deleteTask,
                     )
                 }
             }

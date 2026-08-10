@@ -31,13 +31,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.permissions.PermissionStatus
 import com.fritangui.wakeup.ui.theme.WakeUpPrimary
+import com.fritangui.wakeup.ui.theme.WakeUpSecondary
 
 @Composable
 fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val usage by viewModel.todayUsage.collectAsState()
+    val weekly by viewModel.weeklyUsage.collectAsState()
     val rules by viewModel.alertRules.collectAsState()
     val hasUsageAccess = remember { PermissionStatus.hasUsageAccess(context) }
+
+    val todayTotal = usage.sumOf { it.minutes }
+    // El día de ayer siempre es el penúltimo de los 7 (el último es hoy) — ver ScreenTimeViewModel.weeklyUsage.
+    val yesterdayTotal = weekly.getOrNull(weekly.size - 2)?.totalMinutes
+    val weeklyAverage = if (weekly.isNotEmpty()) weekly.sumOf { it.totalMinutes } / weekly.size else 0L
 
     Scaffold(topBar = { TopAppBar(title = { Text("Tiempo de pantalla") }) }) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
@@ -57,7 +64,34 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
                 }
             }
 
-            Text("Hoy", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
+            // Resumen del día arriba de todo: es el número que más importa de un vistazo.
+            Text("Hoy", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.outline)
+            Text(formatDuration(todayTotal), style = MaterialTheme.typography.displaySmall)
+            if (yesterdayTotal != null) {
+                val diff = todayTotal - yesterdayTotal
+                Text(
+                    when {
+                        diff == 0L -> "Igual que ayer"
+                        diff > 0 -> "+${formatDuration(diff)} más que ayer"
+                        else -> "-${formatDuration(-diff)} menos que ayer"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+
+            if (weekly.any { it.totalMinutes > 0 }) {
+                Text("Últimos 7 días", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
+                Text(
+                    "Promedio diario: ${formatDuration(weeklyAverage)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                WeeklyBarChart(weekly)
+            }
+
+            Text("Por app hoy", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
             if (usage.isEmpty()) {
                 Text("Aún no hay datos suficientes (se actualiza cada ~15 min)")
             } else {
@@ -93,6 +127,36 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
 }
 
 @Composable
+private fun WeeklyBarChart(days: List<DayUsage>) {
+    val maxMinutes = (days.maxOfOrNull { it.totalMinutes } ?: 1L).coerceAtLeast(1L)
+    Row(
+        modifier = Modifier.fillMaxWidth().height(120.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        days.forEach { day ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                val barColor = if (day.isToday) WakeUpPrimary else WakeUpSecondary
+                Canvas(modifier = Modifier.weight(1f).width(20.dp)) {
+                    val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)
+                    val barHeight = size.height * fraction
+                    drawRect(
+                        color = barColor,
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
+                        size = Size(size.width, barHeight),
+                    )
+                }
+                Text(
+                    day.dayLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun UsageBarRow(label: String, minutes: Long, maxMinutes: Long) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, modifier = Modifier.width(110.dp), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
@@ -101,6 +165,14 @@ private fun UsageBarRow(label: String, minutes: Long, maxMinutes: Long) {
             drawRect(color = Color(0x22FFFFFF), size = size)
             drawRect(color = WakeUpPrimary, size = Size(size.width * fraction, size.height))
         }
-        Text("${minutes}m", style = MaterialTheme.typography.bodyMedium)
+        Text(formatDuration(minutes), style = MaterialTheme.typography.bodyMedium)
     }
+}
+
+/** "45m" si es menos de una hora, "1h 23m" (o "2h" sin minutos sueltos) si es una hora o más. */
+private fun formatDuration(minutes: Long): String {
+    if (minutes < 60) return "${minutes}m"
+    val h = minutes / 60
+    val m = minutes % 60
+    return if (m == 0L) "${h}h" else "${h}h ${m}m"
 }

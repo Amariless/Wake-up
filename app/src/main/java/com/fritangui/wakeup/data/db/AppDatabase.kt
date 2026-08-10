@@ -32,12 +32,10 @@ import com.fritangui.wakeup.data.db.entity.UsageAlertRuleEntity
         BlockRuleEntity::class,
         BlockSurfaceUsageEntity::class,
     ],
-    // Se subió a 3: se agregaron `kind` y `deleteAfterRing` a AlarmEntity (tipo "recordatorio" y
-    // borrado automático tras sonar). A diferencia del salto 1→2, esta vez SÍ hay usuarios reales
-    // con alarmas guardadas, así que se usa una migración explícita (MIGRATION_2_3) en vez de dejar
-    // que fallbackToDestructiveMigration borre la tabla — ese fallback se deja solo como red de
-    // seguridad para saltos de versión que no tengan una migración explícita.
-    version = 3,
+    // Se subió a 4: se agregaron `description` e `isNoteImportant` a TaskEntity (descripción larga
+    // y nota destacada en el widget). Misma razón que el salto 2→3: ya hay datos reales del
+    // usuario, así que migración explícita (MIGRATION_3_4) en vez de destructiva.
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -55,6 +53,13 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE alarms ADD COLUMN kind TEXT NOT NULL DEFAULT 'ALARM'")
                 db.execSQL("ALTER TABLE alarms ADD COLUMN deleteAfterRing INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN description TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN isNoteImportant INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

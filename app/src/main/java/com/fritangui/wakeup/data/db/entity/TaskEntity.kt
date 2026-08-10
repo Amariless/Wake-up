@@ -35,7 +35,11 @@ data class TaskEntity(
     val folderId: Long,
     val subjectId: Long?,
     val title: String,
+    /** Detalle largo de la tarea (multilínea); distinto de [notes], que es más una nota corta. */
+    val description: String = "",
     val notes: String = "",
+    /** Si está marcada, [notes] también se muestra como línea extra debajo de esta tarea en el widget. */
+    val isNoteImportant: Boolean = false,
     val dueAtEpochMillis: Long?,
     val reminderOffsetsMinutes: List<Long> = DEFAULT_REMINDER_OFFSETS,
     val isCompleted: Boolean = false,

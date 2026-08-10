@@ -52,7 +52,9 @@ class TaskEditorViewModel @Inject constructor(
 
     fun save(
         title: String,
+        description: String,
         notes: String,
+        isNoteImportant: Boolean,
         subjectId: Long?,
         dueAtEpochMillis: Long?,
         reminderOffsetsMinutes: List<Long>,
@@ -66,7 +68,9 @@ class TaskEditorViewModel @Inject constructor(
                 folderId = folderId,
                 subjectId = subjectId,
                 title = title.trim(),
+                description = description.trim(),
                 notes = notes.trim(),
+                isNoteImportant = isNoteImportant,
                 dueAtEpochMillis = dueAtEpochMillis,
                 reminderOffsetsMinutes = if (dueAtEpochMillis == null) emptyList() else reminderOffsetsMinutes,
                 isCompleted = _task.value?.isCompleted ?: false,

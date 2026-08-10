@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.fritangui.wakeup.data.db.AppDatabase
+import com.fritangui.wakeup.data.repository.FolderRepository
 import com.fritangui.wakeup.usage.ScreenTimeWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +29,7 @@ class WakeUpApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var database: AppDatabase
+    @Inject lateinit var folderRepository: FolderRepository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -37,6 +39,21 @@ class WakeUpApp : Application(), Configuration.Provider {
         createNotificationChannels()
         ScreenTimeWorker.enqueuePeriodic(this)
         warmUpDatabase()
+        cleanUpStrayDemoData()
+    }
+
+    /**
+     * Limpieza de una sola vez: el botón "Sembrar datos de ejemplo" del panel de desarrollador
+     * (solo en builds debug) crea una carpeta real "Demo 2026-1" con su materia "Cálculo I" — si
+     * alguna vez se tocó sin querer, esa carpeta terminaba mezclada con datos reales del usuario
+     * (visible en "próximas clases" de Inicio aunque no siempre obvia en la lista de Carpetas si
+     * hay una carpeta marcada como principal). Se borra sola en cuanto la app arranca; si no
+     * existe, esto no hace nada.
+     */
+    private fun cleanUpStrayDemoData() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            folderRepository.deleteByExactName("Demo 2026-1")
+        }
     }
 
     /**

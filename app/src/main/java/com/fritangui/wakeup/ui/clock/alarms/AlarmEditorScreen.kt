@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -45,15 +47,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.alarm.sound.AlarmSounds
 import com.fritangui.wakeup.alarm.sound.NotificationSounds
+import com.fritangui.wakeup.alarm.ui.DismissChallengeContent
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.ui.components.AppTimePickerDialog
 
-private val DIA_NOMBRES = listOf("L", "M", "X", "J", "V", "S", "D")
+// "M" para miércoles (no "X"): se sobreentiende por la posición entre martes y jueves.
+private val DIA_NOMBRES = listOf("L", "M", "M", "J", "V", "S", "D")
 
 private val CHALLENGE_LABELS = mapOf(
     DismissChallengeType.NONE to "Ninguno (botón normal)",
@@ -87,6 +92,7 @@ fun AlarmEditorScreen(
     var showTimePicker by remember { mutableStateOf(false) }
     var showSoundPicker by remember { mutableStateOf(false) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
+    var showChallengePreview by remember { mutableStateOf(false) }
 
     val isReminder = kind == AlarmKind.REMINDER
 
@@ -105,7 +111,7 @@ fun AlarmEditorScreen(
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+        Column(modifier = Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             // "Alarma" suena a pantalla completa con reto para apagarla; "Recordatorio" es solo una
             // notificación normal con su propio sonido, para avisos que no necesitan despertar a nadie.
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -129,6 +135,10 @@ fun AlarmEditorScreen(
                 value = label,
                 onValueChange = { label = it },
                 label = { Text(if (isReminder) "Nombre del recordatorio" else "Nombre de la alarma") },
+                // Placeholder, no un valor real: se ve en gris cuando el campo está vacío, pero no
+                // hay nada que borrar para escribir tu propio nombre. Si lo dejas así, "Despertar"
+                // es lo que de verdad se guarda (ver AlarmEditorViewModel.save).
+                placeholder = { Text("Despertar") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
@@ -203,8 +213,16 @@ fun AlarmEditorScreen(
                     Text("Dificultad", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DIFFICULTY_LABELS.forEach { (value, text) ->
-                            FilterChip(selected = difficulty == value, onClick = { difficulty = value }, label = { Text(text) })
+                            FilterChip(
+                                selected = difficulty == value,
+                                onClick = { difficulty = value },
+                                label = { Text(text) },
+                                modifier = Modifier.weight(1f),
+                            )
                         }
+                    }
+                    TextButton(onClick = { showChallengePreview = true }, modifier = Modifier.padding(top = 4.dp)) {
+                        Text("Probar reto")
                     }
                 }
 
@@ -223,13 +241,15 @@ fun AlarmEditorScreen(
                     color = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(top = 8.dp),
                 )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             }
 
+            // Su propio divisor SIEMPRE (antes solo aparecía cuando era Alarma): en Recordatorio se
+            // saltaba todo el bloque de arriba y este interruptor quedaba pegado justo debajo de la
+            // tarjeta de Sonido, sin nada de aire entre los dos.
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
             // Distinto de "Vibrar": esto borra la alarma/recordatorio de la lista después de que
-            // suene, en vez de solo activar/desactivar la vibración. Con su propio divisor arriba
-            // para que no se confundan como si fuera el mismo interruptor repetido.
+            // suene, en vez de solo activar/desactivar la vibración.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -296,6 +316,31 @@ fun AlarmEditorScreen(
                 onDismiss = { showSoundPicker = false },
                 onSelect = { soundUri = it; showSoundPicker = false },
             )
+        }
+    }
+
+    if (showChallengePreview) {
+        Dialog(onDismissRequest = { showChallengePreview = false }) {
+            Card {
+                Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+                    Text("Probando: ${CHALLENGE_LABELS.getValue(challenge)}", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Esto es solo una prueba, no apaga ninguna alarma real.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                    )
+                    DismissChallengeContent(
+                        type = challenge,
+                        difficulty = difficulty,
+                        onCompleted = { showChallengePreview = false },
+                    )
+                    TextButton(
+                        onClick = { showChallengePreview = false },
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    ) { Text("Cerrar") }
+                }
+            }
         }
     }
 }

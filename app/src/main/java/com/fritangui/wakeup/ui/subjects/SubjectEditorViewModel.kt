@@ -3,11 +3,13 @@ package com.fritangui.wakeup.ui.subjects
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fritangui.wakeup.alarm.AlarmController
 import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
 import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.data.repository.SubjectRepository
 import com.fritangui.wakeup.data.repository.TaskRepository
+import com.fritangui.wakeup.ui.tasks.TaskCreationSessionState
 import com.fritangui.wakeup.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,8 @@ class SubjectEditorViewModel @Inject constructor(
     private val subjectRepository: SubjectRepository,
     private val taskRepository: TaskRepository,
     private val widgetRefresher: WidgetRefresher,
+    private val taskCreationSessionState: TaskCreationSessionState,
+    private val alarmController: AlarmController,
 ) : ViewModel() {
 
     val folderId: Long = checkNotNull(savedStateHandle["folderId"])
@@ -49,6 +53,16 @@ class SubjectEditorViewModel @Inject constructor(
 
     fun setTaskCompleted(taskId: Long, completed: Boolean) {
         viewModelScope.launch { taskRepository.setCompleted(taskId, completed) }
+    }
+
+    fun deleteTask(task: TaskEntity) {
+        viewModelScope.launch { alarmController.deleteTaskAndCancelReminders(task) }
+    }
+
+    /** Llamar justo antes de navegar a crear una tarea nueva desde aquí: la deja preseleccionada con esta materia. */
+    fun presetNewTaskToThisSubject() {
+        val id = _currentSubjectId.value ?: return
+        taskCreationSessionState.remember(folderId, id)
     }
 
     /**

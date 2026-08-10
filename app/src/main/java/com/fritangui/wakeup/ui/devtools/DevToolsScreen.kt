@@ -26,7 +26,12 @@ fun DevToolsScreen(viewModel: DevToolsViewModel = hiltViewModel()) {
             Text("Solo visible en builds debug. Para probar sin esperar horarios reales.")
             DevButton("Disparar alarma ya mismo") { viewModel.fireAlarmNow() }
             DevButton("Simular notificación T-60") { viewModel.simulatePreAlarmNotification() }
+            Text(
+                "⚠️ Esto crea una carpeta \"Demo 2026-1\" real y visible en tu horario, no un preview — bórrala con el botón de abajo cuando termines de probar.",
+                modifier = Modifier.padding(top = 12.dp),
+            )
             DevButton("Poblar datos de ejemplo (carpeta+materia+tarea+alarma)") { viewModel.seedDemoData() }
+            DevButton("Borrar datos de ejemplo (\"Demo 2026-1\")") { viewModel.deleteDemoData() }
             DevButton("Simular datos de uso de pantalla") { viewModel.simulateUsageData() }
             DevButton("Forzar overlay de bloqueo") { viewModel.forceBlockOverlay() }
             Text("Inspector de nodos de accesibilidad", modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))

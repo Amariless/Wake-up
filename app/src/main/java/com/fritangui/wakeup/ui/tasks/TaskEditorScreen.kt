@@ -2,6 +2,8 @@ package com.fritangui.wakeup.ui.tasks
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,7 +65,9 @@ fun TaskEditorScreen(
     val subjects by viewModel.subjectsInFolder.collectAsState()
 
     var title by rememberSaveable(task?.id) { mutableStateOf(task?.title ?: "") }
+    var description by rememberSaveable(task?.id) { mutableStateOf(task?.description ?: "") }
     var notes by rememberSaveable(task?.id) { mutableStateOf(task?.notes ?: "") }
+    var isNoteImportant by rememberSaveable(task?.id) { mutableStateOf(task?.isNoteImportant ?: false) }
     // Para una tarea nueva, se preselecciona la última materia usada en esta misma carpeta
     // (ver TaskCreationSessionState) — se pierde si cambias de carpeta o cierras la app.
     var selectedSubjectId by rememberSaveable(task?.id) {
@@ -89,7 +93,9 @@ fun TaskEditorScreen(
         }
         viewModel.save(
             title = title,
+            description = description,
             notes = notes,
+            isNoteImportant = isNoteImportant,
             subjectId = selectedSubjectId,
             dueAtEpochMillis = if (hasDueDate) dueAtMillis else null,
             reminderOffsetsMinutes = offsets,
@@ -121,7 +127,7 @@ fun TaskEditorScreen(
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+        Column(modifier = Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -130,11 +136,34 @@ fun TaskEditorScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Descripción (opcional)") },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
                 label = { Text("Notas (opcional)") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
+            if (notes.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { isNoteImportant = !isNoteImportant },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = isNoteImportant, onCheckedChange = { isNoteImportant = it })
+                    Column {
+                        Text("Importante")
+                        Text(
+                            "La nota aparece también debajo de esta tarea en el widget",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
+                }
+            }
 
             val selectedSubject = subjects.find { it.id == selectedSubjectId }
             ExposedDropdownMenuBox(

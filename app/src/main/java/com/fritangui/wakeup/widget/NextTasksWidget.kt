@@ -51,17 +51,23 @@ class NextTasksWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val entryPoint = widgetEntryPoint(context)
         val tasks = entryPoint.taskRepository().observeUpcoming(limit = 12).first()
-        val subjectColors = entryPoint.subjectRepository().observeWithSessionsForActiveFolders().first()
-            .associate { it.subject.id to it.subject.colorArgb }
+        val subjects = entryPoint.subjectRepository().observeWithSessionsForActiveFolders().first()
+        val subjectColors = subjects.associate { it.subject.id to it.subject.colorArgb }
+        val subjectNames = subjects.associate { it.subject.id to it.subject.name }
         val openAppIntent = Intent(context, MainActivity::class.java)
 
         provideContent {
-            WidgetContent(tasks, subjectColors, openAppIntent)
+            WidgetContent(tasks, subjectColors, subjectNames, openAppIntent)
         }
     }
 
     @Composable
-    private fun WidgetContent(items: List<TaskEntity>, subjectColors: Map<Long, Int>, openAppIntent: Intent) {
+    private fun WidgetContent(
+        items: List<TaskEntity>,
+        subjectColors: Map<Long, Int>,
+        subjectNames: Map<Long, String>,
+        openAppIntent: Intent,
+    ) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -98,7 +104,7 @@ class NextTasksWidget : GlanceAppWidget() {
                             lastGroup = group
                             item { DayHeader(group) }
                         }
-                        item { TaskRow(task, subjectColors[task.subjectId]) }
+                        item { TaskRow(task, subjectColors[task.subjectId], task.subjectId?.let { subjectNames[it] }) }
                     }
                 }
             }
@@ -115,7 +121,7 @@ class NextTasksWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?) {
+    private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?, subjectName: String?) {
         val context = LocalContext.current
         Row(
             modifier = GlanceModifier
@@ -145,6 +151,18 @@ class NextTasksWidget : GlanceAppWidget() {
                 )
                 if (task.dueAtEpochMillis != null) {
                     Text(formatDue(task.dueAtEpochMillis), style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 12.sp))
+                }
+                // Menos contraste que la fecha (fecha ya usa WakeUpOutlineDark): la materia es
+                // información secundaria, no hace falta que compita visualmente con lo demás.
+                if (subjectName != null) {
+                    Text(subjectName, style = TextStyle(color = ColorProvider(WakeUpOutlineDark.copy(alpha = 0.6f)), fontSize = 11.sp))
+                }
+                if (task.isNoteImportant && task.notes.isNotBlank()) {
+                    Text(
+                        task.notes,
+                        style = TextStyle(color = ColorProvider(WakeUpSecondary), fontSize = 11.sp),
+                        maxLines = 2,
+                    )
                 }
             }
         }

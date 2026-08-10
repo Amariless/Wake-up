@@ -1,7 +1,10 @@
 package com.fritangui.wakeup.ui.tasks
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,11 +12,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +68,7 @@ fun LazyListScope.taskListItems(
     showSubjectName: Boolean = false,
     onToggle: (Long, Boolean) -> Unit,
     onClick: (Long) -> Unit,
+    onDelete: ((TaskEntity) -> Unit)? = null,
 ) {
     val (completed, pending) = tasks.partition { it.isCompleted }
 
@@ -74,6 +86,7 @@ fun LazyListScope.taskListItems(
                 subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                 onToggle = onToggle,
                 onClick = onClick,
+                onDelete = onDelete,
             )
         }
     }
@@ -88,6 +101,7 @@ fun LazyListScope.taskListItems(
                     subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                     onToggle = onToggle,
                     onClick = onClick,
+                    onDelete = onDelete,
                 )
             }
         }
@@ -107,6 +121,7 @@ fun TaskListColumn(
     showSubjectName: Boolean = false,
     onToggle: (Long, Boolean) -> Unit,
     onClick: (Long) -> Unit,
+    onDelete: ((TaskEntity) -> Unit)? = null,
 ) {
     val (completed, pending) = tasks.partition { it.isCompleted }
     Column {
@@ -123,6 +138,7 @@ fun TaskListColumn(
                 subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                 onToggle = onToggle,
                 onClick = onClick,
+                onDelete = onDelete,
             )
         }
         if (completed.isNotEmpty()) {
@@ -134,6 +150,7 @@ fun TaskListColumn(
                     subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                     onToggle = onToggle,
                     onClick = onClick,
+                    onDelete = onDelete,
                 )
             }
         }
@@ -150,6 +167,7 @@ private fun TaskGroupHeader(label: String) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TaskListRow(
     task: TaskEntity,
@@ -157,41 +175,72 @@ private fun TaskListRow(
     subjectName: String?,
     onToggle: (Long, Boolean) -> Unit,
     onClick: (Long) -> Unit,
+    onDelete: ((TaskEntity) -> Unit)?,
 ) {
     val outline = MaterialTheme.colorScheme.outline
     // Completada: todo en gris (barra incluida) para que de verdad se sienta "apagada", no solo el texto tachado.
     val barColor = if (task.isCompleted) outline else subjectColorArgb?.let { Color(it) } ?: outline
     val textColor = if (task.isCompleted) outline else MaterialTheme.colorScheme.onSurface
+    var showMenu by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { onClick(task.id) }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(barColor)
-            Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle(task.id, it) })
-                Column {
-                    Text(
-                        task.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = textColor,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                    )
-                    Text(
-                        task.dueAtEpochMillis?.let { formatDueDate(it) } ?: "Sin fecha de vencimiento",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (task.isCompleted) outline else MaterialTheme.colorScheme.outline,
-                    )
-                    if (subjectName != null) {
-                        Text(subjectName, style = MaterialTheme.typography.bodySmall, color = outline)
+    Box {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).let {
+                if (onDelete != null) {
+                    it.combinedClickable(onClick = { onClick(task.id) }, onLongClick = { showMenu = true })
+                } else {
+                    it.clickable { onClick(task.id) }
+                }
+            },
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ColorBar(barColor)
+                Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle(task.id, it) })
+                    Column {
+                        Text(
+                            task.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = textColor,
+                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
+                        )
+                        Text(
+                            task.dueAtEpochMillis?.let { formatDueDate(it) } ?: "Sin fecha de vencimiento",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (task.isCompleted) outline else MaterialTheme.colorScheme.outline,
+                        )
+                        if (subjectName != null) {
+                            Text(subjectName, style = MaterialTheme.typography.bodySmall, color = outline)
+                        }
                     }
                 }
             }
         }
+        if (onDelete != null) {
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenuItem(
+                    text = { Text("Eliminar tarea") },
+                    onClick = { showMenu = false; confirmDelete = true },
+                )
+            }
+        }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("¿Eliminar \"${task.title}\"?") },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; onDelete?.invoke(task) }) { Text("Eliminar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
+        )
     }
 }
 
 @Composable
-private fun Box(color: Color) {
-    androidx.compose.foundation.layout.Box(
-        modifier = Modifier.width(4.dp).height(56.dp).background(color),
-    )
+private fun ColorBar(color: Color) {
+    Box(modifier = Modifier.width(4.dp).height(56.dp).background(color))
 }

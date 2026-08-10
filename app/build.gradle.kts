@@ -61,7 +61,14 @@ android {
 
     buildTypes {
         debug {
-            isDebuggable = true
+            // isDebuggable = false a propósito: esta build es la que instalas por sideload, no algo
+            // que corras conectado a un debugger de Android Studio, así que no hace falta que ART
+            // la trate como debuggeable — eso trae overhead real en tiempo de ejecución (impide
+            // ciertas optimizaciones del runtime, deja hooks del debugger activos) que se sentía
+            // como lentitud general. No confundir con el buildType "release": mantiene el mismo
+            // applicationId (.debug) y firma que ya tenías instalada, así que sigue actualizando
+            // en el mismo lugar sin perder datos — solo cambia esta bandera.
+            isDebuggable = false
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             signingConfig = signingConfigs.getByName("sideload")

@@ -39,7 +39,7 @@ val FolderColorPalette = listOf(
     Color(0xFFFFC857),
     Color(0xFFEF5350),
     Color(0xFFAB47BC),
-    Color(0xFF26A69A),
+    Color(0xFF43A047), // verde bosque — antes era 0xFF26A69A, casi el mismo verde-agua que el de arriba
     Color(0xFFFF7043),
     Color(0xFF5C6BC0),
 )
@@ -47,14 +47,18 @@ val FolderColorPalette = listOf(
 // Paleta más amplia para materias: suele haber más materias que carpetas dentro de un semestre,
 // así que hacen falta más tonos para diferenciarlas de un vistazo (en la lista de tareas, los
 // widgets, etc.). Empieza con los mismos 8 de FolderColorPalette (para que carpetas y materias
-// compartan familia de colores) y suma 8 más.
+// compartan familia de colores) y suma 12 más — 20 en total, 2 filas completas en el selector.
 val SubjectColorPalette = FolderColorPalette + listOf(
     Color(0xFFEC407A), // rosa
     Color(0xFF29B6F6), // celeste
     Color(0xFF8D6E63), // café
     Color(0xFF9CCC65), // verde lima
-    Color(0xFFFFCA28), // ámbar
+    Color(0xFF9E9D24), // oliva — antes era 0xFFFFCA28, casi el mismo amarillo que arriba
     Color(0xFF7E57C2), // violeta
     Color(0xFF26C6DA), // turquesa
     Color(0xFFFF8A65), // coral
+    Color(0xFF607D8B), // gris azulado
+    Color(0xFF283593), // azul marino
+    Color(0xFFD81B60), // magenta
+    Color(0xFF757575), // gris neutro
 )
