@@ -78,17 +78,17 @@ class SubjectEditorViewModel @Inject constructor(
      * `onDelete = CASCADE` hacia la materia, eso borraba silenciosamente todos
      * sus horarios cada vez que solo querías cambiar el nombre o el color.
      */
-    fun saveBasicInfo(name: String, professor: String, colorArgb: Int, onSaved: (Long) -> Unit) {
+    fun saveBasicInfo(name: String, professor: String, colorArgb: Int, iconKey: String?, onSaved: (Long) -> Unit) {
         if (name.isBlank()) return
         viewModelScope.launch {
             val id = _currentSubjectId.value
             if (id != null) {
                 subjectRepository.update(
-                    SubjectEntity(id = id, folderId = folderId, name = name.trim(), colorArgb = colorArgb, professor = professor.trim()),
+                    SubjectEntity(id = id, folderId = folderId, name = name.trim(), colorArgb = colorArgb, professor = professor.trim(), iconKey = iconKey),
                 )
                 onSaved(id)
             } else {
-                val entity = SubjectEntity(folderId = folderId, name = name.trim(), colorArgb = colorArgb, professor = professor.trim())
+                val entity = SubjectEntity(folderId = folderId, name = name.trim(), colorArgb = colorArgb, professor = professor.trim(), iconKey = iconKey)
                 val savedId = subjectRepository.upsert(entity)
                 _currentSubjectId.value = savedId
                 onSaved(savedId)

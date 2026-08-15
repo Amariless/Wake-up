@@ -26,8 +26,29 @@ object ReelsNodeDetector {
         "direct_visual_message", "inbox_search_bar", "direct_thread_recycler_view",
     )
 
-    private val TIKTOK_FEED_HINTS = listOf(
-        "feed_container", "tux_view_pager", "video_view", "aweme_feed",
+    val TIKTOK_PACKAGES = setOf(
+        "com.zhiliaoapp.musically", "com.zhiliaoapp.musically.go", "com.ss.android.ugc.trill",
+    )
+
+    /**
+     * A diferencia de Instagram (donde "estoy en Reels" es una pestaña concreta y fácil de marcar
+     * con ids positivos), en TikTok el feed "Para ti" ES la pantalla principal por defecto — y sus
+     * ids internos cambian tan seguido entre versiones que depender solo de coincidencias positivas
+     * dejaba de detectar el feed en cuanto TikTok actualizaba su UI (el bug reportado: "no reconoce
+     * el tiempo de uso de TikTok"). Por eso acá se invierte la lógica: se asume que CUALQUIER
+     * pantalla de TikTok es el feed, A MENOS que se reconozca como otra cosa (mensajes, perfil,
+     * buscar, en vivo, comentarios, cámara/creación) — más robusto ante esos cambios de ids, a
+     * costa de ser un poco más permisivo con pantallas nuevas que todavía no estén en esta lista.
+     */
+    private val TIKTOK_EXCLUDED_HINTS = listOf(
+        "inbox", "im_fragment", "chat_", "dm_", "direct_message", "message_list",
+        "profile_", "user_profile", "personal_page", "mine_fragment",
+        "comment_list", "comment_input", "comment_fragment",
+        "search_", "discover_fragment", "hot_search",
+        "live_room", "live_fragment", "anchor_",
+        "creation_", "camera_", "record_",
+        "settings_", "setting_fragment",
+        "notification_fragment", "inbox_fragment",
     )
 
     private const val MAX_NODES_VISITED = 500
@@ -46,8 +67,8 @@ object ReelsNodeDetector {
             packageName == "com.instagram.android" &&
                 INSTAGRAM_REELS_HINTS.any { hint -> collectedIds.any { it.contains(hint, ignoreCase = true) } } ->
                 BlockSurface.INSTAGRAM_REELS
-            (packageName == "com.zhiliaoapp.musically" || packageName == "com.ss.android.ugc.trill") &&
-                TIKTOK_FEED_HINTS.any { hint -> collectedIds.any { it.contains(hint, ignoreCase = true) } } ->
+            packageName in TIKTOK_PACKAGES &&
+                TIKTOK_EXCLUDED_HINTS.none { hint -> collectedIds.any { it.contains(hint, ignoreCase = true) } } ->
                 BlockSurface.TIKTOK_FOR_YOU
             else -> null
         }

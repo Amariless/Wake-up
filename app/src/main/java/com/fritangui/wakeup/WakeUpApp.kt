@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.fritangui.wakeup.alarm.AlarmController
 import com.fritangui.wakeup.data.db.AppDatabase
 import com.fritangui.wakeup.data.repository.FolderRepository
 import com.fritangui.wakeup.usage.ScreenTimeWorker
@@ -31,6 +32,7 @@ class WakeUpApp : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var database: AppDatabase
     @Inject lateinit var folderRepository: FolderRepository
+    @Inject lateinit var alarmController: AlarmController
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -41,6 +43,20 @@ class WakeUpApp : Application(), Configuration.Provider {
         ScreenTimeWorker.enqueuePeriodic(this)
         warmUpDatabase()
         cleanUpStrayDemoData()
+        rescheduleClassReminders()
+    }
+
+    /**
+     * Re-arma el aviso de "próxima clase en X min" (#144) cada vez que se abre la app: cubre tanto
+     * el caso de "el usuario editó su horario y no reinició el teléfono" (BootReceiver solo corre
+     * tras reiniciar) como el de "cambió el ajuste" (ver también [AlarmController.rescheduleClassReminders],
+     * que además se llama directo desde Ajustes al tocar el valor). No hace nada si el aviso está
+     * apagado (0 minutos, valor por defecto).
+     */
+    private fun rescheduleClassReminders() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            alarmController.rescheduleClassReminders()
+        }
     }
 
     /**
@@ -125,8 +141,16 @@ class WakeUpApp : Application(), Configuration.Provider {
             description = "Notificación silenciosa con el tiempo restante del temporizador"
         }
 
+        val nextClassChannel = NotificationChannel(
+            CHANNEL_NEXT_CLASS,
+            "Próxima clase",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Aviso de que tu próxima clase está por empezar (configurable en Ajustes)"
+        }
+
         manager.createNotificationChannels(
-            listOf(alarmChannel, preAlarmChannel, remindersChannel, usageChannel, timerRunningChannel)
+            listOf(alarmChannel, preAlarmChannel, remindersChannel, usageChannel, timerRunningChannel, nextClassChannel)
         )
     }
 
@@ -136,5 +160,6 @@ class WakeUpApp : Application(), Configuration.Provider {
         const val CHANNEL_TASK_REMINDERS = "channel_task_reminders"
         const val CHANNEL_USAGE_NAG = "channel_usage_nag"
         const val CHANNEL_TIMER_RUNNING = "channel_timer_running"
+        const val CHANNEL_NEXT_CLASS = "channel_next_class"
     }
 }

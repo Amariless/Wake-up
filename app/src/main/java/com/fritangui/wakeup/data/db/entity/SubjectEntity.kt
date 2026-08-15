@@ -24,4 +24,6 @@ data class SubjectEntity(
     val name: String,
     val colorArgb: Int,
     val professor: String = "",
+    /** Clave del ícono elegido (ver [com.fritangui.wakeup.ui.subjects.SubjectIcons]); null = sin ícono, se muestra solo el punto de color. */
+    val iconKey: String? = null,
 )

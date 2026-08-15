@@ -129,12 +129,40 @@ private fun TimerIdleContent(
         // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es cuál.
         // Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier dirección (arriba
         // de la hora 0 aparece la 23, arriba del segundo 0 el 59...) en vez de topar con un final.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            WheelPicker(value = hoursInput, range = 0..23, onValueChange = onHoursChange, loop = true)
-            Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp))
-            WheelPicker(value = minutesInput, range = 0..59, onValueChange = onMinutesChange, loop = true)
-            Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp))
-            WheelPicker(value = secondsInput, range = 0..59, onValueChange = onSecondsChange, loop = true)
+        // Sin los ":" entre ruedas (el espaciado ya deja claro que son 3 valores separados, ver
+        // #151) y con la rueda en general más grande: más alto por ítem, más ancha, letra más
+        // grande y con un poco más de énfasis extra en el número central.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            WheelPicker(
+                value = hoursInput,
+                range = 0..23,
+                onValueChange = onHoursChange,
+                loop = true,
+                itemHeight = 64.dp,
+                width = 96.dp,
+                textStyle = MaterialTheme.typography.displaySmall,
+                centerEmphasis = 1.1f,
+            )
+            WheelPicker(
+                value = minutesInput,
+                range = 0..59,
+                onValueChange = onMinutesChange,
+                loop = true,
+                itemHeight = 64.dp,
+                width = 96.dp,
+                textStyle = MaterialTheme.typography.displaySmall,
+                centerEmphasis = 1.1f,
+            )
+            WheelPicker(
+                value = secondsInput,
+                range = 0..59,
+                onValueChange = onSecondsChange,
+                loop = true,
+                itemHeight = 64.dp,
+                width = 96.dp,
+                textStyle = MaterialTheme.typography.displaySmall,
+                centerEmphasis = 1.1f,
+            )
         }
 
         ExposedDropdownMenuBox(

@@ -129,6 +129,11 @@ class RingingForegroundService : LifecycleService() {
                 },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
+            // El aviso T-60 ("suena a las...") ya cumplió su propósito en cuanto la alarma real
+            // suena — antes se quedaba pegado en la barra de notificaciones hasta que el usuario lo
+            // descartara a mano (#138).
+            notificationHelper.cancelPreAlarmNotification(alarm.id)
+
             val notification = notificationHelper.notifyRinging(alarm, fullScreenPendingIntent)
             startForeground(AlarmConstants.NOTIF_ID_RINGING_BASE + alarm.id.toInt(), notification)
 

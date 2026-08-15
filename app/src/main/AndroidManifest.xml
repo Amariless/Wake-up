@@ -109,6 +109,12 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".alarm.ClassReminderReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.fritangui.wakeup.action.CLASS_REMINDER_FIRE" />
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".alarm.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

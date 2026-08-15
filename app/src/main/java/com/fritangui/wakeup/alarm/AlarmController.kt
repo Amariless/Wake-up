@@ -1,9 +1,11 @@
 package com.fritangui.wakeup.alarm
 
+import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.data.repository.AlarmRepository
 import com.fritangui.wakeup.data.repository.FolderRepository
+import com.fritangui.wakeup.data.repository.SubjectRepository
 import com.fritangui.wakeup.data.repository.TaskRepository
 import com.fritangui.wakeup.domain.computeReminderTriggers
 import kotlinx.coroutines.flow.first
@@ -21,6 +23,8 @@ class AlarmController @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val taskRepository: TaskRepository,
     private val folderRepository: FolderRepository,
+    private val subjectRepository: SubjectRepository,
+    private val settingsDataStore: SettingsDataStore,
     private val alarmScheduler: AlarmScheduler,
 ) {
     suspend fun saveAndSchedule(alarm: AlarmEntity): Long {
@@ -91,5 +95,24 @@ class AlarmController @Inject constructor(
                 }
             }
         }
+        rescheduleClassReminders()
+    }
+
+    /**
+     * (Re)programa el aviso de "próxima clase en X min" (#144) para todas las sesiones de carpetas
+     * activas, según el valor actual del ajuste. Se llama al arrancar la app, tras reiniciar el
+     * teléfono, y cada vez que el usuario cambia los minutos en Ajustes — así una sesión ya armada
+     * con el valor viejo se sobrescribe con el nuevo en vez de sonar tarde/temprano de más.
+     */
+    suspend fun rescheduleClassReminders() {
+        val minutesBefore = settingsDataStore.nextClassNotificationMinutesBefore.first()
+        val sessions = subjectRepository.observeWithSessionsForActiveFolders().first().flatMap { it.sessions }
+        if (minutesBefore <= 0) {
+            // Apagado (o recién apagado desde Ajustes): cancela lo que ya estuviera armado en vez
+            // de dejarlo sonar una vez más de más antes de autocorregirse.
+            sessions.forEach { alarmScheduler.cancelClassReminder(it.id) }
+            return
+        }
+        sessions.forEach { session -> alarmScheduler.scheduleClassReminder(session, minutesBefore) }
     }
 }

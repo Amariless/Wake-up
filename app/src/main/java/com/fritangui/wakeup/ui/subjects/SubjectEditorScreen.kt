@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -65,13 +66,15 @@ fun SubjectEditorScreen(
     var name by rememberSaveable(subject?.id) { mutableStateOf(subject?.name ?: "") }
     var professor by rememberSaveable(subject?.id) { mutableStateOf(subject?.professor ?: "") }
     var selectedColor by remember(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
+    var selectedIcon by rememberSaveable(subject?.id) { mutableStateOf(subject?.iconKey) }
     var confirmDiscard by remember { mutableStateOf(false) }
 
     // Hay cambios sin guardar si algo difiere de lo último que llegó de la BD (o, para una
     // materia nueva que aún no existe, si el usuario ya escribió algo).
     val isDirty = name != (subject?.name ?: "") ||
         professor != (subject?.professor ?: "") ||
-        selectedColor != (subject?.colorArgb ?: defaultColor)
+        selectedColor != (subject?.colorArgb ?: defaultColor) ||
+        selectedIcon != subject?.iconKey
 
     fun tryExit() {
         if (isDirty) confirmDiscard = true else onBack()
@@ -98,7 +101,7 @@ fun SubjectEditorScreen(
                             // quedamos en la pantalla para poder agregar sus horarios de una: si
                             // saliéramos de una vez, habría que volver a entrar a mano para eso.
                             val wasExisting = currentSubjectId != null
-                            viewModel.saveBasicInfo(name, professor, selectedColor) { if (wasExisting) onBack() }
+                            viewModel.saveBasicInfo(name, professor, selectedColor, selectedIcon) { if (wasExisting) onBack() }
                         },
                         enabled = name.isNotBlank(),
                     ) { Text(if (currentSubjectId == null) "Crear" else "Guardar") }
@@ -144,6 +147,19 @@ fun SubjectEditorScreen(
                             )
                             .clickable { selectedColor = argb },
                     )
+                }
+            }
+
+            // Ícono opcional para reconocer la materia más fácil de un vistazo (además del color).
+            Text("Ícono (opcional)", modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // "Sin ícono": vuelve a mostrar solo el punto de color, como antes de esta función.
+                IconPickerCell(icon = null, isSelected = selectedIcon == null, tint = selectedColor) { selectedIcon = null }
+                SubjectIcons.catalog.forEach { (key, icon) ->
+                    IconPickerCell(icon = icon, isSelected = selectedIcon == key, tint = selectedColor) { selectedIcon = key }
                 }
             }
 
@@ -232,5 +248,30 @@ fun SubjectEditorScreen(
             },
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
         )
+    }
+}
+
+/** Una celda del selector de íconos: `icon == null` es la opción "sin ícono" (una X). */
+@Composable
+private fun IconPickerCell(
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    isSelected: Boolean,
+    tint: Int,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(if (isSelected) androidx.compose.ui.graphics.Color(tint).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerHigh)
+            .then(if (isSelected) Modifier.border(2.dp, androidx.compose.ui.graphics.Color(tint), CircleShape) else Modifier)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = androidx.compose.ui.graphics.Color(tint), modifier = Modifier.size(22.dp))
+        } else {
+            Icon(Icons.Default.Close, contentDescription = "Sin ícono", tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(18.dp))
+        }
     }
 }

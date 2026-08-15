@@ -8,10 +8,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
@@ -47,16 +49,24 @@ private data class TopAppUsage(val packageName: String, val label: String, val m
  * Tercer widget de home screen: resumen del tiempo de pantalla de hoy y las apps que más se
  * usaron. Formato pedido por el usuario (captura de referencia): título + botón de refrescar
  * arriba, el total grande debajo, y cada app en su propia fila con el tiempo dentro de un círculo
- * perfecto a la izquierda (no una píldora) y el nombre a la derecha.
+ * a la izquierda y el nombre a la derecha — con tamaño y contraste del círculo según qué tan usada
+ * fue esa app hoy (#153).
  */
 class ScreenTimeWidget : GlanceAppWidget() {
+
+    // Exact (no Single) para que LocalSize.current adentro del composable refleje el tamaño real
+    // que el usuario le dio al widget en su pantalla de inicio — así se puede mostrar una 4ta/5ta
+    // app cuando hay alto de sobra, en vez de un número fijo sin importar la resolución (#153).
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val entryPoint = widgetEntryPoint(context)
         val hasAccess = PermissionStatus.hasUsageAccess(context)
         val usage = if (hasAccess) entryPoint.usageRepository().observeForDay(todayEpochDay()).first() else emptyList()
         val totalMinutes = usage.sumOf { it.minutesUsed }
-        val topApps = usage.sortedByDescending { it.minutesUsed }.take(3)
+        // Se trae hasta 5 (el máximo que se podría llegar a mostrar); cuántas de esas se pintan de
+        // verdad se decide adentro del composable según el alto real del widget.
+        val topApps = usage.sortedByDescending { it.minutesUsed }.take(5)
             .map { entry -> TopAppUsage(entry.packageName, resolveLabel(context, entry.packageName), entry.minutesUsed) }
         val openIntent = WidgetDeepLink.screenTimeIntent(context)
 
@@ -67,6 +77,16 @@ class ScreenTimeWidget : GlanceAppWidget() {
 
     @Composable
     private fun WidgetContent(hasAccess: Boolean, totalMinutes: Long, topApps: List<TopAppUsage>, openIntent: Intent) {
+        // Con menos de ~170dp de alto ni siquiera entran cómodas 3 filas grandes; por encima de eso
+        // gradualmente caben la 4ta y 5ta app.
+        val heightDp = LocalSize.current.height.value
+        val visibleCount = when {
+            heightDp >= 260 -> 5
+            heightDp >= 210 -> 4
+            else -> 3
+        }
+        val visibleApps = topApps.take(visibleCount)
+
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -81,11 +101,12 @@ class ScreenTimeWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(openIntent)),
                 )
                 // Refresca los datos del widget sin tener que abrir la app — provideGlance se vuelve
-                // a llamar con la consulta más reciente a Room/UsageStatsManager.
+                // a llamar con la consulta más reciente a Room/UsageStatsManager. Ícono más grande
+                // que antes (#153): 16sp era casi imposible de tocar con precisión.
                 Text(
                     "⟳",
-                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 16.sp),
-                    modifier = GlanceModifier.clickable(actionRunCallback<RefreshScreenTimeAction>()),
+                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 22.sp),
+                    modifier = GlanceModifier.padding(4.dp).clickable(actionRunCallback<RefreshScreenTimeAction>()),
                 )
             }
             if (!hasAccess) {
@@ -101,33 +122,41 @@ class ScreenTimeWidget : GlanceAppWidget() {
                 style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Bold, fontSize = 30.sp),
                 modifier = GlanceModifier.padding(top = 4.dp).clickable(actionStartActivity(openIntent)),
             )
-            if (topApps.isNotEmpty()) {
+            if (visibleApps.isNotEmpty()) {
                 Spacer(modifier = GlanceModifier.height(14.dp))
-                topApps.forEach { app -> TopAppRow(app, openIntent) }
+                val maxMinutes = visibleApps.maxOf { it.minutes }.coerceAtLeast(1L)
+                visibleApps.forEachIndexed { index, app ->
+                    val fraction = (app.minutes.toFloat() / maxMinutes).coerceIn(0f, 1f)
+                    TopAppRow(app, fraction, openIntent)
+                }
             }
         }
     }
 
     @Composable
-    private fun TopAppRow(app: TopAppUsage, openIntent: Intent) {
+    private fun TopAppRow(app: TopAppUsage, usageFraction: Float, openIntent: Intent) {
+        // Círculo de tamaño dinámico (más grande cuanto más se usó hoy esa app, entre CIRCLE_MIN y
+        // CIRCLE_MAX) y con menos aire vertical entre filas que antes, para que las filas de mayor a
+        // menor uso se vean "encimadas" en vez de sueltas y parejas (#153).
+        val circleSize = CIRCLE_MIN + (CIRCLE_MAX - CIRCLE_MIN) * usageFraction
+        val circleColor = colorForRank(app.packageName, usageFraction)
+        val textOnCircleColor = if (isLight(circleColor)) Color(0xFF232323) else Color(0xFFF5F5F5)
+
         Row(
-            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 6.dp).clickable(actionStartActivity(openIntent)),
+            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp).clickable(actionStartActivity(openIntent)),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Círculo perfecto (mismo ancho y alto + esquinas a la mitad de ese tamaño) en vez de
-            // una píldora de ancho variable, igual que en la referencia — el color es propio de
-            // cada app (derivado de su paquete, ya que no hay una paleta real por app disponible).
             Box(
                 modifier = GlanceModifier
-                    .size(CIRCLE_SIZE)
-                    .background(ColorProvider(colorForPackage(app.packageName)))
-                    .cornerRadius(CIRCLE_SIZE / 2),
+                    .size(circleSize)
+                    .background(ColorProvider(circleColor))
+                    .cornerRadius(circleSize / 2),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     formatDuration(app.minutes).replace(" ", ""),
                     style = TextStyle(
-                        color = ColorProvider(Color(0xFF232323)),
+                        color = ColorProvider(textOnCircleColor),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
@@ -148,11 +177,21 @@ class ScreenTimeWidget : GlanceAppWidget() {
         pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
     }.getOrDefault(packageName)
 
-    /** Color determinístico y pastel (bastante claro, para que el texto oscuro adentro se lea bien) a partir del paquete. */
-    private fun colorForPackage(packageName: String): Color {
+    /**
+     * Color determinístico (hue propio del paquete, para variedad entre apps) cuyo contraste contra
+     * el fondo oscuro del widget va de MÁS vivo (la app más usada) a MÁS apagado/gris (la menos
+     * usada de las mostradas) — antes todas las filas tenían el mismo brillo/saturación sin importar
+     * qué tan usada fue cada una (#153).
+     */
+    private fun colorForRank(packageName: String, usageFraction: Float): Color {
         val hue = ((packageName.hashCode() % 360) + 360) % 360
-        return Color.hsv(hue.toFloat(), 0.35f, 0.92f)
+        val saturation = 0.18f + 0.30f * usageFraction
+        val value = 0.55f + 0.37f * usageFraction
+        return Color.hsv(hue.toFloat(), saturation, value)
     }
+
+    private fun isLight(color: Color): Boolean =
+        (0.299f * color.red + 0.587f * color.green + 0.114f * color.blue) > 0.6f
 
     /** Igual que en ScreenTimeScreen.kt: "45m" bajo una hora, "1h 23m" (o "2h") de ahí para arriba. */
     private fun formatDuration(minutes: Long): String {
@@ -163,7 +202,8 @@ class ScreenTimeWidget : GlanceAppWidget() {
     }
 
     companion object {
-        private val CIRCLE_SIZE = 40.dp
+        private val CIRCLE_MIN = 32.dp
+        private val CIRCLE_MAX = 52.dp
     }
 }
 

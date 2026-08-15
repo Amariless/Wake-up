@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -62,6 +63,9 @@ fun WheelPicker(
     width: Dp = 88.dp,
     loop: Boolean = false,
     label: (Int) -> String = { it.toString().padStart(2, '0') },
+    textStyle: TextStyle = MaterialTheme.typography.headlineMedium,
+    /** Multiplicador extra de tamaño SOLO para el ítem central (1f = sin cambio); ver #151. */
+    centerEmphasis: Float = 1f,
 ) {
     val items = remember(range) { range.toList() }
     val itemCount = items.size
@@ -140,15 +144,18 @@ fun WheelPicker(
                 val centerOffsetPx = itemInfo?.let { (it.offset + it.size / 2f) - viewportCenter }
                 val distanceInItems = if (centerOffsetPx != null) abs(centerOffsetPx) / itemHeightPx else halfVisible.toFloat()
                 val t = (1f - (distanceInItems / halfVisible.toFloat())).coerceIn(0f, 1f)
-                val scale = 0.68f + 0.32f * t
+                val scale = (0.68f + 0.32f * t) * (1f + (centerEmphasis - 1f) * t)
                 val color = lerp(dimColor, emphasisColor, t)
+                // Antes los ítems lejanos solo perdían color (seguían a alpha completo) — con esto
+                // además se desvanecen de verdad a medida que se alejan del centro (#151).
+                val alpha = 0.35f + 0.65f * t
 
                 Box(modifier = Modifier.height(itemHeight).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(
                         label(valueAt(index)),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = textStyle,
                         color = color,
-                        modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale },
+                        modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha },
                     )
                 }
             }

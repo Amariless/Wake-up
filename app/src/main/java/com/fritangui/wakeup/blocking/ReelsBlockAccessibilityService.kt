@@ -98,32 +98,36 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
         }
     }
 
+    // Apps del catálogo fijo (ver BlockableAppCatalog) que no tienen detección real de sub-pantalla:
+    // ahí se limita la app ENTERA, así que su "superficie" se resuelve directo del paquete, sin
+    // recorrer nodos de accesibilidad.
+    private val wholeAppSurfaceByPackage: Map<String, BlockSurface> =
+        BlockableAppCatalog.apps.filter { it.limitsWholeApp }.associate { it.packageName to it.surface }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val packageName = event.packageName?.toString() ?: return
 
-        // El recorrido de nodos de Reels/TikTok (hasta 500 nodos) solo hace falta, y solo es
-        // preciso, para esos dos paquetes: evita hacerlo para cualquier otra app ahora que el
-        // servicio escucha eventos de todas (necesario para checkAlertRules, más abajo).
-        if (packageName == "com.instagram.android" || packageName == "com.zhiliaoapp.musically" || packageName == "com.ss.android.ugc.trill") {
+        // El recorrido de nodos (hasta 500) solo hace falta, y solo es preciso, para Instagram/TikTok
+        // (únicas apps con detección real de sub-pantalla); el resto del catálogo se resuelve directo
+        // por nombre de paquete, sin tocar el árbol de accesibilidad.
+        val resolvedSurface: BlockSurface? = if (packageName == "com.instagram.android" || packageName in ReelsNodeDetector.TIKTOK_PACKAGES) {
             val root = rootInActiveWindow
             val result = if (root != null) ReelsNodeDetector.detect(root, packageName) else ReelsNodeDetector.DetectionResult(null, emptySet())
             _lastDetection.value = DetectionDebugInfo(packageName, result.surface, result.matchedIds)
+            result.surface
+        } else {
+            wholeAppSurfaceByPackage[packageName]
+        }
 
-            if (result.surface != currentSurface) {
-                scheduleLeaveCheckIfSnoozed(currentSurface)
-                flushAccumulatedTime()
-                currentSurface = result.surface
-                surfaceStartedAtElapsedMs = SystemClock.elapsedRealtime()
-            } else {
-                result.surface?.let { periodicFlush(it) }
-            }
-            result.surface?.let { checkLimit(it) }
-        } else if (currentSurface != null) {
-            // Se salió de Instagram/TikTok hacia otra app: cierra el tramo que se venía acumulando.
+        if (resolvedSurface != currentSurface) {
             scheduleLeaveCheckIfSnoozed(currentSurface)
             flushAccumulatedTime()
-            currentSurface = null
+            currentSurface = resolvedSurface
+            surfaceStartedAtElapsedMs = SystemClock.elapsedRealtime()
+        } else {
+            resolvedSurface?.let { periodicFlush(it) }
         }
+        resolvedSurface?.let { checkLimit(it) }
 
         checkAlertRules(packageName)
     }
@@ -203,6 +207,7 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
             BlockSurface.INSTAGRAM_REELS -> "Reels"
             BlockSurface.TIKTOK_FOR_YOU -> "TikTok"
             BlockSurface.GENERIC_APP_TIME_LIMIT -> "esta app"
+            else -> BlockableAppCatalog.apps.firstOrNull { it.surface == surface }?.label ?: "esta app"
         }
         startService(BlockOverlayService.intent(this, label, surface))
     }

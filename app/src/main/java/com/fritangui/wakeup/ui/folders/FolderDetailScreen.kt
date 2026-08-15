@@ -2,11 +2,6 @@
 
 package com.fritangui.wakeup.ui.folders
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -21,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -47,13 +44,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -69,6 +66,7 @@ import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.domain.AlarmTiming
 import com.fritangui.wakeup.ui.components.ClockTimeText
 import com.fritangui.wakeup.ui.tasks.taskListItems
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -93,10 +91,13 @@ fun FolderDetailScreen(
     val subjectColorsById by viewModel.subjectColorsById.collectAsState()
     val alarms by viewModel.alarms.collectAsState()
     val isPinned by viewModel.isPinned.collectAsState()
-    // rememberSaveable a propósito: Navigation-Compose descompone esta pantalla por completo al
-    // navegar a un editor y la vuelve a componer desde cero al volver (back), así que un simple
-    // remember perdía la pestaña seleccionada y siempre volvía a "Materias".
-    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
+    // pagerState guarda la página seleccionada con rememberSaveable por dentro (igual que el
+    // tabIndex suelto de antes), así que sigue sobreviviendo a que Navigation-Compose descomponga
+    // esta pantalla al navegar a un editor y la recomponga desde cero al volver (back). Con
+    // HorizontalPager, además, la sub-pestaña también se puede cambiar deslizando (#145).
+    val pagerState = rememberPagerState(pageCount = { 3 })
+    val coroutineScope = rememberCoroutineScope()
+    val tabIndex = pagerState.currentPage
     val isReadOnly = folder?.isActive != true
     val tabs = listOf("Materias", "Tareas", "Alarmas")
 
@@ -134,14 +135,14 @@ fun FolderDetailScreen(
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             TabRow(selectedTabIndex = tabIndex) {
                 tabs.forEachIndexed { index, title ->
-                    Tab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
+                    Tab(
+                        selected = tabIndex == index,
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
+                        text = { Text(title) },
+                    )
                 }
             }
-            AnimatedContent(
-                targetState = tabIndex,
-                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
-                label = "folder_tab",
-            ) { index ->
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { index ->
                 when (index) {
                     0 -> SubjectsTab(
                         subjects = subjects,
@@ -185,7 +186,7 @@ private fun SubjectsTab(subjects: List<SubjectWithSessions>, onClick: (Long) -> 
                     ),
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(14.dp).background(Color(entry.subject.colorArgb), CircleShape))
+                    SubjectIndicator(entry.subject.colorArgb, entry.subject.iconKey)
                     Column(modifier = Modifier.padding(start = 12.dp)) {
                         Text(entry.subject.name, style = MaterialTheme.typography.titleMedium)
                         if (entry.sessions.isEmpty()) {
@@ -300,6 +301,23 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
                     Switch(checked = alarm.isEnabled, enabled = !readOnly, onCheckedChange = { onToggle(alarm.id, it) })
                 }
             }
+        }
+    }
+}
+
+/** Punto de color de siempre si la materia no tiene ícono elegido; si tiene, un avatar circular
+ *  con ese ícono sobre un fondo tintado del color de la materia (reconocerla más fácil, ver #159). */
+@Composable
+private fun SubjectIndicator(colorArgb: Int, iconKey: String?) {
+    val icon = com.fritangui.wakeup.ui.subjects.SubjectIcons.iconFor(iconKey)
+    if (icon == null) {
+        Box(modifier = Modifier.size(14.dp).background(Color(colorArgb), CircleShape))
+    } else {
+        Box(
+            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(colorArgb).copy(alpha = 0.22f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(colorArgb), modifier = Modifier.size(18.dp))
         }
     }
 }

@@ -13,8 +13,12 @@ import com.fritangui.wakeup.alarm.AlarmConstants.ACTION_TASK_REMINDER_FIRE
 import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_ALARM_ID
 import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_REMINDER_INDEX
 import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_TASK_ID
+import com.fritangui.wakeup.alarm.AlarmConstants.ACTION_CLASS_REMINDER_FIRE
+import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_SESSION_ID
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
+import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
 import com.fritangui.wakeup.domain.AlarmTiming
+import com.fritangui.wakeup.domain.nextClassReminderTrigger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.datetime.Instant
 import javax.inject.Inject
@@ -159,6 +163,49 @@ class AlarmScheduler @Inject constructor(
     /** Cancela hasta [maxReminders] índices de recordatorio de una tarea (se usa al borrar/editar). */
     fun cancelAllTaskReminders(taskId: Long, maxReminders: Int = 8) {
         for (i in 0 until maxReminders) cancelTaskReminder(taskId, i)
+    }
+
+    /**
+     * Aviso global de "tu próxima clase empieza en X min" (#144). A diferencia de las alarmas y
+     * recordatorios de tarea (que se reprograman explícitamente desde fuera al sonar), esta se
+     * auto-reprograma: [ClassReminderReceiver] vuelve a llamar a este mismo método para la
+     * siguiente semana justo después de mostrar el aviso, reutilizando el mismo PendingIntent — así
+     * el request code de [AlarmConstants.classReminderRequestCode] no cambia nunca para una misma
+     * sesión, y una nueva llamada (p.ej. tras cambiar los minutos en Ajustes) simplemente
+     * sobrescribe cuándo va a sonar la próxima vez.
+     */
+    fun scheduleClassReminder(session: ClassSessionEntity, minutesBefore: Int) {
+        val manager = alarmManager ?: return
+        val trigger = nextClassReminderTrigger(session, minutesBefore) ?: run {
+            cancelClassReminder(session.id)
+            return
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            AlarmConstants.classReminderRequestCode(session.id),
+            Intent(context, ClassReminderReceiver::class.java).apply {
+                action = ACTION_CLASS_REMINDER_FIRE
+                putExtra(EXTRA_SESSION_ID, session.id)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !manager.canScheduleExactAlarms()) {
+            manager.set(AlarmManager.RTC_WAKEUP, trigger.toEpochMilliseconds(), pendingIntent)
+        } else {
+            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger.toEpochMilliseconds(), pendingIntent)
+        }
+    }
+
+    fun cancelClassReminder(sessionId: Long) {
+        val manager = alarmManager ?: return
+        manager.cancel(
+            PendingIntent.getBroadcast(
+                context,
+                AlarmConstants.classReminderRequestCode(sessionId),
+                Intent(context, ClassReminderReceiver::class.java).apply { action = ACTION_CLASS_REMINDER_FIRE },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ),
+        )
     }
 
     /**

@@ -36,6 +36,7 @@ class SettingsDataStore @Inject constructor(
         val USE_24_HOUR_FORMAT = booleanPreferencesKey("use_24_hour_format")
         val SNOOZE_MINUTES = intPreferencesKey("snooze_minutes")
         val BLOCK_GRACE_MINUTES = intPreferencesKey("block_grace_minutes")
+        val NEXT_CLASS_NOTIFICATION_MINUTES = intPreferencesKey("next_class_notification_minutes")
     }
 
     val isXiaomiOnboardingDone: Flow<Boolean> =
@@ -123,5 +124,17 @@ class SettingsDataStore @Inject constructor(
 
     suspend fun setBlockGraceMinutes(minutes: Int) {
         context.dataStore.edit { it[Keys.BLOCK_GRACE_MINUTES] = minutes }
+    }
+
+    /**
+     * Minutos de anticipación con los que avisar "tu próxima clase empieza en X min" (#144).
+     * 0 = apagado (por defecto): es un aviso nuevo y opcional, no algo que todo el mundo quiera
+     * de entrada como sí pasa con posponer/prórroga de bloqueo (que ya existían de antes).
+     */
+    val nextClassNotificationMinutesBefore: Flow<Int> =
+        context.dataStore.data.map { it[Keys.NEXT_CLASS_NOTIFICATION_MINUTES] ?: 0 }
+
+    suspend fun setNextClassNotificationMinutesBefore(minutes: Int) {
+        context.dataStore.edit { it[Keys.NEXT_CLASS_NOTIFICATION_MINUTES] = minutes }
     }
 }

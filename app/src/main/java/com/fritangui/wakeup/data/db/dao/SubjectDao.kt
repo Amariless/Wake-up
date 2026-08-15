@@ -56,4 +56,10 @@ interface SubjectDao {
 
     @Query("SELECT * FROM class_sessions WHERE subjectId = :subjectId ORDER BY dayOfWeek, startMinuteOfDay")
     fun observeSessions(subjectId: Long): Flow<List<ClassSessionEntity>>
+
+    @Query("SELECT * FROM class_sessions WHERE id = :id")
+    suspend fun getSessionById(id: Long): ClassSessionEntity?
+
+    @Query("SELECT * FROM subjects WHERE id = :id")
+    suspend fun getSubjectByIdOnce(id: Long): SubjectEntity?
 }

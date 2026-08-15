@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -44,6 +46,7 @@ fun SettingsScreen(
     val use24HourFormat by viewModel.use24HourFormat.collectAsState()
     val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
     val blockGraceMinutes by viewModel.blockGraceMinutes.collectAsState()
+    val nextClassNotificationMinutes by viewModel.nextClassNotificationMinutes.collectAsState()
 
     Scaffold(
         topBar = {
@@ -55,7 +58,9 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
+        // Sin verticalScroll el contenido se cortaba abajo (más visible con "Color dinámico" +
+        // "Buscar actualizaciones" + "Permisos" + panel de dev en builds debug, ver #148).
+        Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState())) {
             SettingsRow("Color dinámico", "Usa los colores del fondo de tu teléfono (Android 12+)") {
                 Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)
             }
@@ -70,6 +75,15 @@ fun SettingsScreen(
             HorizontalDivider()
             SettingsRow("Prórroga de bloqueo", "Minutos del botón \"X minutos más\" al alcanzar el límite de Reels/TikTok") {
                 NumberStepper(value = blockGraceMinutes, range = 1..30, onValueChange = viewModel::setBlockGraceMinutes)
+            }
+            HorizontalDivider()
+            SettingsRow("Aviso de próxima clase", "Notificación cuando tu próxima clase está por empezar") {
+                Switch(checked = nextClassNotificationMinutes > 0, onCheckedChange = viewModel::setNextClassNotificationEnabled)
+            }
+            if (nextClassNotificationMinutes > 0) {
+                SettingsRow("Minutos de anticipación", "Con cuánto tiempo antes avisar") {
+                    NumberStepper(value = nextClassNotificationMinutes, range = 1..60, onValueChange = viewModel::setNextClassNotificationMinutes)
+                }
             }
             HorizontalDivider()
             SettingsLinkRow("Buscar actualizaciones", "Revisa el repositorio de GitHub por una versión nueva", onOpenUpdate)

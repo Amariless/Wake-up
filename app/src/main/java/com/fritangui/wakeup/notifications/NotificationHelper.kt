@@ -24,6 +24,7 @@ import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
+import com.fritangui.wakeup.widget.WidgetDeepLink
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -98,6 +99,8 @@ class NotificationHelper @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification_alarm)
             .setContentTitle("${alarm.label.ifBlank { "Alarma" }} suena a las $timeText")
             .setContentText("En ${alarm.preAlarmNotificationMinutesBefore} min")
+            .setColor(0xFF7C9CFF.toInt())
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openIntent)
             .setAutoCancel(true)
@@ -164,23 +167,56 @@ class NotificationHelper @Inject constructor(
         manager.cancel(AlarmConstants.NOTIF_ID_REMINDER_BASE + alarmId.toInt())
     }
 
+    /**
+     * Antes solo decía "Tarea próxima a vencer" (sin decir cuánto faltaba) y abría la app en
+     * Inicio en vez de la tarea concreta (#136). Ahora reutiliza [WidgetDeepLink] — el mismo
+     * mecanismo que ya usan los widgets — para llevar directo a la tarea, y calcula cuánto falta
+     * al momento de sonar (no hace falta guardar qué offset la disparó: a esa hora exacta, lo que
+     * quede hasta el vencimiento YA es la respuesta correcta).
+     */
     fun notifyTaskReminder(task: TaskEntity, subjectName: String?) {
         val openIntent = PendingIntent.getActivity(
             context,
             task.id.toInt(),
-            Intent(context, MainActivity::class.java),
+            WidgetDeepLink.taskIntent(context, task.folderId, task.id),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val title = if (subjectName != null) "$subjectName: ${task.title}" else task.title
+        val timeUntilText = task.dueAtEpochMillis?.let { formatTimeUntilDue(System.currentTimeMillis(), it) }
+            ?: "Tarea próxima a vencer"
         val notification = NotificationCompat.Builder(context, WakeUpApp.CHANNEL_TASK_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification_task)
             .setContentTitle(title)
-            .setContentText("Tarea próxima a vencer")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentText(timeUntilText)
+            // Resalta más que la notificación "plana" anterior (#137): color propio de la app,
+            // categoría de recordatorio (algunos launchers la agrupan/priorizan distinto) y prioridad
+            // alta en vez de la default.
+            .setColor(0xFF7C9CFF.toInt())
+            .setColorized(false)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .build()
         manager.notify(AlarmConstants.NOTIF_ID_TASK_REMINDER_BASE + task.id.toInt(), notification)
+    }
+
+    /** "Vence en 1 semana" / "Vence mañana" / "Vence en 3 h" — ver [notifyTaskReminder]. */
+    private fun formatTimeUntilDue(nowMillis: Long, dueMillis: Long): String {
+        val diffMinutes = ((dueMillis - nowMillis) / 60_000L).coerceAtLeast(0L)
+        val diffHours = diffMinutes / 60
+        val diffDays = diffMinutes / (24 * 60)
+        return when {
+            diffMinutes < 60 -> "Vence en menos de una hora"
+            diffDays == 0L -> "Vence en $diffHours h"
+            diffDays == 1L -> "Vence mañana"
+            diffDays < 7 -> "Vence en $diffDays días"
+            diffDays % 7 == 0L -> {
+                val weeks = diffDays / 7
+                "Vence en $weeks semana${if (weeks > 1) "s" else ""}"
+            }
+            else -> "Vence en $diffDays días"
+        }
     }
 
     fun buildTimerRunningNotification(remainingMillis: Long, isPaused: Boolean, pausePendingIntent: PendingIntent, cancelPendingIntent: PendingIntent) =
@@ -237,10 +273,33 @@ class NotificationHelper @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification_usage)
             .setContentTitle("Llevas $minutesUsed min hoy en $label")
             .setContentText("Tu límite configurado es de $thresholdMinutes min")
+            .setColor(0xFF7C9CFF.toInt())
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .build()
         manager.notify(9_000_000 + label.hashCode(), notification)
+    }
+
+    /** Aviso global de "tu próxima clase empieza en X min" (#144), configurable en Ajustes. */
+    fun notifyNextClass(subjectName: String, room: String, minutesBefore: Int, folderId: Long, subjectId: Long) {
+        val openIntent = PendingIntent.getActivity(
+            context,
+            AlarmConstants.NOTIF_ID_CLASS_REMINDER_BASE + subjectId.toInt(),
+            com.fritangui.wakeup.widget.WidgetDeepLink.subjectIntent(context, folderId, subjectId),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, WakeUpApp.CHANNEL_NEXT_CLASS)
+            .setSmallIcon(R.drawable.ic_notification_alarm)
+            .setContentTitle("$subjectName empieza en $minutesBefore min")
+            .setContentText(if (room.isNotBlank()) "Salón $room" else "Prepárate")
+            .setColor(0xFF7C9CFF.toInt())
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openIntent)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(AlarmConstants.NOTIF_ID_CLASS_REMINDER_BASE + subjectId.toInt(), notification)
     }
 }

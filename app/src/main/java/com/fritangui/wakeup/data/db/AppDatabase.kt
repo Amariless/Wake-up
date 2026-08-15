@@ -32,10 +32,10 @@ import com.fritangui.wakeup.data.db.entity.UsageAlertRuleEntity
         BlockRuleEntity::class,
         BlockSurfaceUsageEntity::class,
     ],
-    // Se subió a 5: se agregaron `gradeWeightPercent` y `gradeValue` a TaskEntity (el % que vale
-    // una tarea en la nota final, y la nota obtenida al completarla). Misma razón que los saltos
-    // anteriores: ya hay datos reales del usuario, así que migración explícita (MIGRATION_4_5).
-    version = 5,
+    // Se subió a 6: se agregó `iconKey` a SubjectEntity (ícono elegido para reconocer la materia
+    // más fácil). Misma razón que los saltos anteriores: ya hay datos reales del usuario, así que
+    // migración explícita (MIGRATION_5_6).
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -67,6 +67,12 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN gradeWeightPercent REAL")
                 db.execSQL("ALTER TABLE tasks ADD COLUMN gradeValue REAL")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE subjects ADD COLUMN iconKey TEXT")
             }
         }
     }

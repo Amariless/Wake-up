@@ -74,6 +74,14 @@ private data class BottomDestination(
 /** Los 4 destinos de la barra inferior; ninguna otra pantalla (detalle, editores) debería considerarse "de tab". */
 private val TOP_LEVEL_ROUTES = setOf(Routes.HOME, Routes.FOLDERS, Routes.CLOCK, Routes.SCREEN_TIME)
 
+/**
+ * Pantallas "satélite" a las que solo se llega desde Inicio (el ícono de Ajustes) y que no son
+ * dueñas de ningún tab. Antes, tocar otro tab de la barra inferior estando en alguna de estas podía
+ * dejarlas a medio salir (#147): ahora el propio click de la barra las colapsa primero, así que
+ * "Inicio" siempre devuelve a Inicio de verdad, nunca a Ajustes.
+ */
+private val SATELLITE_ROUTES = setOf(Routes.SETTINGS, Routes.XIAOMI_ONBOARDING, Routes.DEV_TOOLS, Routes.UPDATE)
+
 @Composable
 fun WakeUpNavHost(
     pendingDeepLink: MutableState<WidgetDeepLink?> = remember { mutableStateOf(null) },
@@ -98,6 +106,11 @@ private fun WakeUpNavHostContent(
     currentDestination: androidx.navigation.NavDestination?,
     pinnedFolder: com.fritangui.wakeup.data.db.entity.FolderEntity?,
 ) {
+    // Contador (no booleano) para que CADA toque en el encabezado de "Próximas clases" del widget
+    // vuelva a disparar el scroll en Inicio, incluso si ya se estaba ahí (#142) — un simple booleano
+    // "true" repetido no generaría un nuevo valor para que LaunchedEffect reaccione otra vez.
+    val scrollToNextClassTrigger = remember { mutableStateOf(0) }
+
     // Al tocar una clase/tarea en un widget de home screen: arma la misma pila de navegación que
     // tendría si hubieras llegado ahí tocando dentro de la app (Inicio → Carpetas → esa carpeta →
     // la materia/tarea), para que "atrás" se sienta natural en vez de solo cerrar la app.
@@ -117,6 +130,9 @@ private fun WakeUpNavHostContent(
             }
             WidgetDeepLink.ScreenTime -> {
                 navController.navigate(Routes.SCREEN_TIME)
+            }
+            WidgetDeepLink.NextClass -> {
+                scrollToNextClassTrigger.value += 1
             }
         }
         pendingDeepLink.value = null
@@ -160,6 +176,13 @@ private fun WakeUpNavHostContent(
                             // pantalla (recomposición completa + reconsulta a la BD) y la animación
                             // de transición cada vez que se vuelve a tocar el mismo ícono.
                             if (isSelected) return@NavigationBarItem
+                            // Si venimos de una pantalla satélite (Ajustes y lo que cuelga de ahí:
+                            // Xiaomi/Dev tools/Actualizar), la colapsamos primero — antes cambiar de
+                            // tab desde Ajustes podía dejarla a medio salir en vez de devolver a
+                            // Inicio de verdad (#147).
+                            if (currentDestination?.route in SATELLITE_ROUTES) {
+                                navController.popBackStack(Routes.HOME, inclusive = false)
+                            }
                             // saveState/restoreState: cada tab conserva su estado (scroll, lo que ya
                             // cargó de la BD) al volver a él en vez de reconstruirse desde cero cada
                             // vez — antes esto se evitaba porque Ajustes también era un tab y comparte
@@ -174,7 +197,18 @@ private fun WakeUpNavHostContent(
                                     launchSingleTop = true
                                     restoreState = true
                                 }
-                                navController.navigate(dest.navRoute) { launchSingleTop = true }
+                                // Si restoreState (arriba) ya trajo de vuelta el detalle de ESTA
+                                // misma carpeta fija (se guardó junto con Carpetas la última vez que
+                                // se salió de este tab), no hace falta apilarlo otra vez: antes esto
+                                // duplicaba la entrada cada visita, dejando una pila con
+                                // "folder_detail" repetido que terminaba confundiendo a qué pantalla
+                                // debía caer "Inicio" — mismo patrón que el bug ya arreglado de
+                                // Bienestar (#146).
+                                val alreadyOnPinnedFolder = navController.currentDestination?.route == Routes.FOLDER_DETAIL &&
+                                    navController.currentBackStackEntry?.arguments?.getLong("folderId") == pinnedFolder?.id
+                                if (!alreadyOnPinnedFolder) {
+                                    navController.navigate(dest.navRoute) { launchSingleTop = true }
+                                }
                             } else {
                                 navController.navigate(dest.navRoute) {
                                     popUpTo(Routes.HOME) { inclusive = false; saveState = true }
@@ -199,7 +233,17 @@ private fun WakeUpNavHostContent(
             popEnterTransition = { defaultPopEnterTransition() },
             popExitTransition = { defaultPopExitTransition() },
         ) {
-            composable(Routes.HOME) { HomeScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
+            composable(Routes.HOME) {
+                val scrollToNextClassSignal by scrollToNextClassTrigger
+                HomeScreen(
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    // Igual que ya hacían los widgets (#141): tocar una clase/tarea en Inicio abre
+                    // directo su materia/tarea, no solo la pantalla de Inicio genérica.
+                    onOpenSubject = { folderId, subjectId -> navController.navigate(Routes.subjectEditor(folderId, subjectId)) },
+                    onOpenTask = { folderId, taskId -> navController.navigate(Routes.taskEditor(folderId, taskId)) },
+                    scrollToNextClassSignal = scrollToNextClassSignal,
+                )
+            }
 
             composable(Routes.FOLDERS) {
                 FoldersScreen(onOpenFolder = { navController.navigate(Routes.folderDetail(it)) })

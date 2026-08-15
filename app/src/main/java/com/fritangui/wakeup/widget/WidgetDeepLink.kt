@@ -13,6 +13,8 @@ sealed class WidgetDeepLink {
     data class Subject(val folderId: Long, val subjectId: Long) : WidgetDeepLink()
     data class Task(val folderId: Long, val taskId: Long) : WidgetDeepLink()
     data object ScreenTime : WidgetDeepLink()
+    /** Encabezado del widget de "Próximas clases" (#142): ir a Inicio y hacer scroll a la clase actual/próxima. */
+    data object NextClass : WidgetDeepLink()
 
     companion object {
         private const val EXTRA_TYPE = "widget_deeplink_type"
@@ -21,6 +23,7 @@ sealed class WidgetDeepLink {
         private const val TYPE_SUBJECT = "subject"
         private const val TYPE_TASK = "task"
         private const val TYPE_SCREEN_TIME = "screen_time"
+        private const val TYPE_NEXT_CLASS = "next_class"
 
         fun subjectIntent(context: Context, folderId: Long, subjectId: Long): Intent =
             Intent(context, MainActivity::class.java).apply {
@@ -41,9 +44,15 @@ sealed class WidgetDeepLink {
                 putExtra(EXTRA_TYPE, TYPE_SCREEN_TIME)
             }
 
+        fun nextClassIntent(context: Context): Intent =
+            Intent(context, MainActivity::class.java).apply {
+                putExtra(EXTRA_TYPE, TYPE_NEXT_CLASS)
+            }
+
         fun from(intent: Intent?): WidgetDeepLink? {
             val type = intent?.getStringExtra(EXTRA_TYPE) ?: return null
             if (type == TYPE_SCREEN_TIME) return ScreenTime
+            if (type == TYPE_NEXT_CLASS) return NextClass
             val folderId = intent.getLongExtra(EXTRA_FOLDER_ID, -1L)
             val itemId = intent.getLongExtra(EXTRA_ITEM_ID, -1L)
             if (folderId < 0 || itemId < 0) return null

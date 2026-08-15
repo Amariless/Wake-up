@@ -20,6 +20,8 @@ class SubjectRepository @Inject constructor(
     fun observeWithSessionsForActiveFolders(): Flow<List<SubjectWithSessions>> =
         subjectDao.observeWithSessionsForActiveFolders()
     fun observeSessions(subjectId: Long): Flow<List<ClassSessionEntity>> = subjectDao.observeSessions(subjectId)
+    suspend fun getSessionById(id: Long): ClassSessionEntity? = subjectDao.getSessionById(id)
+    suspend fun getSubjectByIdOnce(id: Long): SubjectEntity? = subjectDao.getSubjectByIdOnce(id)
 
     suspend fun upsert(subject: SubjectEntity): Long = subjectDao.upsert(subject)
     suspend fun update(subject: SubjectEntity) = subjectDao.update(subject)

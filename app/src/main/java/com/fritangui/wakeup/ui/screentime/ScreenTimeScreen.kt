@@ -2,34 +2,46 @@
 
 package com.fritangui.wakeup.ui.screentime
 
+import android.content.Context
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.permissions.PermissionStatus
@@ -103,7 +115,7 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
             } else {
                 val maxMinutes = (usage.maxOfOrNull { it.minutes } ?: 1L).coerceAtLeast(1L)
                 usage.take(10).forEach { row ->
-                    UsageBarRow(label = row.label, minutes = row.minutes, maxMinutes = maxMinutes)
+                    UsageBarRow(packageName = row.packageName, label = row.label, minutes = row.minutes, maxMinutes = maxMinutes)
                 }
             }
 
@@ -164,15 +176,40 @@ private fun WeeklyBarChart(days: List<DayUsage>) {
 }
 
 @Composable
-private fun UsageBarRow(label: String, minutes: Long, maxMinutes: Long) {
+private fun UsageBarRow(packageName: String, label: String, minutes: Long, maxMinutes: Long) {
+    val context = LocalContext.current
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, modifier = Modifier.width(110.dp), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+        AppIconSmall(context, packageName, label)
+        Text(
+            label,
+            modifier = Modifier.width(90.dp).padding(start = 10.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+        )
         Canvas(modifier = Modifier.weight(1f).height(18.dp).padding(horizontal = 8.dp)) {
             val fraction = (minutes.toFloat() / maxMinutes).coerceIn(0.02f, 1f)
             drawRect(color = Color(0x22FFFFFF), size = size)
             drawRect(color = WakeUpPrimary, size = Size(size.width * fraction, size.height))
         }
         Text(formatDuration(minutes), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** Ícono real de la app (#152) — cae a un ícono genérico si no se puede leer (p.ej. se desinstaló). */
+@Composable
+private fun AppIconSmall(context: Context, packageName: String, label: String) {
+    val bitmap = remember(packageName) {
+        runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap().asImageBitmap() }.getOrNull()
+    }
+    Box(
+        modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (bitmap != null) {
+            Image(bitmap = bitmap, contentDescription = label, modifier = Modifier.size(18.dp))
+        } else {
+            Icon(Icons.Default.Apps, contentDescription = label, modifier = Modifier.size(14.dp))
+        }
     }
 }
 

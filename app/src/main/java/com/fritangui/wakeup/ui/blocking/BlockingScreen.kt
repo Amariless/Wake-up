@@ -2,16 +2,21 @@
 
 package com.fritangui.wakeup.ui.blocking
 
+import android.content.Context
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,36 +29,31 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.fritangui.wakeup.data.db.entity.BlockRuleEntity
-import com.fritangui.wakeup.data.db.entity.BlockSurface
+import com.fritangui.wakeup.blocking.BlockableApp
 import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.permissions.PermissionStatus
-
-private fun surfaceLabel(surface: BlockSurface) = when (surface) {
-    BlockSurface.INSTAGRAM_REELS -> "Reels de Instagram"
-    BlockSurface.TIKTOK_FOR_YOU -> "Feed \"Para ti\" de TikTok"
-    BlockSurface.GENERIC_APP_TIME_LIMIT -> "App"
-}
 
 @Composable
 fun BlockingScreen(onBack: () -> Unit, viewModel: BlockingViewModel = hiltViewModel()) {
     val context = LocalContext.current
-    val rules by viewModel.rules.collectAsState()
-    val usage by viewModel.todayUsageMinutes.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
+    val rows by viewModel.rows.collectAsState()
     val accessibilityEnabled = remember { PermissionStatus.hasAccessibilityServiceEnabled(context) }
 
     Scaffold(
@@ -63,9 +63,6 @@ fun BlockingScreen(onBack: () -> Unit, viewModel: BlockingViewModel = hiltViewMo
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") } },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Nueva regla") }
-        },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
             if (!accessibilityEnabled) {
@@ -73,7 +70,7 @@ fun BlockingScreen(onBack: () -> Unit, viewModel: BlockingViewModel = hiltViewMo
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Falta activar el servicio de accesibilidad", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Sin él, Wake up no puede detectar cuándo estás viendo Reels para poder limitarlo.",
+                            "Sin él, Wake up no puede detectar cuánto usas estas apps para poder limitarlas.",
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
                         )
@@ -85,95 +82,97 @@ fun BlockingScreen(onBack: () -> Unit, viewModel: BlockingViewModel = hiltViewMo
             }
 
             Text(
-                "El bloqueo nunca afecta los mensajes directos: solo actúa sobre el feed de scroll infinito.",
+                "Instagram y TikTok solo se limitan en su feed de scroll infinito (nunca en los mensajes directos); el resto se limita como app completa.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
 
-            if (rules.isEmpty()) {
-                Text("Toca + para crear tu primera regla, p.ej. \"30 min de Reels al día\"")
-            } else {
-                LazyColumn {
-                    items(rules, key = { it.id }) { rule ->
-                        RuleRow(
-                            rule = rule,
-                            usedMinutes = usage[rule.surface] ?: 0L,
-                            onToggle = { viewModel.setEnabled(rule, it) },
-                            onLimitChange = { viewModel.updateLimit(rule, it) },
-                            onDelete = { viewModel.delete(rule) },
-                        )
-                    }
+            LazyColumn {
+                items(rows, key = { it.app.surface }) { row ->
+                    BlockAppRow(
+                        row = row,
+                        onToggle = { viewModel.setEnabled(row, it) },
+                        onLimitChange = { viewModel.updateLimit(row, it) },
+                    )
                 }
             }
         }
     }
-
-    if (showAddDialog) {
-        AddRuleDialog(
-            onDismiss = { showAddDialog = false },
-            onAdd = { surface, minutes ->
-                viewModel.addRule(surface, minutes)
-                showAddDialog = false
-            },
-        )
-    }
 }
 
 @Composable
-private fun RuleRow(
-    rule: BlockRuleEntity,
-    usedMinutes: Long,
+private fun BlockAppRow(
+    row: BlockingViewModel.Row,
     onToggle: (Boolean) -> Unit,
     onLimitChange: (Int) -> Unit,
-    onDelete: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val enabled = row.isInstalled && (row.rule?.isEnabled == true)
+    val currentLimit = row.rule?.dailyLimitMinutes ?: row.app.defaultDailyLimitMinutes
+    var minutesText by remember(row.app.surface, row.rule?.dailyLimitMinutes) { mutableStateOf(currentLimit.toString()) }
+
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(surfaceLabel(rule.surface), style = MaterialTheme.typography.titleMedium)
-                Switch(checked = rule.isEnabled, onCheckedChange = onToggle)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.alpha(if (row.isInstalled) 1f else 0.4f)) {
+                    AppIcon(context, row.app)
+                    Column(modifier = Modifier.padding(start = 12.dp)) {
+                        Text(row.app.label, style = MaterialTheme.typography.titleMedium)
+                        if (!row.isInstalled) {
+                            Text("No instalada", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                Switch(checked = row.rule?.isEnabled == true, onCheckedChange = onToggle, enabled = row.isInstalled)
             }
-            Text("Hoy: $usedMinutes / ${rule.dailyLimitMinutes} min", style = MaterialTheme.typography.bodyMedium)
-            var sliderValue by remember(rule.id) { mutableIntStateOf(rule.dailyLimitMinutes) }
-            Slider(
-                value = sliderValue.toFloat(),
-                onValueChange = { sliderValue = it.toInt() },
-                onValueChangeFinished = { onLimitChange(sliderValue) },
-                valueRange = 5f..180f,
-            )
-            TextButton(onClick = onDelete) { Text("Eliminar regla") }
+
+            Column(modifier = Modifier.alpha(if (enabled) 1f else 0.4f).padding(top = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Hoy: ${row.usedMinutes} / ", style = MaterialTheme.typography.bodyMedium)
+                    // Número editable a mano (#154): tocarlo y escribir el límite directo, en vez de
+                    // depender solo del slider (impreciso para valores puntuales como "22 min").
+                    OutlinedTextField(
+                        value = minutesText,
+                        onValueChange = { text ->
+                            minutesText = text.filter(Char::isDigit).take(3)
+                            minutesText.toIntOrNull()?.let(onLimitChange)
+                        },
+                        singleLine = true,
+                        enabled = row.isInstalled,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.width(64.dp),
+                    )
+                    Text(" min", style = MaterialTheme.typography.bodyMedium)
+                }
+                Slider(
+                    value = (minutesText.toIntOrNull() ?: currentLimit).toFloat(),
+                    onValueChange = { minutesText = it.toInt().toString() },
+                    onValueChangeFinished = { minutesText.toIntOrNull()?.let(onLimitChange) },
+                    valueRange = 5f..180f,
+                    enabled = row.isInstalled,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun AddRuleDialog(onDismiss: () -> Unit, onAdd: (BlockSurface, Int) -> Unit) {
-    var surface by remember { mutableStateOf(BlockSurface.INSTAGRAM_REELS) }
-    var minutesText by remember { mutableStateOf("30") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Nueva regla de bloqueo") },
-        text = {
-            Column {
-                listOf(BlockSurface.INSTAGRAM_REELS, BlockSurface.TIKTOK_FOR_YOU).forEach { option ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.RadioButton(selected = surface == option, onClick = { surface = option })
-                        Text(surfaceLabel(option))
-                    }
-                }
-                OutlinedTextField(
-                    value = minutesText,
-                    onValueChange = { minutesText = it.filter(Char::isDigit) },
-                    label = { Text("Límite diario (minutos)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onAdd(surface, minutesText.toIntOrNull() ?: 30) }) { Text("Crear") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
-    )
+private fun AppIcon(context: Context, app: BlockableApp) {
+    val bitmap = remember(app.packageName) {
+        runCatching { context.packageManager.getApplicationIcon(app.packageName).toBitmap().asImageBitmap() }.getOrNull()
+    }
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (bitmap != null) {
+            Image(bitmap = bitmap, contentDescription = app.label, modifier = Modifier.size(28.dp))
+        } else {
+            Icon(Icons.Default.Apps, contentDescription = app.label, modifier = Modifier.size(22.dp))
+        }
+    }
 }

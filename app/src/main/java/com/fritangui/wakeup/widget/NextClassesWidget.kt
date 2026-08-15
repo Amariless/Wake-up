@@ -42,6 +42,10 @@ import com.fritangui.wakeup.ui.theme.WakeUpOutlineDark
 import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerDark
 import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerHighDark
 import kotlinx.coroutines.flow.first
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Widget de home screen con las próximas clases (día, hora y salón), al estilo
@@ -56,14 +60,18 @@ class NextClassesWidget : GlanceAppWidget() {
         val occurrences = computeNextClassOccurrences(subjects, limit = 12)
         val use24Hour = entryPoint.settingsDataStore().use24HourFormat.first()
         val openAppIntent = Intent(context, MainActivity::class.java)
+        // Ir a Inicio y hacer scroll directo a la clase actual/próxima al tocar el encabezado
+        // (#142), en vez de solo abrir la app en la pantalla genérica.
+        val headerIntent = WidgetDeepLink.nextClassIntent(context)
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
         provideContent {
-            WidgetContent(occurrences, use24Hour, openAppIntent)
+            WidgetContent(occurrences, use24Hour, now, headerIntent)
         }
     }
 
     @Composable
-    private fun WidgetContent(items: List<UpcomingClassOccurrence>, use24Hour: Boolean, openAppIntent: Intent) {
+    private fun WidgetContent(items: List<UpcomingClassOccurrence>, use24Hour: Boolean, now: LocalDateTime, headerIntent: Intent) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -74,7 +82,7 @@ class NextClassesWidget : GlanceAppWidget() {
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .clickable(actionStartActivity(openAppIntent)),
+                    .clickable(actionStartActivity(headerIntent)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = GlanceModifier.size(8.dp).background(ColorProvider(WakeUpAccent)).cornerRadius(4.dp)) {}
@@ -89,7 +97,7 @@ class NextClassesWidget : GlanceAppWidget() {
                 Text(
                     "Sin clases próximas",
                     style = TextStyle(color = ColorProvider(WakeUpOutlineDark)),
-                    modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).clickable(actionStartActivity(openAppIntent)),
+                    modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).clickable(actionStartActivity(headerIntent)),
                 )
             } else {
                 LazyColumn(modifier = GlanceModifier.fillMaxWidth()) {
@@ -100,7 +108,9 @@ class NextClassesWidget : GlanceAppWidget() {
                             lastDay = day
                             item { DayHeader(DIA_LARGO[day - 1]) }
                         }
-                        item { ClassRow(occurrence, use24Hour) }
+                        // Resalta más la fila si la clase está pasando AHORA mismo (#143).
+                        val isOngoing = now >= occurrence.start && now < occurrence.end
+                        item { ClassRow(occurrence, use24Hour, isOngoing) }
                     }
                 }
             }
@@ -117,7 +127,7 @@ class NextClassesWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun ClassRow(occurrence: UpcomingClassOccurrence, use24Hour: Boolean) {
+    private fun ClassRow(occurrence: UpcomingClassOccurrence, use24Hour: Boolean, isOngoing: Boolean) {
         val context = LocalContext.current
         Row(
             modifier = GlanceModifier
@@ -140,13 +150,15 @@ class NextClassesWidget : GlanceAppWidget() {
             Spacer(modifier = GlanceModifier.width(10.dp))
             Column(
                 modifier = GlanceModifier
-                    .background(WakeUpSurfaceContainerHighDark)
+                    // Fondo propio (tinte del color de la materia) en vez del gris genérico si la
+                    // clase está pasando AHORA mismo — mismo criterio que en Inicio (#143).
+                    .background(ColorProvider(if (isOngoing) Color(occurrence.colorArgb).copy(alpha = 0.28f) else WakeUpSurfaceContainerHighDark))
                     .cornerRadius(12.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 Text(
-                    occurrence.subjectName,
+                    if (isOngoing) "${occurrence.subjectName} · Ahora" else occurrence.subjectName,
                     style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Medium, fontSize = 13.sp),
                 )
                 Text(

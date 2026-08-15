@@ -26,10 +26,21 @@ data class UsageAlertRuleEntity(
     val isEnabled: Boolean = true,
 )
 
-/** Qué "superficie" de una app se bloquea. Hoy solo Reels de Instagram está implementado con detección real. */
+/**
+ * Qué "superficie" de una app se bloquea. Instagram y TikTok tienen detección real de sub-pantalla
+ * (Reels/"Para ti") vía [com.fritangui.wakeup.blocking.ReelsNodeDetector]; para el resto no hay
+ * forma confiable de distinguir "estás viendo Shorts/Stories" de "estás en cualquier otra parte de
+ * la app" sin poder calibrar sus ids en un dispositivo real, así que ahí se limita la app ENTERA
+ * (cualquier uso de ese paquete cuenta contra el límite diario).
+ */
 enum class BlockSurface {
     INSTAGRAM_REELS,
     TIKTOK_FOR_YOU,
+    YOUTUBE,
+    FACEBOOK,
+    TWITTER_X,
+    SNAPCHAT,
+    REDDIT,
     GENERIC_APP_TIME_LIMIT,
 }
 

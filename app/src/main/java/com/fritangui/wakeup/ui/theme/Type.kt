@@ -21,6 +21,10 @@ val WakeUpTypography = Typography(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
         fontSize = 20.sp,
+        // Sin esto hereda el lineHeight por defecto de Material3 (28sp, calibrado para su propio
+        // fontSize de 22sp) — de ahí que la barra superior (que usa este estilo para el título)
+        // se viera con más aire de la cuenta para una sola línea de texto.
+        lineHeight = 24.sp,
     ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,
