@@ -142,7 +142,11 @@ fun FolderDetailScreen(
                     )
                 }
             }
-            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { index ->
+            // weight(1f), NO fillMaxSize(): dentro de un Column no pesado, fillMaxSize() le pide al
+            // pager la altura TOTAL de la pantalla (ignorando el alto que ya ocupa el TabRow de
+            // arriba), lo que dejaba a las listas de adentro (materias/tareas/alarmas) con un
+            // espacio de sobra empujándolas — el bug reportado de "espacio vacío arriba".
+            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
                 when (index) {
                     0 -> SubjectsTab(
                         subjects = subjects,

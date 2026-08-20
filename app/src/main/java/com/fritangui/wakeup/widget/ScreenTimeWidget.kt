@@ -77,22 +77,23 @@ class ScreenTimeWidget : GlanceAppWidget() {
 
     @Composable
     private fun WidgetContent(hasAccess: Boolean, totalMinutes: Long, topApps: List<TopAppUsage>, openIntent: Intent) {
-        // Con menos de ~170dp de alto ni siquiera entran cómodas 3 filas grandes; por encima de eso
-        // gradualmente caben la 4ta y 5ta app.
+        // Antes se usaban umbrales fijos (p.ej. "260dp o más → 5 apps") que no tenían en cuenta el
+        // alto REAL que ocupa cada fila — a ese alto ya calculado le sobraban filas y la última
+        // quedaba aplastada/cortada (Glance no puede hacer scroll acá). Ahora se calcula cuántas
+        // filas caben de verdad restando el resto del contenido (encabezado, total, espaciador,
+        // padding) del alto real del widget, en vez de adivinar.
         val heightDp = LocalSize.current.height.value
-        val visibleCount = when {
-            heightDp >= 260 -> 5
-            heightDp >= 210 -> 4
-            else -> 3
-        }
-        val visibleApps = topApps.take(visibleCount)
+        val fixedOverheadDp = 28f + 20f + 38f + 10f // padding(14+14) + encabezado + total + espaciador
+        val rowHeightDp = CIRCLE_MAX.value + ROW_VERTICAL_PADDING.value * 2
+        val maxRowsThatFit = ((heightDp - fixedOverheadDp) / rowHeightDp).toInt().coerceIn(0, 5)
+        val visibleApps = topApps.take(maxRowsThatFit)
 
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(WakeUpSurfaceContainerDark)
                 .cornerRadius(20.dp)
-                .padding(16.dp),
+                .padding(14.dp),
         ) {
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -123,7 +124,7 @@ class ScreenTimeWidget : GlanceAppWidget() {
                 modifier = GlanceModifier.padding(top = 4.dp).clickable(actionStartActivity(openIntent)),
             )
             if (visibleApps.isNotEmpty()) {
-                Spacer(modifier = GlanceModifier.height(14.dp))
+                Spacer(modifier = GlanceModifier.height(10.dp))
                 val maxMinutes = visibleApps.maxOf { it.minutes }.coerceAtLeast(1L)
                 visibleApps.forEachIndexed { index, app ->
                     val fraction = (app.minutes.toFloat() / maxMinutes).coerceIn(0f, 1f)
@@ -143,7 +144,7 @@ class ScreenTimeWidget : GlanceAppWidget() {
         val textOnCircleColor = if (isLight(circleColor)) Color(0xFF232323) else Color(0xFFF5F5F5)
 
         Row(
-            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp).clickable(actionStartActivity(openIntent)),
+            modifier = GlanceModifier.fillMaxWidth().padding(vertical = ROW_VERTICAL_PADDING).clickable(actionStartActivity(openIntent)),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -202,8 +203,9 @@ class ScreenTimeWidget : GlanceAppWidget() {
     }
 
     companion object {
-        private val CIRCLE_MIN = 32.dp
-        private val CIRCLE_MAX = 52.dp
+        private val CIRCLE_MIN = 26.dp
+        private val CIRCLE_MAX = 40.dp
+        private val ROW_VERTICAL_PADDING = 2.dp
     }
 }
 

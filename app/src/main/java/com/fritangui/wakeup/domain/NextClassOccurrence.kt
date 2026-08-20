@@ -42,12 +42,16 @@ fun computeNextClassOccurrences(
             var occurrenceDate = today.plus(daysUntil, DateTimeUnit.DAY)
 
             var start = occurrenceDate.atTime(session.startMinuteOfDay / 60, session.startMinuteOfDay % 60)
-            if (daysUntil == 0 && start < now) {
-                // Ya pasó hoy: la próxima es en 7 días
+            var end = occurrenceDate.atTime(session.endMinuteOfDay / 60, session.endMinuteOfDay % 60)
+            // Antes se comparaba contra el INICIO ("start < now"): una clase que ya empezó pero
+            // sigue en curso (start <= now < end) también cumplía esa condición y se empujaba a la
+            // semana siguiente, haciendo que desapareciera del widget justo mientras estaba pasando.
+            // Ahora solo se empuja si ya TERMINÓ hoy.
+            if (daysUntil == 0 && end <= now) {
                 occurrenceDate = occurrenceDate.plus(7, DateTimeUnit.DAY)
                 start = occurrenceDate.atTime(session.startMinuteOfDay / 60, session.startMinuteOfDay % 60)
+                end = occurrenceDate.atTime(session.endMinuteOfDay / 60, session.endMinuteOfDay % 60)
             }
-            val end = occurrenceDate.atTime(session.endMinuteOfDay / 60, session.endMinuteOfDay % 60)
 
             occurrences += UpcomingClassOccurrence(
                 subjectId = entry.subject.id,

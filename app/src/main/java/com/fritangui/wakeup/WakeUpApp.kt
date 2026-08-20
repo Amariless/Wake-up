@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.fritangui.wakeup.alarm.AlarmController
+import com.fritangui.wakeup.alarm.AppReliabilityWorker
 import com.fritangui.wakeup.data.db.AppDatabase
 import com.fritangui.wakeup.data.repository.FolderRepository
 import com.fritangui.wakeup.usage.ScreenTimeWorker
@@ -41,6 +42,7 @@ class WakeUpApp : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannels()
         ScreenTimeWorker.enqueuePeriodic(this)
+        AppReliabilityWorker.enqueuePeriodic(this)
         warmUpDatabase()
         cleanUpStrayDemoData()
         rescheduleClassReminders()
@@ -149,8 +151,17 @@ class WakeUpApp : Application(), Configuration.Provider {
             description = "Aviso de que tu próxima clase está por empezar (configurable en Ajustes)"
         }
 
+        val reliabilityChannel = NotificationChannel(
+            CHANNEL_RELIABILITY,
+            "Avisos de fiabilidad",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Volumen de alarma bajo o permisos que se apagaron solos — pueden hacer que una alarma no suene"
+            setBypassDnd(true)
+        }
+
         manager.createNotificationChannels(
-            listOf(alarmChannel, preAlarmChannel, remindersChannel, usageChannel, timerRunningChannel, nextClassChannel)
+            listOf(alarmChannel, preAlarmChannel, remindersChannel, usageChannel, timerRunningChannel, nextClassChannel, reliabilityChannel)
         )
     }
 
@@ -161,5 +172,6 @@ class WakeUpApp : Application(), Configuration.Provider {
         const val CHANNEL_USAGE_NAG = "channel_usage_nag"
         const val CHANNEL_TIMER_RUNNING = "channel_timer_running"
         const val CHANNEL_NEXT_CLASS = "channel_next_class"
+        const val CHANNEL_RELIABILITY = "channel_reliability"
     }
 }

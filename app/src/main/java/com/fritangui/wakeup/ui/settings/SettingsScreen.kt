@@ -47,6 +47,8 @@ fun SettingsScreen(
     val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
     val blockGraceMinutes by viewModel.blockGraceMinutes.collectAsState()
     val nextClassNotificationMinutes by viewModel.nextClassNotificationMinutes.collectAsState()
+    val lowAlarmVolumeWarningEnabled by viewModel.lowAlarmVolumeWarningEnabled.collectAsState()
+    val lowAlarmVolumeWarningHoursAhead by viewModel.lowAlarmVolumeWarningHoursAhead.collectAsState()
 
     Scaffold(
         topBar = {
@@ -83,6 +85,15 @@ fun SettingsScreen(
             if (nextClassNotificationMinutes > 0) {
                 SettingsRow("Minutos de anticipación", "Con cuánto tiempo antes avisar") {
                     NumberStepper(value = nextClassNotificationMinutes, range = 1..60, onValueChange = viewModel::setNextClassNotificationMinutes)
+                }
+            }
+            HorizontalDivider()
+            SettingsRow("Aviso de volumen bajo", "Avisa si el volumen de alarma está por debajo de la mitad y tienes una alarma por sonar pronto") {
+                Switch(checked = lowAlarmVolumeWarningEnabled, onCheckedChange = viewModel::setLowAlarmVolumeWarningEnabled)
+            }
+            if (lowAlarmVolumeWarningEnabled) {
+                SettingsRow("Con cuánta anticipación", "Horas antes de la alarma para empezar a avisar") {
+                    NumberStepper(value = lowAlarmVolumeWarningHoursAhead, range = 1..24, onValueChange = viewModel::setLowAlarmVolumeWarningHoursAhead)
                 }
             }
             HorizontalDivider()

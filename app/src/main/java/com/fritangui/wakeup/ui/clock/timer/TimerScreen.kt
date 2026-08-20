@@ -64,6 +64,14 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     var secondsInput by remember { mutableIntStateOf(0) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
 
+    // Recuerda el último hh:mm:ss usado en vez de arrancar siempre en "5 min" fijo.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val seconds = viewModel.currentLastDurationSeconds()
+        hoursInput = seconds / 3600
+        minutesInput = (seconds % 3600) / 60
+        secondsInput = seconds % 60
+    }
+
     val phase = when {
         state.isRinging -> TimerPhase.RINGING
         state.totalMillis > 0L -> TimerPhase.RUNNING

@@ -41,6 +41,8 @@ class NotificationHelper @Inject constructor(
     companion object {
         const val TIMER_RUNNING_NOTIF_ID = 60_000
         const val TIMER_RINGING_NOTIF_ID = 60_001
+        private const val NOTIF_ID_PERMISSIONS_REVOKED = 40_001
+        private const val NOTIF_ID_LOW_ALARM_VOLUME = 40_002
     }
 
     /**
@@ -301,5 +303,48 @@ class NotificationHelper @Inject constructor(
             .setAutoCancel(true)
             .build()
         manager.notify(AlarmConstants.NOTIF_ID_CLASS_REMINDER_BASE + subjectId.toInt(), notification)
+    }
+
+    /** Uno o más permisos que estaban concedidos se apagaron solos (#8). */
+    fun notifyPermissionsRevoked(labels: List<String>) {
+        val openIntent = PendingIntent.getActivity(
+            context,
+            NOTIF_ID_PERMISSIONS_REVOKED,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, WakeUpApp.CHANNEL_RELIABILITY)
+            .setSmallIcon(R.drawable.ic_notification_alarm)
+            .setContentTitle("Wake up perdió un permiso")
+            .setContentText("Se apagó: ${labels.joinToString(", ")}")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("Se apagó: ${labels.joinToString(", ")}. Puede que alarmas o el bloqueo dejen de funcionar bien."))
+            .setColor(0xFFE5484D.toInt())
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openIntent)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(NOTIF_ID_PERMISSIONS_REVOKED, notification)
+    }
+
+    /** Volumen de alarma bajo con una alarma/recordatorio por sonar en las próximas horas (#9). */
+    fun notifyLowAlarmVolume(hoursAhead: Int) {
+        val openIntent = PendingIntent.getActivity(
+            context,
+            NOTIF_ID_LOW_ALARM_VOLUME,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, WakeUpApp.CHANNEL_RELIABILITY)
+            .setSmallIcon(R.drawable.ic_notification_alarm)
+            .setContentTitle("Volumen de alarma bajo")
+            .setContentText("Tienes una alarma en las próximas $hoursAhead h y el volumen está por debajo de la mitad")
+            .setColor(0xFFE5484D.toInt())
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openIntent)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(NOTIF_ID_LOW_ALARM_VOLUME, notification)
     }
 }

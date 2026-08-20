@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -32,11 +33,20 @@ class TimerViewModel @Inject constructor(
     ) { type, difficulty -> TimerChallengePref(type, difficulty) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TimerChallengePref(DismissChallengeType.NONE, 1))
 
+    /**
+     * Último hh:mm:ss usado (en segundos), para que el picker no siempre arranque en "5 min" fijo.
+     * `suspend` en vez de StateFlow a propósito: así la pantalla lee el valor real UNA sola vez al
+     * entrar (con `LaunchedEffect(Unit)`), sin el parpadeo de mostrar primero el valor por defecto
+     * del StateFlow y luego el real cuando termina de cargar DataStore.
+     */
+    suspend fun currentLastDurationSeconds(): Int = settingsDataStore.lastTimerDurationSeconds.first()
+
     fun setChallengePref(type: DismissChallengeType, difficulty: Int) {
         viewModelScope.launch { settingsDataStore.setTimerChallenge(type, difficulty) }
     }
 
     fun start(durationMillis: Long, type: DismissChallengeType, difficulty: Int) {
+        viewModelScope.launch { settingsDataStore.setLastTimerDurationSeconds((durationMillis / 1000).toInt()) }
         ContextCompat.startForegroundService(context, TimerForegroundService.startIntent(context, durationMillis, type, difficulty))
     }
 

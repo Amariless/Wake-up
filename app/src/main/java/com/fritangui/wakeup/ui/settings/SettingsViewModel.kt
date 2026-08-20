@@ -66,4 +66,19 @@ class SettingsViewModel @Inject constructor(
             alarmController.rescheduleClassReminders()
         }
     }
+
+    /** Ver #9: aviso si el volumen de alarma está bajo y hay una alarma por sonar pronto. */
+    val lowAlarmVolumeWarningEnabled: StateFlow<Boolean> = settingsDataStore.lowAlarmVolumeWarningEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setLowAlarmVolumeWarningEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setLowAlarmVolumeWarningEnabled(enabled) }
+    }
+
+    val lowAlarmVolumeWarningHoursAhead: StateFlow<Int> = settingsDataStore.lowAlarmVolumeWarningHoursAhead
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 12)
+
+    fun setLowAlarmVolumeWarningHoursAhead(hours: Int) {
+        viewModelScope.launch { settingsDataStore.setLowAlarmVolumeWarningHoursAhead(hours) }
+    }
 }

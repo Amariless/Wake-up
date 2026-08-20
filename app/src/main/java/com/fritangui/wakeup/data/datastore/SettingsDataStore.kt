@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,6 +39,11 @@ class SettingsDataStore @Inject constructor(
         val SNOOZE_MINUTES = intPreferencesKey("snooze_minutes")
         val BLOCK_GRACE_MINUTES = intPreferencesKey("block_grace_minutes")
         val NEXT_CLASS_NOTIFICATION_MINUTES = intPreferencesKey("next_class_notification_minutes")
+        val LAST_TIMER_DURATION_MILLIS = intPreferencesKey("last_timer_duration_seconds")
+        val LOW_ALARM_VOLUME_WARNING_ENABLED = booleanPreferencesKey("low_alarm_volume_warning_enabled")
+        val LOW_ALARM_VOLUME_WARNING_HOURS_AHEAD = intPreferencesKey("low_alarm_volume_warning_hours_ahead")
+        val LAST_KNOWN_GRANTED_PERMISSIONS = stringSetPreferencesKey("last_known_granted_permissions")
+        val LAST_NOTIFIED_LOW_VOLUME_TRIGGER_MILLIS = longPreferencesKey("last_notified_low_volume_trigger_millis")
     }
 
     val isXiaomiOnboardingDone: Flow<Boolean> =
@@ -136,5 +143,52 @@ class SettingsDataStore @Inject constructor(
 
     suspend fun setNextClassNotificationMinutesBefore(minutes: Int) {
         context.dataStore.edit { it[Keys.NEXT_CLASS_NOTIFICATION_MINUTES] = minutes }
+    }
+
+    /**
+     * Últimos hh/mm/ss que el usuario puso en el temporizador (en segundos totales), para que la
+     * próxima vez que abra la pantalla ya aparezca ese mismo valor en vez de siempre "5 min" fijo.
+     */
+    val lastTimerDurationSeconds: Flow<Int> =
+        context.dataStore.data.map { it[Keys.LAST_TIMER_DURATION_MILLIS] ?: (5 * 60) }
+
+    suspend fun setLastTimerDurationSeconds(seconds: Int) {
+        context.dataStore.edit { it[Keys.LAST_TIMER_DURATION_MILLIS] = seconds }
+    }
+
+    /** Aviso de "volumen de alarma bajo" (#9): activado por defecto, es un aviso de seguridad. */
+    val lowAlarmVolumeWarningEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.LOW_ALARM_VOLUME_WARNING_ENABLED] ?: true }
+
+    suspend fun setLowAlarmVolumeWarningEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.LOW_ALARM_VOLUME_WARNING_ENABLED] = enabled }
+    }
+
+    /** Con cuántas horas de anticipación avisar si hay una alarma por sonar y el volumen está bajo. */
+    val lowAlarmVolumeWarningHoursAhead: Flow<Int> =
+        context.dataStore.data.map { it[Keys.LOW_ALARM_VOLUME_WARNING_HOURS_AHEAD] ?: 12 }
+
+    suspend fun setLowAlarmVolumeWarningHoursAhead(hours: Int) {
+        context.dataStore.edit { it[Keys.LOW_ALARM_VOLUME_WARNING_HOURS_AHEAD] = hours }
+    }
+
+    /**
+     * Últimas claves de permiso vistas como concedidas (ver [com.fritangui.wakeup.permissions.PermissionRevocationTracker]):
+     * comparar contra esto es lo que permite detectar que uno se apagó (#8), en vez de solo saber
+     * que "no está concedido" (que también pasa la primerísima vez, antes de configurar nada).
+     */
+    val lastKnownGrantedPermissionKeys: Flow<Set<String>> =
+        context.dataStore.data.map { it[Keys.LAST_KNOWN_GRANTED_PERMISSIONS] ?: emptySet() }
+
+    suspend fun setLastKnownGrantedPermissionKeys(keys: Set<String>) {
+        context.dataStore.edit { it[Keys.LAST_KNOWN_GRANTED_PERMISSIONS] = keys }
+    }
+
+    /** Evita re-notificar el mismo "volumen bajo antes de tal alarma" una y otra vez cada hora. */
+    val lastNotifiedLowVolumeTriggerMillis: Flow<Long> =
+        context.dataStore.data.map { it[Keys.LAST_NOTIFIED_LOW_VOLUME_TRIGGER_MILLIS] ?: 0L }
+
+    suspend fun setLastNotifiedLowVolumeTriggerMillis(millis: Long) {
+        context.dataStore.edit { it[Keys.LAST_NOTIFIED_LOW_VOLUME_TRIGGER_MILLIS] = millis }
     }
 }

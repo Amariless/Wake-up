@@ -21,13 +21,17 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -45,6 +50,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.domain.WeeklyClassEntry
 import com.fritangui.wakeup.domain.nextClassDayOfWeek
+import com.fritangui.wakeup.permissions.AlarmVolumeStatus
+import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
@@ -81,6 +88,12 @@ fun HomeScreen(
     val subjectColorsById by viewModel.subjectColorsById.collectAsState()
     val subjectNamesById by viewModel.subjectNamesById.collectAsState()
 
+    // Chequeo en vivo (no cacheado en el ViewModel) cada vez que se abre/vuelve a Inicio: si el
+    // volumen de alarma está por debajo de la mitad, un aviso bien visible en vez de descubrirlo
+    // recién cuando una alarma no suena lo bastante fuerte (#2).
+    val context = LocalContext.current
+    val isAlarmVolumeLow = remember { AlarmVolumeStatus.isLow(context) }
+
     // Se calcula una sola vez al entrar (no hace falta que "hoy"/"ahora" cambien en vivo mientras
     // se mira Inicio) — igual que ya hacía la versión anterior de esta pantalla.
     val now = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()) }
@@ -109,6 +122,15 @@ fun HomeScreen(
     val scrollTargetIndex = remember(classCardRows, todayDayOfWeek, nowMinuteOfDay) {
         findScrollTargetIndex(classCardRows, todayDayOfWeek, nowMinuteOfDay)?.plus(1)
     }
+    // Al entrar a Inicio de CUALQUIER forma (abrir la app, tocar el tab, volver de otra pantalla),
+    // arranca ya scrolleado al momento actual de la semana — sin animación (scrollToItem, no
+    // animateScrollToItem): se siente como que la lista "ya estaba ahí", no como un salto.
+    LaunchedEffect(Unit) {
+        scrollTargetIndex?.let { listState.scrollToItem(it) }
+    }
+    // El toque en el encabezado del widget, en cambio, sí anima el scroll (más notorio, es una
+    // acción explícita del usuario) y se repite aunque ya se esté en Inicio (ver el contador en
+    // WakeUpNavHost).
     LaunchedEffect(scrollToNextClassSignal) {
         if (scrollToNextClassSignal > 0 && scrollTargetIndex != null) {
             listState.animateScrollToItem(scrollTargetIndex)
@@ -127,60 +149,90 @@ fun HomeScreen(
             )
         },
     ) { padding ->
-        if (weeklyClassDays.isEmpty() && upcomingTasks.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(
-                    Icons.Default.CalendarMonth,
-                    contentDescription = null,
-                    modifier = Modifier.size(56.dp),
-                    tint = MaterialTheme.colorScheme.outline,
-                )
-                Text(
-                    "Crea una carpeta con tus materias y tareas para ver tu resumen aquí",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 16.dp),
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (isAlarmVolumeLow) {
+                LowAlarmVolumeBanner(
+                    onFix = {
+                        PermissionIntents.safeStart(context, android.content.Intent(android.provider.Settings.ACTION_SOUND_SETTINGS))
+                    },
                 )
             }
-            return@Scaffold
-        }
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp), state = listState) {
-            item(key = "classes_title") {
-                CardTitleRow("Próximas clases", WakeUpPrimary, roundedBottom = classCardRows.size <= 1 && classCardRows.firstOrNull() == ClassCardRow.EmptyRow)
-            }
-            itemsIndexed(classCardRows, key = { index, _ -> "class_row_$index" }) { index, row ->
-                val isLast = index == classCardRows.lastIndex
-                when (row) {
-                    is ClassCardRow.EmptyRow -> CardEmptyText("No hay clases esta semana", roundedBottom = true)
-                    is ClassCardRow.DayHeaderRow -> CardRowBackground(roundedBottom = false) {
-                        DayHeader(DIA_LARGO[row.dayOfWeek - 1], row.isToday, row.isNextClassDay)
-                    }
-                    is ClassCardRow.ClassEntryRow -> CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
-                        ClassRow(row.entry, row.isOngoing, onClick = { onOpenSubject(row.entry.folderId, row.entry.subjectId) })
-                    }
+            if (weeklyClassDays.isEmpty() && upcomingTasks.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp),
+                        tint = MaterialTheme.colorScheme.outline,
+                    )
+                    Text(
+                        "Crea una carpeta con tus materias y tareas para ver tu resumen aquí",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
                 }
-            }
-            item(key = "tasks_title") {
-                CardTitleRow("Próximas tareas", WakeUpSecondary, roundedBottom = upcomingTasks.isEmpty(), topPadding = 16.dp)
-            }
-            if (upcomingTasks.isEmpty()) {
-                item(key = "tasks_empty") { CardEmptyText("No hay tareas próximas", roundedBottom = true) }
             } else {
-                itemsIndexed(upcomingTasks, key = { _, task -> "task_row_${task.id}" }) { index, task ->
-                    val isLast = index == upcomingTasks.lastIndex
-                    CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
-                        TaskRow(
-                            task,
-                            subjectColorsById[task.subjectId],
-                            task.subjectId?.let { subjectNamesById[it] },
-                            onClick = { onOpenTask(task.folderId, task.id) },
-                        )
+                LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), state = listState) {
+                    item(key = "classes_title") {
+                        CardTitleRow("Próximas clases", WakeUpPrimary, roundedBottom = classCardRows.size <= 1 && classCardRows.firstOrNull() == ClassCardRow.EmptyRow)
+                    }
+                    itemsIndexed(classCardRows, key = { index, _ -> "class_row_$index" }) { index, row ->
+                        val isLast = index == classCardRows.lastIndex
+                        when (row) {
+                            is ClassCardRow.EmptyRow -> CardEmptyText("No hay clases esta semana", roundedBottom = true)
+                            is ClassCardRow.DayHeaderRow -> CardRowBackground(roundedBottom = false) {
+                                DayHeader(DIA_LARGO[row.dayOfWeek - 1], row.isToday, row.isNextClassDay)
+                            }
+                            is ClassCardRow.ClassEntryRow -> CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
+                                ClassRow(row.entry, row.isOngoing, onClick = { onOpenSubject(row.entry.folderId, row.entry.subjectId) })
+                            }
+                        }
+                    }
+                    item(key = "tasks_title") {
+                        CardTitleRow("Próximas tareas", WakeUpSecondary, roundedBottom = upcomingTasks.isEmpty(), topPadding = 16.dp)
+                    }
+                    if (upcomingTasks.isEmpty()) {
+                        item(key = "tasks_empty") { CardEmptyText("No hay tareas próximas", roundedBottom = true) }
+                    } else {
+                        itemsIndexed(upcomingTasks, key = { _, task -> "task_row_${task.id}" }) { index, task ->
+                            val isLast = index == upcomingTasks.lastIndex
+                            CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
+                                TaskRow(
+                                    task,
+                                    subjectColorsById[task.subjectId],
+                                    task.subjectId?.let { subjectNamesById[it] },
+                                    onClick = { onOpenTask(task.folderId, task.id) },
+                                )
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LowAlarmVolumeBanner(onFix: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(16.dp, 16.dp, 16.dp, 0.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF3A1418)),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.AutoMirrored.Filled.VolumeOff, contentDescription = null, tint = Color(0xFFFF6B6B))
+            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                Text("Volumen de alarma bajo", style = MaterialTheme.typography.titleSmall, color = Color(0xFFFF6B6B))
+                Text(
+                    "Está por debajo de la mitad: puede que no te despiertes con tus alarmas.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFFFC9C9),
+                )
+            }
+            TextButton(onClick = onFix) { Text("Subir", color = Color(0xFFFF6B6B)) }
         }
     }
 }

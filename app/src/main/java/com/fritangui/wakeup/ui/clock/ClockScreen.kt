@@ -100,7 +100,9 @@ fun ClockScreen(onOpenAlarm: (Long) -> Unit, onNewAlarm: () -> Unit) {
                     )
                 }
             }
-            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { index ->
+            // weight(1f), NO fillMaxSize(): ver el mismo arreglo en FolderDetailScreen (bug de
+            // "espacio vacío" que empujaba las alarmas/recordatorios hacia abajo).
+            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
                 when (index) {
                     0 -> AlarmsListScreen(onOpenAlarm = onOpenAlarm, viewModel = alarmsViewModel)
                     1 -> TimerScreen()
