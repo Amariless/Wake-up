@@ -79,6 +79,7 @@ private val DIAS_CORTOS = listOf("Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do")
 @Composable
 fun FolderDetailScreen(
     onBack: () -> Unit,
+    onBackToFolderList: () -> Unit,
     onOpenSubject: (folderId: Long, subjectId: Long) -> Unit,
     onOpenTask: (folderId: Long, taskId: Long) -> Unit,
     onOpenAlarm: (folderId: Long, alarmId: Long) -> Unit,
@@ -101,12 +102,19 @@ fun FolderDetailScreen(
     val isReadOnly = folder?.isActive != true
     val tabs = listOf("Materias", "Tareas", "Alarmas")
 
+    // Si esta es la carpeta fija, el tab de abajo la abre DIRECTO sobre Inicio (sin apilar Carpetas
+    // debajo, ver WakeUpNavHost) — así que "atrás" tiene que ir a la lista completa a propósito, no
+    // a un simple popBackStack() que caería en Inicio. Se aplica tanto al ícono de la barra como al
+    // gesto/botón físico de atrás del sistema (BackHandler), para que se comporten igual (#5).
+    val effectiveOnBack = if (isPinned) onBackToFolderList else onBack
+    androidx.activity.compose.BackHandler(onBack = effectiveOnBack)
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(folder?.name ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Volver") }
+                    IconButton(onClick = effectiveOnBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Volver") }
                 },
                 actions = {
                     IconButton(onClick = viewModel::togglePinned) {

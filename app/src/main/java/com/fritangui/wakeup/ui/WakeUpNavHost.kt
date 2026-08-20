@@ -189,32 +189,19 @@ private fun WakeUpNavHostContent(
                             // pantallas (Bloqueo, Xiaomi, Dev tools) con Bienestar, lo que mezclaba sus
                             // estados guardados; ahora que Ajustes ya no es un tab (ver #42) cada uno
                             // de los 4 tabs tiene su propia rama independiente y esto ya no pasa.
-                            if (dest.isPinnedFolder) {
-                                // Apila primero la lista de carpetas para que "atrás" desde la carpeta
-                                // principal caiga en la lista completa, no directo a Inicio.
-                                navController.navigate(Routes.FOLDERS) {
-                                    popUpTo(Routes.HOME) { inclusive = false; saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                                // Si restoreState (arriba) ya trajo de vuelta el detalle de ESTA
-                                // misma carpeta fija (se guardó junto con Carpetas la última vez que
-                                // se salió de este tab), no hace falta apilarlo otra vez: antes esto
-                                // duplicaba la entrada cada visita, dejando una pila con
-                                // "folder_detail" repetido que terminaba confundiendo a qué pantalla
-                                // debía caer "Inicio" — mismo patrón que el bug ya arreglado de
-                                // Bienestar (#146).
-                                val alreadyOnPinnedFolder = navController.currentDestination?.route == Routes.FOLDER_DETAIL &&
-                                    navController.currentBackStackEntry?.arguments?.getLong("folderId") == pinnedFolder?.id
-                                if (!alreadyOnPinnedFolder) {
-                                    navController.navigate(dest.navRoute) { launchSingleTop = true }
-                                }
-                            } else {
-                                navController.navigate(dest.navRoute) {
-                                    popUpTo(Routes.HOME) { inclusive = false; saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                            // Mismo patrón simple para los 4 tabs, sin excepción para la carpeta fija:
+                            // antes esta apilaba primero Carpetas y LUEGO el detalle en un segundo
+                            // navigate() aparte, para que "atrás" cayera en la lista — pero esa
+                            // segunda llamada podía duplicar la entrada en visitas repetidas y dejar
+                            // la pila en un estado raro (#146). El acceso directo a la lista completa
+                            // ahora lo da FolderDetailScreen: su propio botón/gesto de atrás navega
+                            // directo a Carpetas cuando la carpeta que se ve es la fija (ver
+                            // onBackToFolderList más abajo), en vez de depender de la FORMA exacta de
+                            // la pila armada acá.
+                            navController.navigate(dest.navRoute) {
+                                popUpTo(Routes.HOME) { inclusive = false; saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         },
                         icon = { Icon(dest.icon, contentDescription = dest.label) },
@@ -255,6 +242,22 @@ private fun WakeUpNavHostContent(
             ) {
                 FolderDetailScreen(
                     onBack = { navController.popBackStack() },
+                    // Para la carpeta fija (#5 investigado): el tab de abajo ya no apila Carpetas
+                    // debajo de su detalle (ver el click handler más arriba), así que un simple
+                    // popBackStack() la mandaría a Inicio en vez de a la lista. Primero intenta un
+                    // pop normal hasta Carpetas (si ya estaba en la pila, p.ej. se llegó desde ahí
+                    // en vez del atajo del tab, esto conserva su estado tal cual); si no estaba,
+                    // navega directo. FolderDetailScreen solo usa esto cuando la carpeta que se ve
+                    // es la fija.
+                    onBackToFolderList = {
+                        val popped = navController.popBackStack(Routes.FOLDERS, false)
+                        if (!popped) {
+                            navController.navigate(Routes.FOLDERS) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onOpenSubject = { folderId, subjectId -> navController.navigate(Routes.subjectEditor(folderId, subjectId)) },
                     onOpenTask = { folderId, taskId -> navController.navigate(Routes.taskEditor(folderId, taskId)) },
                     onOpenAlarm = { folderId, alarmId -> navController.navigate(Routes.alarmEditor(folderId, alarmId)) },
