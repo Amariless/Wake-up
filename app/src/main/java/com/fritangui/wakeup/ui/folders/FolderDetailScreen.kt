@@ -188,7 +188,10 @@ private fun SubjectsTab(subjects: List<SubjectWithSessions>, onClick: (Long) -> 
     var menuFor by remember { mutableStateOf<SubjectWithSessions?>(null) }
     var confirmDeleteFor by remember { mutableStateOf<SubjectWithSessions?>(null) }
 
-    LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
+    // fillMaxSize() explícito por la misma razón que en AlarmsListScreen: sin él, dentro del
+    // HorizontalPager el LazyColumn se queda "envuelto" a su contenido en vez de ocupar toda la
+    // página, y termina centrado verticalmente con espacio vacío arriba y abajo.
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp)) {
         items(subjects, key = { it.subject.id }) { entry ->
             Box(modifier = Modifier.animateItem()) {
                 Card(
@@ -256,7 +259,10 @@ private fun TasksTab(
         EmptyState("Agrega tareas con o sin fecha de vencimiento")
         return
     }
-    LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
+    // fillMaxSize() explícito por la misma razón que en AlarmsListScreen: sin él, dentro del
+    // HorizontalPager el LazyColumn se queda "envuelto" a su contenido en vez de ocupar toda la
+    // página, y termina centrado verticalmente con espacio vacío arriba y abajo.
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp)) {
         taskListItems(
             tasks = tasks,
             subjectColorsById = subjectColorsById,
@@ -276,7 +282,10 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
         EmptyState("Agrega alarmas asociadas a esta carpeta")
         return
     }
-    LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
+    // fillMaxSize() explícito por la misma razón que en AlarmsListScreen: sin él, dentro del
+    // HorizontalPager el LazyColumn se queda "envuelto" a su contenido en vez de ocupar toda la
+    // página, y termina centrado verticalmente con espacio vacío arriba y abajo.
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp)) {
         items(alarms, key = { it.id }) { alarm ->
             Card(modifier = Modifier.fillMaxWidth().animateItem().padding(vertical = 6.dp).clickable { onClick(alarm.id) }) {
                 Row(

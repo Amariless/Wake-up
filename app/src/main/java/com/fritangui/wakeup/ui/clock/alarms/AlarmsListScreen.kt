@@ -78,7 +78,11 @@ fun AlarmsListScreen(
     val realAlarms = alarms.filter { it.kind == AlarmKind.ALARM }
     val reminders = alarms.filter { it.kind == AlarmKind.REMINDER }
 
-    LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
+    // Modifier.fillMaxSize() explícito: sin él, el LazyColumn se queda "envuelto" al tamaño de su
+    // contenido en vez de ocupar todo el alto que le da el HorizontalPager de ClockScreen — dentro
+    // de un Box (como arma cada página del pager) eso lo deja centrado verticalmente en vez de
+    // pegado arriba, con espacio vacío arriba Y abajo (el bug reportado del "espacio vacío").
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp)) {
         if (realAlarms.isNotEmpty()) {
             item(key = "header_alarms") { SectionHeader("Alarmas") }
             items(realAlarms, key = { it.id }) { alarm ->

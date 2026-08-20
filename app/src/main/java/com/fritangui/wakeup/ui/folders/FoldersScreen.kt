@@ -76,7 +76,11 @@ fun FoldersScreen(
                 Text("Crea tu primera carpeta (semestre, curso, lo que quieras)")
             }
         } else {
-            LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp)) {
+            // Al LazyColumn le faltaba aplicar `padding` (el que da Scaffold para no quedar
+            // tapado por la barra superior/inferior) — con una sola carpeta, esa carpeta quedaba
+            // renderizada justo detrás de la TopAppBar, invisible del todo (#5, encontrado con
+            // captura del usuario).
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp, 8.dp)) {
                 items(folders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
