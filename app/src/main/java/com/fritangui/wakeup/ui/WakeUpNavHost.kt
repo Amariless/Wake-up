@@ -46,6 +46,7 @@ import com.fritangui.wakeup.ui.folders.FolderDetailScreen
 import com.fritangui.wakeup.ui.folders.FoldersScreen
 import com.fritangui.wakeup.ui.home.HomeScreen
 import com.fritangui.wakeup.ui.navigation.Routes
+import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 import com.fritangui.wakeup.ui.onboarding.XiaomiOnboardingScreen
 import com.fritangui.wakeup.ui.screentime.ScreenTimeScreen
 import com.fritangui.wakeup.ui.settings.SettingsScreen
@@ -176,32 +177,38 @@ private fun WakeUpNavHostContent(
                             // pantalla (recomposición completa + reconsulta a la BD) y la animación
                             // de transición cada vez que se vuelve a tocar el mismo ícono.
                             if (isSelected) return@NavigationBarItem
-                            // Si venimos de una pantalla satélite (Ajustes y lo que cuelga de ahí:
-                            // Xiaomi/Dev tools/Actualizar), la colapsamos primero — antes cambiar de
-                            // tab desde Ajustes podía dejarla a medio salir en vez de devolver a
-                            // Inicio de verdad (#147).
-                            if (currentDestination?.route in SATELLITE_ROUTES) {
-                                navController.popBackStack(Routes.HOME, inclusive = false)
-                            }
-                            // saveState/restoreState: cada tab conserva su estado (scroll, lo que ya
-                            // cargó de la BD) al volver a él en vez de reconstruirse desde cero cada
-                            // vez — antes esto se evitaba porque Ajustes también era un tab y comparte
-                            // pantallas (Bloqueo, Xiaomi, Dev tools) con Bienestar, lo que mezclaba sus
-                            // estados guardados; ahora que Ajustes ya no es un tab (ver #42) cada uno
-                            // de los 4 tabs tiene su propia rama independiente y esto ya no pasa.
-                            // Mismo patrón simple para los 4 tabs, sin excepción para la carpeta fija:
-                            // antes esta apilaba primero Carpetas y LUEGO el detalle en un segundo
-                            // navigate() aparte, para que "atrás" cayera en la lista — pero esa
-                            // segunda llamada podía duplicar la entrada en visitas repetidas y dejar
-                            // la pila en un estado raro (#146). El acceso directo a la lista completa
-                            // ahora lo da FolderDetailScreen: su propio botón/gesto de atrás navega
-                            // directo a Carpetas cuando la carpeta que se ve es la fija (ver
-                            // onBackToFolderList más abajo), en vez de depender de la FORMA exacta de
-                            // la pila armada acá.
-                            navController.navigate(dest.navRoute) {
-                                popUpTo(Routes.HOME) { inclusive = false; saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            // Si el editor que está abierto (materia/tarea/alarma/horario) tiene
+                            // cambios sin guardar, deja que muestre su propio diálogo de "¿salir sin
+                            // guardar?" antes de navegar — antes cambiar de tab de golpe los
+                            // descartaba sin avisar (#147).
+                            UnsavedChangesGuard.navigateOrConfirm {
+                                // Si venimos de una pantalla satélite (Ajustes y lo que cuelga de ahí:
+                                // Xiaomi/Dev tools/Actualizar), la colapsamos primero — antes cambiar de
+                                // tab desde Ajustes podía dejarla a medio salir en vez de devolver a
+                                // Inicio de verdad (#147).
+                                if (currentDestination?.route in SATELLITE_ROUTES) {
+                                    navController.popBackStack(Routes.HOME, inclusive = false)
+                                }
+                                // saveState/restoreState: cada tab conserva su estado (scroll, lo que ya
+                                // cargó de la BD) al volver a él en vez de reconstruirse desde cero cada
+                                // vez — antes esto se evitaba porque Ajustes también era un tab y comparte
+                                // pantallas (Bloqueo, Xiaomi, Dev tools) con Bienestar, lo que mezclaba sus
+                                // estados guardados; ahora que Ajustes ya no es un tab (ver #42) cada uno
+                                // de los 4 tabs tiene su propia rama independiente y esto ya no pasa.
+                                // Mismo patrón simple para los 4 tabs, sin excepción para la carpeta fija:
+                                // antes esta apilaba primero Carpetas y LUEGO el detalle en un segundo
+                                // navigate() aparte, para que "atrás" cayera en la lista — pero esa
+                                // segunda llamada podía duplicar la entrada en visitas repetidas y dejar
+                                // la pila en un estado raro (#146). El acceso directo a la lista completa
+                                // ahora lo da FolderDetailScreen: su propio botón/gesto de atrás navega
+                                // directo a Carpetas cuando la carpeta que se ve es la fija (ver
+                                // onBackToFolderList más abajo), en vez de depender de la FORMA exacta de
+                                // la pila armada acá.
+                                navController.navigate(dest.navRoute) {
+                                    popUpTo(Routes.HOME) { inclusive = false; saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         },
                         icon = { Icon(dest.icon, contentDescription = dest.label) },

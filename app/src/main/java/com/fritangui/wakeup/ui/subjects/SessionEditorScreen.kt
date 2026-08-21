@@ -2,6 +2,7 @@
 
 package com.fritangui.wakeup.ui.subjects
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import com.fritangui.wakeup.data.db.entity.ClassSessionEntity
 import com.fritangui.wakeup.ui.components.WheelTimePicker
+import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 
 private val DIA_NOMBRES = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
 
@@ -60,12 +64,44 @@ fun SessionEditorScreen(
     // Todo queda con `initial` como key: cuando se está editando, la primera composición llega
     // antes de que el Flow de Room traiga el horario real (arranca en null), así que si no se
     // vuelve a inicializar apenas llega el valor real, se quedarían los campos vacíos por defecto.
-    var selectedDays by remember(initial) { mutableStateOf(setOf(initial?.dayOfWeek ?: 1)) }
-    var startHour by remember(initial) { mutableStateOf((initial?.startMinuteOfDay ?: 7 * 60) / 60) }
-    var startMinute by remember(initial) { mutableStateOf((initial?.startMinuteOfDay ?: 7 * 60) % 60) }
-    var endHour by remember(initial) { mutableStateOf((initial?.endMinuteOfDay ?: 9 * 60) / 60) }
-    var endMinute by remember(initial) { mutableStateOf((initial?.endMinuteOfDay ?: 9 * 60) % 60) }
+    val initialSelectedDays = remember(initial) { setOf(initial?.dayOfWeek ?: 1) }
+    val initialStartHour = remember(initial) { (initial?.startMinuteOfDay ?: 7 * 60) / 60 }
+    val initialStartMinute = remember(initial) { (initial?.startMinuteOfDay ?: 7 * 60) % 60 }
+    val initialEndHour = remember(initial) { (initial?.endMinuteOfDay ?: 9 * 60) / 60 }
+    val initialEndMinute = remember(initial) { (initial?.endMinuteOfDay ?: 9 * 60) % 60 }
+    var selectedDays by remember(initial) { mutableStateOf(initialSelectedDays) }
+    var startHour by remember(initial) { mutableStateOf(initialStartHour) }
+    var startMinute by remember(initial) { mutableStateOf(initialStartMinute) }
+    var endHour by remember(initial) { mutableStateOf(initialEndHour) }
+    var endMinute by remember(initial) { mutableStateOf(initialEndMinute) }
     var room by rememberSaveable(initial) { mutableStateOf(initial?.room ?: "") }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    val isDirty = selectedDays != initialSelectedDays ||
+        startHour != initialStartHour ||
+        startMinute != initialStartMinute ||
+        endHour != initialEndHour ||
+        endMinute != initialEndMinute ||
+        room != (initial?.room ?: "")
+
+    fun requestLeave(action: () -> Unit) {
+        if (isDirty) {
+            pendingLeaveAction = action
+            confirmDiscard = true
+        } else {
+            action()
+        }
+    }
+    fun tryExit() = requestLeave(onBack)
+
+    BackHandler(onBack = ::tryExit)
+    // Puente con la barra de navegación inferior: si se toca otro tab con cambios sin guardar acá,
+    // deja que este mismo diálogo se muestre primero (#147).
+    DisposableEffect(isDirty) {
+        UnsavedChangesGuard.register(isDirty, ::requestLeave)
+        onDispose { UnsavedChangesGuard.clear() }
+    }
 
     // Al mover la hora de inicio (por interacción del usuario, no al abrir la pantalla),
     // la de fin se adelanta sola 2 horas — se puede seguir ajustando a mano después.
@@ -98,7 +134,7 @@ fun SessionEditorScreen(
         topBar = {
             TopAppBar(
                 title = { Text(if (initial == null) "Nuevo horario" else "Editar horario") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
+                navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
                 actions = {
                     TextButton(onClick = ::save, enabled = canSave) { Text("Guardar") }
                 },
@@ -174,5 +210,17 @@ fun SessionEditorScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 24.dp),
             )
         }
+    }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("¿Salir sin guardar?") },
+            text = { Text("Tienes cambios sin guardar en este horario. Si sales ahora se pierden.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDiscard = false; pendingLeaveAction?.invoke() }) { Text("Salir sin guardar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
+        )
     }
 }

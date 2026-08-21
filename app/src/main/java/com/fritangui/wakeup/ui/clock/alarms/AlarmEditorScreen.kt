@@ -3,6 +3,7 @@
 package com.fritangui.wakeup.ui.clock.alarms
 
 import android.media.RingtoneManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +63,7 @@ import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.ui.components.AppTimePickerDialog
 import com.fritangui.wakeup.ui.components.ClockTimeText
+import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 
 // "M" para miércoles (no "X"): se sobreentiende por la posición entre martes y jueves.
 private val DIA_NOMBRES = listOf("L", "M", "M", "J", "V", "S", "D")
@@ -103,14 +107,47 @@ fun AlarmEditorScreen(
     var showSoundPicker by remember { mutableStateOf(false) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
     var showChallengePreview by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val isReminder = kind == AlarmKind.REMINDER
+
+    // Cualquier campo distinto de lo que llegó de la BD (o, para una alarma nueva, distinto del
+    // valor por defecto) cuenta como cambio sin guardar.
+    val isDirty = label != (alarm?.label ?: "") ||
+        hour != (alarm?.hour ?: 7) ||
+        minute != (alarm?.minute ?: 0) ||
+        repeatBitmask != (alarm?.repeatDaysBitmask ?: 0) ||
+        kind != (alarm?.kind ?: AlarmKind.ALARM) ||
+        challenge != (alarm?.dismissChallenge ?: DismissChallengeType.NONE) ||
+        difficulty != (alarm?.challengeDifficulty ?: 1) ||
+        vibrate != (alarm?.vibrate ?: true) ||
+        soundUri != alarm?.soundUri ||
+        deleteAfterRing != (alarm?.deleteAfterRing ?: false)
+
+    fun requestLeave(action: () -> Unit) {
+        if (isDirty) {
+            pendingLeaveAction = action
+            confirmDiscard = true
+        } else {
+            action()
+        }
+    }
+    fun tryExit() = requestLeave(onBack)
+
+    BackHandler(onBack = ::tryExit)
+    // Puente con la barra de navegación inferior: si se toca otro tab con cambios sin guardar acá,
+    // deja que este mismo diálogo se muestre primero (#147).
+    DisposableEffect(isDirty) {
+        UnsavedChangesGuard.register(isDirty, ::requestLeave)
+        onDispose { UnsavedChangesGuard.clear() }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (viewModel.isNew) "Nueva alarma" else "Editar alarma") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } },
+                navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = {
                     if (!viewModel.isNew) {
                         IconButton(onClick = { viewModel.delete(onBack) }) {
@@ -353,5 +390,17 @@ fun AlarmEditorScreen(
                 }
             }
         }
+    }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("¿Salir sin guardar?") },
+            text = { Text("Tienes cambios sin guardar en esta alarma. Si sales ahora se pierden.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDiscard = false; pendingLeaveAction?.invoke() }) { Text("Salir sin guardar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
+        )
     }
 }

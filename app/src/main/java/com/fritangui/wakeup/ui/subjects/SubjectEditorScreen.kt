@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 import com.fritangui.wakeup.ui.tasks.TaskListColumn
 import com.fritangui.wakeup.ui.theme.SubjectColorPalette
 
@@ -68,6 +70,7 @@ fun SubjectEditorScreen(
     var selectedColor by remember(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
     var selectedIcon by rememberSaveable(subject?.id) { mutableStateOf(subject?.iconKey) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Hay cambios sin guardar si algo difiere de lo último que llegó de la BD (o, para una
     // materia nueva que aún no existe, si el usuario ya escribió algo).
@@ -76,11 +79,24 @@ fun SubjectEditorScreen(
         selectedColor != (subject?.colorArgb ?: defaultColor) ||
         selectedIcon != subject?.iconKey
 
-    fun tryExit() {
-        if (isDirty) confirmDiscard = true else onBack()
+    fun requestLeave(action: () -> Unit) {
+        if (isDirty) {
+            pendingLeaveAction = action
+            confirmDiscard = true
+        } else {
+            action()
+        }
     }
+    fun tryExit() = requestLeave(onBack)
 
     BackHandler(onBack = ::tryExit)
+    // Se registra en el "puente" compartido con la barra de navegación inferior: si el usuario
+    // toca otro tab con cambios sin guardar acá, esto deja que ESTE diálogo se muestre primero en
+    // vez de que la navegación descarte los cambios de una (#147).
+    DisposableEffect(isDirty) {
+        UnsavedChangesGuard.register(isDirty, ::requestLeave)
+        onDispose { UnsavedChangesGuard.clear() }
+    }
 
     Scaffold(
         topBar = {
@@ -244,7 +260,7 @@ fun SubjectEditorScreen(
             title = { Text("¿Salir sin guardar?") },
             text = { Text("Tienes cambios sin guardar en esta materia. Si sales ahora se pierden.") },
             confirmButton = {
-                TextButton(onClick = { confirmDiscard = false; onBack() }) { Text("Salir sin guardar") }
+                TextButton(onClick = { confirmDiscard = false; pendingLeaveAction?.invoke() }) { Text("Salir sin guardar") }
             },
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
         )

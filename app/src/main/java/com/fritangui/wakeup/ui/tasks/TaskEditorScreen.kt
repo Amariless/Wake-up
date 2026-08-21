@@ -1,5 +1,6 @@
 package com.fritangui.wakeup.ui.tasks
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +55,7 @@ import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.ui.components.AppTimePickerDialog
 import com.fritangui.wakeup.ui.components.ClockTimeText
 import com.fritangui.wakeup.ui.components.continueListFormat
+import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atTime
@@ -79,36 +82,68 @@ fun TaskEditorScreen(
     }
     var isNoteImportant by rememberSaveable(task?.id) { mutableStateOf(task?.isNoteImportant ?: false) }
     // Cuánto vale esta tarea en la nota final; se puede dejar sin llenar acá y confirmarlo/editarlo
-    // al marcarla como completada más adelante.
-    var weightPercent by rememberSaveable(task?.id) {
-        mutableStateOf(task?.gradeWeightPercent?.let { if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString() } ?: "")
+    // al marcarla como completada más adelante. Se calcula una sola vez (no dentro de la lambda de
+    // rememberSaveable) para poder reusar el mismo valor también al comparar cambios sin guardar.
+    val initialWeightPercent = remember(task?.id) {
+        task?.gradeWeightPercent?.let { if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString() } ?: ""
     }
+    var weightPercent by rememberSaveable(task?.id) { mutableStateOf(initialWeightPercent) }
     // Para una tarea nueva, se preselecciona la última materia usada en esta misma carpeta
     // (ver TaskCreationSessionState) — se pierde si cambias de carpeta o cierras la app.
-    var selectedSubjectId by rememberSaveable(task?.id) {
-        mutableStateOf(task?.subjectId ?: viewModel.initialSubjectIdForNew)
-    }
+    val initialSubjectId = remember(task?.id) { task?.subjectId ?: viewModel.initialSubjectIdForNew }
+    var selectedSubjectId by rememberSaveable(task?.id) { mutableStateOf(initialSubjectId) }
     var hasDueDate by rememberSaveable(task?.id) { mutableStateOf(task?.dueAtEpochMillis != null) }
     var dueAtMillis by rememberSaveable(task?.id) { mutableStateOf(task?.dueAtEpochMillis) }
     // 11:59pm del mismo día por defecto (lo más común: "entregar antes de que acabe el día"), pero
     // editable — se guarda aparte de la fecha para no perderlo si el usuario solo cambia la fecha.
-    var dueHour by rememberSaveable(task?.id) {
-        mutableStateOf(task?.dueAtEpochMillis?.let { epochToLocalDateTime(it).hour } ?: 23)
-    }
-    var dueMinute by rememberSaveable(task?.id) {
-        mutableStateOf(task?.dueAtEpochMillis?.let { epochToLocalDateTime(it).minute } ?: 59)
-    }
-    var reminderWeekBefore by rememberSaveable(task?.id) {
-        mutableStateOf(task?.reminderOffsetsMinutes?.contains(7 * 24 * 60L) ?: true)
-    }
-    var reminderDayBefore by rememberSaveable(task?.id) {
-        mutableStateOf(task?.reminderOffsetsMinutes?.contains(24 * 60L) ?: true)
-    }
+    val initialDueHour = remember(task?.id) { task?.dueAtEpochMillis?.let { epochToLocalDateTime(it).hour } ?: 23 }
+    val initialDueMinute = remember(task?.id) { task?.dueAtEpochMillis?.let { epochToLocalDateTime(it).minute } ?: 59 }
+    var dueHour by rememberSaveable(task?.id) { mutableStateOf(initialDueHour) }
+    var dueMinute by rememberSaveable(task?.id) { mutableStateOf(initialDueMinute) }
+    val initialReminderWeekBefore = remember(task?.id) { task?.reminderOffsetsMinutes?.contains(7 * 24 * 60L) ?: true }
+    val initialReminderDayBefore = remember(task?.id) { task?.reminderOffsetsMinutes?.contains(24 * 60L) ?: true }
+    var reminderWeekBefore by rememberSaveable(task?.id) { mutableStateOf(initialReminderWeekBefore) }
+    var reminderDayBefore by rememberSaveable(task?.id) { mutableStateOf(initialReminderDayBefore) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var subjectMenuExpanded by remember { mutableStateOf(false) }
     var showNoSubjectConfirm by remember { mutableStateOf(false) }
     var dontAskAgainChecked by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    // Cualquier campo distinto de lo que llegó de la BD (o, para una tarea nueva, distinto del
+    // valor por defecto) cuenta como cambio sin guardar.
+    val isDirty = title != (task?.title ?: "") ||
+        descriptionField.text != (task?.description ?: "") ||
+        notesField.text != (task?.notes ?: "") ||
+        isNoteImportant != (task?.isNoteImportant ?: false) ||
+        weightPercent != initialWeightPercent ||
+        selectedSubjectId != initialSubjectId ||
+        hasDueDate != (task?.dueAtEpochMillis != null) ||
+        dueAtMillis != task?.dueAtEpochMillis ||
+        dueHour != initialDueHour ||
+        dueMinute != initialDueMinute ||
+        reminderWeekBefore != initialReminderWeekBefore ||
+        reminderDayBefore != initialReminderDayBefore
+
+    fun requestLeave(action: () -> Unit) {
+        if (isDirty) {
+            pendingLeaveAction = action
+            confirmDiscard = true
+        } else {
+            action()
+        }
+    }
+    fun tryExit() = requestLeave(onBack)
+
+    BackHandler(onBack = ::tryExit)
+    // Puente con la barra de navegación inferior: si se toca otro tab con cambios sin guardar acá,
+    // deja que este mismo diálogo se muestre primero (#147).
+    DisposableEffect(isDirty) {
+        UnsavedChangesGuard.register(isDirty, ::requestLeave)
+        onDispose { UnsavedChangesGuard.clear() }
+    }
 
     fun doSave() {
         val offsets = buildList {
@@ -141,7 +176,7 @@ fun TaskEditorScreen(
         topBar = {
             TopAppBar(
                 title = { Text(if (viewModel.isNew) "Nueva tarea" else "Editar tarea") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } },
+                navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = {
                     if (!viewModel.isNew) {
                         IconButton(onClick = { viewModel.delete(onBack) }) {
@@ -339,6 +374,18 @@ fun TaskEditorScreen(
                 dueAtMillis = date.atTime(h, m).toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
                 showTimePicker = false
             },
+        )
+    }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("¿Salir sin guardar?") },
+            text = { Text("Tienes cambios sin guardar en esta tarea. Si sales ahora se pierden.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDiscard = false; pendingLeaveAction?.invoke() }) { Text("Salir sin guardar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
         )
     }
 }
