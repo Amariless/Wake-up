@@ -11,6 +11,7 @@ import com.fritangui.wakeup.alarm.AppReliabilityWorker
 import com.fritangui.wakeup.data.db.AppDatabase
 import com.fritangui.wakeup.data.repository.FolderRepository
 import com.fritangui.wakeup.usage.ScreenTimeWorker
+import com.fritangui.wakeup.widget.WidgetRefreshScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,7 @@ class WakeUpApp : Application(), Configuration.Provider {
     @Inject lateinit var database: AppDatabase
     @Inject lateinit var folderRepository: FolderRepository
     @Inject lateinit var alarmController: AlarmController
+    @Inject lateinit var widgetRefreshScheduler: WidgetRefreshScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -46,6 +48,7 @@ class WakeUpApp : Application(), Configuration.Provider {
         warmUpDatabase()
         cleanUpStrayDemoData()
         rescheduleClassReminders()
+        scheduleNextWidgetRefreshBoundary()
     }
 
     /**
@@ -58,6 +61,18 @@ class WakeUpApp : Application(), Configuration.Provider {
     private fun rescheduleClassReminders() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             alarmController.rescheduleClassReminders()
+        }
+    }
+
+    /**
+     * Arma la alarma del próximo cruce de horario de clase (#154) apenas se abre la app — cubre
+     * el caso de "el usuario editó su horario y no reinició el teléfono" (BootReceiver solo corre
+     * tras reiniciar). [WidgetRefresher.refreshAll] ya se encarga de reprogramarla después de
+     * cada refresco normal, así que acá solo hace falta el armado inicial.
+     */
+    private fun scheduleNextWidgetRefreshBoundary() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            widgetRefreshScheduler.scheduleNextBoundary()
         }
     }
 

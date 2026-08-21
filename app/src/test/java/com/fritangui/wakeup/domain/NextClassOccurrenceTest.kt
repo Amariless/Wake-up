@@ -69,4 +69,47 @@ class NextClassOccurrenceTest {
         val result = computeNextClassOccurrences(listOf(entry), wednesdayMorning, limit = 3)
         assertEquals(3, result.size)
     }
+
+    @Test
+    fun `el proximo cruce es el inicio de una clase que todavia no empieza`() {
+        val entry = subjectWith(
+            ClassSessionEntity(id = 1, subjectId = 1, dayOfWeek = 3, startMinuteOfDay = 9 * 60, endMinuteOfDay = 11 * 60, room = "302"),
+        )
+        val boundary = nextWidgetRefreshBoundary(listOf(entry), wednesdayMorning)
+        assertEquals(LocalDateTime(2026, 8, 5, 9, 0), boundary)
+    }
+
+    @Test
+    fun `el proximo cruce es el fin de una clase en curso, no su siguiente inicio`() {
+        val entry = subjectWith(
+            ClassSessionEntity(id = 1, subjectId = 1, dayOfWeek = 3, startMinuteOfDay = 7 * 60, endMinuteOfDay = 9 * 60, room = "302"),
+        )
+        // wednesdayMorning = miércoles 08:00, adentro de la sesión 07:00-09:00.
+        val boundary = nextWidgetRefreshBoundary(listOf(entry), wednesdayMorning)
+        assertEquals(LocalDateTime(2026, 8, 5, 9, 0), boundary) // el fin de esta clase, no el miércoles siguiente
+    }
+
+    @Test
+    fun `el proximo cruce es el mas cercano entre varias materias`() {
+        val enCurso = subjectWith(
+            subjectId = 1,
+            sessions = arrayOf(
+                ClassSessionEntity(id = 1, subjectId = 1, dayOfWeek = 3, startMinuteOfDay = 7 * 60, endMinuteOfDay = 8 * 60 + 30, room = "302"),
+            ),
+        )
+        val masTarde = subjectWith(
+            subjectId = 2,
+            sessions = arrayOf(
+                ClassSessionEntity(id = 2, subjectId = 2, dayOfWeek = 3, startMinuteOfDay = 14 * 60, endMinuteOfDay = 16 * 60, room = "Lab 2"),
+            ),
+        )
+        val boundary = nextWidgetRefreshBoundary(listOf(enCurso, masTarde), wednesdayMorning)
+        assertEquals(LocalDateTime(2026, 8, 5, 8, 30), boundary) // el fin de la que está en curso, no el inicio de la otra
+    }
+
+    @Test
+    fun `sin ninguna sesion no hay proximo cruce`() {
+        val boundary = nextWidgetRefreshBoundary(emptyList(), wednesdayMorning)
+        assertEquals(null, boundary)
+    }
 }

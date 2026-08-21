@@ -115,6 +115,12 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".widget.WidgetRefreshReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.fritangui.wakeup.action.WIDGET_REFRESH_BOUNDARY" />
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".alarm.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

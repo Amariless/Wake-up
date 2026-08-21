@@ -194,8 +194,11 @@ class ScreenTimeWidget : GlanceAppWidget() {
     private fun isLight(color: Color): Boolean =
         (0.299f * color.red + 0.587f * color.green + 0.114f * color.blue) > 0.6f
 
-    /** Igual que en ScreenTimeScreen.kt: "45m" bajo una hora, "1h 23m" (o "2h") de ahí para arriba. */
+    /** Igual que en ScreenTimeScreen.kt: "<1m" para uso real pero menor a un minuto (antes decía
+     *  "0m", que se leía como "nada de uso" en vez de "casi nada"), "45m" bajo una hora, "1h 23m"
+     *  (o "2h") de ahí para arriba. */
     private fun formatDuration(minutes: Long): String {
+        if (minutes <= 0) return "<1m"
         if (minutes < 60) return "${minutes}m"
         val h = minutes / 60
         val m = minutes % 60

@@ -15,10 +15,15 @@ import javax.inject.Singleton
 @Singleton
 class WidgetRefresher @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val widgetRefreshScheduler: WidgetRefreshScheduler,
 ) {
     suspend fun refreshAll() {
         NextClassesWidget().updateAll(context)
         NextTasksWidget().updateAll(context)
         ScreenTimeWidget().updateAll(context)
+        // Reprograma la alarma del próximo cruce de horario (#154) cada vez que se refresca, sea
+        // por qué motivo sea (edición de datos, refresco periódico, arranque de la app, o el
+        // propio cruce disparándose) — así siempre queda armada para el cruce más reciente.
+        widgetRefreshScheduler.scheduleNextBoundary()
     }
 }

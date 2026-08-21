@@ -15,6 +15,7 @@ object AlarmConstants {
     const val ACTION_STOP_RINGING = "com.fritangui.wakeup.action.STOP_RINGING"
     const val ACTION_DISMISS_TASK_REMINDER = "com.fritangui.wakeup.action.DISMISS_TASK_REMINDER"
     const val ACTION_CLASS_REMINDER_FIRE = "com.fritangui.wakeup.action.CLASS_REMINDER_FIRE"
+    const val ACTION_WIDGET_REFRESH_BOUNDARY = "com.fritangui.wakeup.action.WIDGET_REFRESH_BOUNDARY"
 
     const val NOTIF_ID_RINGING_BASE = 90_000
     const val NOTIF_ID_PRE_ALARM_BASE = 80_000
@@ -29,4 +30,7 @@ object AlarmConstants {
     fun taskReminderRequestCode(taskId: Long, reminderIndex: Int): Int =
         (taskId * 100 + reminderIndex).toInt()
     fun classReminderRequestCode(sessionId: Long): Int = (sessionId * 10 + 7).toInt()
+
+    /** Un único PendingIntent global (no hay uno por sesión: siempre es "el próximo cruce, sea el que sea"). */
+    const val REQUEST_CODE_WIDGET_REFRESH_BOUNDARY = 900_001
 }

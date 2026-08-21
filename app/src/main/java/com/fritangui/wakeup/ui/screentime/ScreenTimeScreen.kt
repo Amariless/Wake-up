@@ -213,8 +213,11 @@ private fun AppIconSmall(context: Context, packageName: String, label: String) {
     }
 }
 
-/** "45m" si es menos de una hora, "1h 23m" (o "2h" sin minutos sueltos) si es una hora o más. */
+/** "<1m" para uso real pero menor a un minuto (antes decía "0m", que se leía como "nada de uso" en
+ *  vez de "casi nada"), "45m" si es menos de una hora, "1h 23m" (o "2h" sin minutos sueltos) si es
+ *  una hora o más. */
 private fun formatDuration(minutes: Long): String {
+    if (minutes <= 0) return "<1m"
     if (minutes < 60) return "${minutes}m"
     val h = minutes / 60
     val m = minutes % 60

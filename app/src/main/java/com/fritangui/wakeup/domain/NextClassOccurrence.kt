@@ -67,3 +67,26 @@ fun computeNextClassOccurrences(
 
     return occurrences.sortedBy { it.start }.take(limit)
 }
+
+/**
+ * Próximo instante en que cambia qué se debería estar mostrando como "clase en curso" o "próxima
+ * clase" — el fin de una clase que está pasando ahora mismo, o el inicio de la próxima ocurrencia
+ * de cada sesión, lo que venga primero. Se usa para reprogramar el refresco de los widgets de home
+ * screen justo en ese momento (#154), en vez de depender solo del refresco periódico de ~30 min
+ * que impone Android en los widgets o de que el usuario haya cambiado algún dato mientras tanto.
+ * Devuelve `null` si no hay ninguna sesión programada (nada que cruce nunca).
+ */
+fun nextWidgetRefreshBoundary(
+    subjects: List<SubjectWithSessions>,
+    now: LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+): LocalDateTime? {
+    // Un límite alto en vez del default de 10: acá se necesita el cruce de TODAS las sesiones, no
+    // solo las próximas a mostrar en el widget de "próximas clases".
+    val occurrences = computeNextClassOccurrences(subjects, now, limit = Int.MAX_VALUE)
+    var earliest: LocalDateTime? = null
+    for (occurrence in occurrences) {
+        val boundary = if (occurrence.start <= now && occurrence.end > now) occurrence.end else occurrence.start
+        if (earliest == null || boundary < earliest) earliest = boundary
+    }
+    return earliest
+}
