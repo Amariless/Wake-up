@@ -46,28 +46,48 @@ class SystemUsageStatsSource @Inject constructor(
         val foregroundSinceMillis = mutableMapOf<String, Long>()
         val event = UsageEvents.Event()
 
+        // Cierra cualquier sesión "en curso" hasta [atMillis] y limpia el mapa — se usa cuando la
+        // pantalla se apaga o se bloquea (ver más abajo). Sin esto, si Android no manda el
+        // MOVE_TO_BACKGROUND de una app justo al bloquear el teléfono (pasa seguido: p.ej. si se
+        // bloquea con el botón de encendido en vez de volver antes al home), esa sesión se contaba
+        // como "en uso" hasta el próximo evento de esa app, a veces horas después — dando totales
+        // como "9h en Twitter" con la pantalla apagada casi todo ese rato. El propio "Tiempo de
+        // pantalla" de Android/MIUI no cuenta ese tiempo, así que acá tampoco debería.
+        fun closeAllOpenSessions(atMillis: Long) {
+            foregroundSinceMillis.forEach { (pkg, startedAt) ->
+                val clippedStart = startedAt.coerceAtLeast(startOfDayMillis)
+                val duration = (atMillis - clippedStart).coerceAtLeast(0L)
+                totalsMillis[pkg] = (totalsMillis[pkg] ?: 0L) + duration
+            }
+            foregroundSinceMillis.clear()
+        }
+
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            val pkg = event.packageName ?: continue
             when (event.eventType) {
                 // MOVE_TO_FOREGROUND/BACKGROUND y ACTIVITY_RESUMED/PAUSED comparten los mismos
                 // valores enteros (1 y 2) — cubre tanto versiones viejas como nuevas de Android.
-                UsageEvents.Event.MOVE_TO_FOREGROUND -> foregroundSinceMillis[pkg] = event.timeStamp
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    val pkg = event.packageName ?: continue
+                    foregroundSinceMillis[pkg] = event.timeStamp
+                }
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    val pkg = event.packageName ?: continue
                     val startedAt = foregroundSinceMillis.remove(pkg) ?: continue
                     val clippedStart = startedAt.coerceAtLeast(startOfDayMillis)
                     val duration = (event.timeStamp - clippedStart).coerceAtLeast(0L)
                     totalsMillis[pkg] = (totalsMillis[pkg] ?: 0L) + duration
                 }
+                // Pantalla apagada o teléfono bloqueado: ninguna app cuenta como "en primer plano"
+                // desde acá hasta que se vuelva a ver un MOVE_TO_FOREGROUND real.
+                UsageEvents.Event.SCREEN_NON_INTERACTIVE, UsageEvents.Event.KEYGUARD_SHOWN ->
+                    closeAllOpenSessions(event.timeStamp)
             }
         }
 
-        // Lo que sigue en primer plano al momento de la consulta: cuenta hasta ahora mismo.
-        foregroundSinceMillis.forEach { (pkg, startedAt) ->
-            val clippedStart = startedAt.coerceAtLeast(startOfDayMillis)
-            val duration = (nowMillis - clippedStart).coerceAtLeast(0L)
-            totalsMillis[pkg] = (totalsMillis[pkg] ?: 0L) + duration
-        }
+        // Lo que sigue en primer plano al momento de la consulta (pantalla prendida y desbloqueada
+        // ahora mismo): cuenta hasta ahora mismo.
+        closeAllOpenSessions(nowMillis)
 
         return totalsMillis.mapValues { it.value / 60_000 }
     }
