@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -47,8 +46,6 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.permissions.PermissionStatus
-import com.fritangui.wakeup.ui.theme.WakeUpPrimary
-import com.fritangui.wakeup.ui.theme.WakeUpSecondary
 
 @Composable
 fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel = hiltViewModel()) {
@@ -163,7 +160,7 @@ private fun WeeklyBarChart(days: List<DayUsage>) {
                 modifier = Modifier.weight(1f)
                     .semantics(mergeDescendants = true) { contentDescription = "${day.dayLabelFull}: ${formatDuration(day.totalMinutes)}" },
             ) {
-                val barColor = if (day.isToday) WakeUpPrimary else WakeUpSecondary
+                val barColor = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
                 Canvas(modifier = Modifier.weight(1f).width(20.dp)) {
                     val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)
                     val barHeight = size.height * fraction
@@ -195,10 +192,12 @@ private fun UsageBarRow(packageName: String, label: String, minutes: Long, maxMi
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
         )
+        val trackColor = MaterialTheme.colorScheme.surfaceVariant
+        val fillColor = MaterialTheme.colorScheme.primary
         Canvas(modifier = Modifier.weight(1f).height(18.dp).padding(horizontal = 8.dp)) {
             val fraction = (minutes.toFloat() / maxMinutes).coerceIn(0.02f, 1f)
-            drawRect(color = Color(0x22FFFFFF), size = size)
-            drawRect(color = WakeUpPrimary, size = Size(size.width * fraction, size.height))
+            drawRect(color = trackColor, size = size)
+            drawRect(color = fillColor, size = Size(size.width * fraction, size.height))
         }
         Text(formatDuration(minutes), style = MaterialTheme.typography.bodyMedium)
     }

@@ -10,19 +10,41 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// Paleta clara del rediseño 2026 ("Minimalismo táctil"): fondo cálido neutro + acentos pastel-
+// saturados. `outline`/`outlineVariant` no se usan aquí con su sentido literal de Material (borde):
+// el resto de la app ya usaba `colorScheme.outline` como color de texto secundario/atenuado, así
+// que se mapea a WakeUpTextSecondary para que ese patrón siga funcionando en cada pantalla sin
+// tocarla una por una; WakeUpBorder (el borde real de tarjetas/chips) vive en outlineVariant.
 private val LightColors = lightColorScheme(
-    primary = WakeUpPrimary,
-    onPrimary = WakeUpOnPrimary,
-    secondary = WakeUpSecondary,
-    onSecondary = WakeUpOnSecondary,
-    tertiary = WakeUpTertiary,
-    background = WakeUpBackgroundLight,
-    surface = WakeUpSurfaceLight,
+    primary = WakeUpIndigo,
+    onPrimary = Color.White,
+    primaryContainer = WakeUpIndigo.copy(alpha = 0.14f).compositeOver(WakeUpSurface),
+    onPrimaryContainer = WakeUpIndigo,
+    secondary = WakeUpCoral,
+    onSecondary = Color.White,
+    secondaryContainer = WakeUpCoral.copy(alpha = 0.14f).compositeOver(WakeUpSurface),
+    onSecondaryContainer = WakeUpCoral,
+    tertiary = WakeUpSage,
+    onTertiary = Color.White,
+    background = WakeUpBg,
+    onBackground = WakeUpTextPrimary,
+    surface = WakeUpSurface,
+    onSurface = WakeUpTextPrimary,
+    surfaceVariant = WakeUpSurfaceAlt,
+    onSurfaceVariant = WakeUpTextSecondary,
+    surfaceContainer = WakeUpSurface,
+    surfaceContainerLow = WakeUpSurface,
+    surfaceContainerHigh = WakeUpSurfaceAlt,
+    surfaceContainerHighest = WakeUpSurfaceAlt,
+    outline = WakeUpTextSecondary,
+    outlineVariant = WakeUpBorder,
     error = WakeUpError,
 )
 
@@ -55,14 +77,15 @@ private val DarkColors = darkColorScheme(
 )
 
 /**
- * Tema de la app. El default es **oscuro siempre** (no sigue el tema del
- * sistema): es lo que se pidió como identidad visual de Wake up, un reloj de
- * alarma piensa mejor en oscuro. El color dinámico (Android 12+) sigue
- * disponible y configurable desde Ajustes.
+ * Tema de la app. El default es **claro siempre** (no sigue el tema del sistema): es la identidad
+ * visual del rediseño 2026 ("Minimalismo táctil"), pensada como fondo cálido neutro de punta a
+ * punta. `DarkColors` se conserva por si se vuelve a exponer un modo oscuro más adelante, pero hoy
+ * nada pasa `darkTheme = true`. El color dinámico (Android 12+) sigue disponible y configurable
+ * desde Ajustes.
  */
 @Composable
 fun WakeUpTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = false,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {

@@ -2,4 +2,8 @@
 <resources>
     <color name="ic_launcher_background">#FFFFFF</color>
     <color name="wake_up_background_dark">#0B0E14</color>
+    <!-- Fondo del rediseño 2026 ("Minimalismo táctil"), mismo valor que WakeUpBg en Color.kt —
+         usado por el splash screen y la ventana antes de que Compose pinte, para que no haya un
+         flash oscuro al abrir la app ahora que el tema por defecto es claro. -->
+    <color name="wake_up_background_light">#FAF7F2</color>
 </resources>
