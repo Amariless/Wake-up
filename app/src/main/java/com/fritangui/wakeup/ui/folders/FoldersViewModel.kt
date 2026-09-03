@@ -64,6 +64,6 @@ class FoldersViewModel @Inject constructor(
     }
 
     fun deleteFolder(folder: FolderEntity) {
-        viewModelScope.launch { folderRepository.delete(folder) }
+        viewModelScope.launch { alarmController.deleteFolderAndCancelAll(folder) }
     }
 }

@@ -106,6 +106,7 @@ class SubjectEditorViewModel @Inject constructor(
 
     fun deleteSession(session: ClassSessionEntity) {
         viewModelScope.launch {
+            alarmController.cancelClassReminder(session.id)
             subjectRepository.deleteSession(session)
             widgetRefresher.refreshAll()
         }
@@ -113,6 +114,7 @@ class SubjectEditorViewModel @Inject constructor(
 
     fun deleteSubject(subject: SubjectEntity, onDeleted: () -> Unit) {
         viewModelScope.launch {
+            sessions.value.forEach { alarmController.cancelClassReminder(it.id) }
             subjectRepository.delete(subject)
             onDeleted()
         }

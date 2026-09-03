@@ -42,8 +42,6 @@ class UsageRepository @Inject constructor(
     fun observeSurfaceUsageForDay(dateEpochDay: Long): Flow<List<BlockSurfaceUsageEntity>> =
         usageDao.observeSurfaceUsageForDay(dateEpochDay)
 
-    suspend fun addSurfaceUsageMillis(dateEpochDay: Long, surface: BlockSurface, deltaMillis: Long) {
-        val current = getSurfaceUsageMillis(dateEpochDay, surface)
-        usageDao.upsertSurfaceUsage(BlockSurfaceUsageEntity(dateEpochDay, surface, current + deltaMillis))
-    }
+    suspend fun addSurfaceUsageMillis(dateEpochDay: Long, surface: BlockSurface, deltaMillis: Long) =
+        usageDao.addSurfaceUsageMillis(dateEpochDay, surface, deltaMillis)
 }

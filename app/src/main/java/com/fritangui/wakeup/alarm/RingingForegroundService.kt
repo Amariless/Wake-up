@@ -51,6 +51,8 @@ class RingingForegroundService : LifecycleService() {
     private var watchdogRunnable: Runnable? = null
     private var watchdogTicks = 0
     private var ringingAlarmId: Long? = null
+    /** Si llega otra alarma mientras esta suena, se guarda acá en vez de perderse: arranca sola al apagar la actual. */
+    private var queuedAlarmId: Long? = null
 
     private var vibrateEnabled = false
     private var muteRunnable: Runnable? = null
@@ -60,9 +62,16 @@ class RingingForegroundService : LifecycleService() {
         when (intent?.action) {
             ACTION_START_RINGING -> {
                 val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
-                if (alarmId >= 0 && ringingAlarmId == null) startRinging(alarmId)
+                if (alarmId >= 0) {
+                    if (ringingAlarmId == null) startRinging(alarmId) else queuedAlarmId = alarmId
+                }
             }
-            ACTION_STOP_RINGING -> stopRinging()
+            ACTION_STOP_RINGING -> {
+                val next = queuedAlarmId
+                queuedAlarmId = null
+                stopRinging(hasNext = next != null)
+                if (next != null) startRinging(next)
+            }
             ACTION_MUTE_TEMPORARILY -> muteTemporarily()
         }
         return START_STICKY
@@ -159,6 +168,11 @@ class RingingForegroundService : LifecycleService() {
         watchdogRunnable = object : Runnable {
             override fun run() {
                 val alarmId = ringingAlarmId ?: return
+                // Renueva el wakelock en cada tick del watchdog (cada 3-12s) en vez de un único
+                // acquire con timeout fijo: una alarma que suena más de ese timeout sin que el
+                // usuario interactúe (p.ej. el teléfono queda en un bolsillo) podía perder el
+                // PARTIAL_WAKE_LOCK a mitad de sonar.
+                renewWakeLock()
                 if (!AlarmRingingActivity.isVisible) {
                     launchRingingActivity(alarmId)
                 }
@@ -173,43 +187,36 @@ class RingingForegroundService : LifecycleService() {
     }
 
     private fun startSoundAndVibration(soundUri: String?, vibrate: Boolean) {
-        runCatching {
-            val uri = soundUri?.let { Uri.parse(it) }
-                ?: Uri.parse(AlarmSounds.defaultSoundUriFor(this))
-            mediaPlayer = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
-                )
-                setDataSource(this@RingingForegroundService, uri)
-                isLooping = true
-                prepare()
-                start()
-            }
-        }.onFailure {
-            // Si el sonido guardado ya no existe (p.ej. un content:// revocado), cae al del sistema.
-            runCatching {
-                val fallback = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getValidRingtoneUri(this)
-                mediaPlayer = MediaPlayer().apply {
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build(),
-                    )
-                    setDataSource(this@RingingForegroundService, fallback!!)
-                    isLooping = true
-                    prepare()
-                    start()
-                }
-            }
+        val primaryUri = soundUri?.let { Uri.parse(it) } ?: Uri.parse(AlarmSounds.defaultSoundUriFor(this))
+        val started = runCatching { playAlarmSound(primaryUri) }.isSuccess
+        if (!started) {
+            // Si el sonido guardado ya no existe (p.ej. un content:// revocado), cae al del sistema;
+            // y si NI SIQUIERA el sistema tiene un tono de alarma configurado (ROM/emulador sin
+            // ninguno), cae al sonido embebido de la app, que siempre existe — así nunca se llega al
+            // caso de quedar sin ningún sonido en absoluto.
+            val systemFallback = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getValidRingtoneUri(this)
+            val fallbackUri = systemFallback ?: Uri.parse(AlarmSounds.defaultSoundUriFor(this))
+            runCatching { playAlarmSound(fallbackUri) }
         }
 
         vibrateEnabled = vibrate
         if (vibrate) startVibration()
+    }
+
+    private fun playAlarmSound(uri: Uri) {
+        mediaPlayer = MediaPlayer().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            setDataSource(this@RingingForegroundService, uri)
+            isLooping = true
+            prepare()
+            start()
+        }
     }
 
     private fun startVibration() {
@@ -228,10 +235,22 @@ class RingingForegroundService : LifecycleService() {
         wakeLock = pm.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "WakeUp:AlarmRingingWakeLock",
-        ).apply { acquire(10 * 60 * 1000L) }
+        ).apply {
+            // Sin referencia contada: cada renewWakeLock() de abajo solo necesita reemplazar el
+            // timeout, no acumular acquires que exigirían la misma cantidad de release() para
+            // soltarse de verdad.
+            setReferenceCounted(false)
+            acquire(WAKE_LOCK_TIMEOUT_MS)
+        }
     }
 
-    private fun stopRinging() {
+    /** Extiende el timeout del wakelock ya adquirido; ver comentario en [startWatchdog]. */
+    private fun renewWakeLock() {
+        wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
+    }
+
+    /** @param hasNext si ya hay otra alarma en cola para arrancar justo después, no tira abajo el foreground service. */
+    private fun stopRinging(hasNext: Boolean = false) {
         val alarmId = ringingAlarmId
         watchdogRunnable?.let { watchdogHandler.removeCallbacks(it) }
         watchdogRunnable = null
@@ -246,8 +265,10 @@ class RingingForegroundService : LifecycleService() {
         wakeLock = null
         if (alarmId != null) notificationHelper.cancelRinging(alarmId)
         ringingAlarmId = null
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        if (!hasNext) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
@@ -260,6 +281,7 @@ class RingingForegroundService : LifecycleService() {
         const val ACTION_STOP_RINGING = AlarmConstants.ACTION_STOP_RINGING
         const val ACTION_MUTE_TEMPORARILY = "com.fritangui.wakeup.action.MUTE_TEMPORARILY"
         const val MUTE_DURATION_MS = 20_000L
+        private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
 
         fun stopIntent(context: Context): Intent =
             Intent(context, RingingForegroundService::class.java).apply { action = ACTION_STOP_RINGING }

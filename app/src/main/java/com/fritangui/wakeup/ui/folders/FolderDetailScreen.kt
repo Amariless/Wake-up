@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,6 +69,7 @@ import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.domain.AlarmTiming
 import com.fritangui.wakeup.ui.components.ClockTimeText
 import com.fritangui.wakeup.ui.tasks.taskListItems
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -282,6 +286,15 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
         EmptyState("Agrega alarmas asociadas a esta carpeta")
         return
     }
+    // Igual que en AlarmsListScreen: se recalcula cada tanto para que el "Faltan Xh Ym" de cada fila
+    // no se quede pegado al valor de cuando se abrió esta pestaña si se la deja abierta un rato.
+    var now by remember { mutableStateOf(Clock.System.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            now = Clock.System.now()
+        }
+    }
     // fillMaxSize() explícito por la misma razón que en AlarmsListScreen: sin él, dentro del
     // HorizontalPager el LazyColumn se queda "envuelto" a su contenido en vez de ocupar toda la
     // página, y termina centrado verticalmente con espacio vacío arriba y abajo.
@@ -308,7 +321,6 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
                                 alarm.label.ifBlank { if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma" },
                                 style = MaterialTheme.typography.bodyMedium,
                             )
-                            val now = remember { Clock.System.now() }
                             val trigger = AlarmTiming.nextTrigger(alarm, now = now)
                             if (trigger != null) {
                                 Text(
@@ -319,7 +331,16 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
                             }
                         }
                     }
-                    Switch(checked = alarm.isEnabled, enabled = !readOnly, onCheckedChange = { onToggle(alarm.id, it) })
+                    Switch(
+                        checked = alarm.isEnabled,
+                        enabled = !readOnly,
+                        onCheckedChange = { onToggle(alarm.id, it) },
+                        modifier = Modifier.semantics {
+                            contentDescription = "${if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma"} " +
+                                "%02d:%02d".format(alarm.hour, alarm.minute) +
+                                (alarm.label.takeIf { it.isNotBlank() }?.let { ", $it" } ?: "")
+                        },
+                    )
                 }
             }
         }

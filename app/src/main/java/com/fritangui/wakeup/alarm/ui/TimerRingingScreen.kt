@@ -37,7 +37,7 @@ fun TimerRingingScreen(onDismissed: () -> Unit) {
             .collect { isRinging -> if (!isRinging) onDismissed() }
     }
 
-    val challenge = state.challenge
+    val challenge = effectiveDismissChallengeType(context, state.challenge)
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),

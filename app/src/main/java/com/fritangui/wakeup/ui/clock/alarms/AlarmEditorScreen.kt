@@ -4,7 +4,6 @@ package com.fritangui.wakeup.ui.clock.alarms
 
 import android.media.RingtoneManager
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -52,6 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,6 +70,10 @@ import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 
 // "M" para miércoles (no "X"): se sobreentiende por la posición entre martes y jueves.
 private val DIA_NOMBRES = listOf("L", "M", "M", "J", "V", "S", "D")
+
+// Nombre completo para lectores de pantalla: la letra sola es ambigua ("M" es tanto martes como
+// miércoles) para quien no puede apoyarse en la posición visual.
+private val DIA_NOMBRES_COMPLETOS = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
 private val CHALLENGE_LABELS = mapOf(
     DismissChallengeType.NONE to "Ninguno (botón normal)",
@@ -87,6 +94,7 @@ fun AlarmEditorScreen(
     val context = LocalContext.current
     val alarm by viewModel.alarm.collectAsState()
     val savedFeedback by viewModel.savedFeedback.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(savedFeedback) {
@@ -97,17 +105,20 @@ fun AlarmEditorScreen(
     var hour by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.hour ?: 7) }
     var minute by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.minute ?: 0) }
     var repeatBitmask by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.repeatDaysBitmask ?: 0) }
-    var kind by remember(alarm?.id) { mutableStateOf(alarm?.kind ?: AlarmKind.ALARM) }
-    var challenge by remember(alarm?.id) { mutableStateOf(alarm?.dismissChallenge ?: DismissChallengeType.NONE) }
+    var kind by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.kind ?: AlarmKind.ALARM) }
+    var challenge by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.dismissChallenge ?: DismissChallengeType.NONE) }
     var difficulty by rememberSaveable(alarm?.id) { mutableIntStateOf(alarm?.challengeDifficulty ?: 1) }
     var vibrate by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.vibrate ?: true) }
-    var soundUri by rememberSaveable(alarm?.id, kind) { mutableStateOf(alarm?.soundUri) }
+    // Sin `kind` en la key: antes, cambiar el segmented button "Alarma"/"Recordatorio" reiniciaba el
+    // sonido recién elegido en esta misma sesión de edición al original guardado en BD.
+    var soundUri by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.soundUri) }
     var deleteAfterRing by rememberSaveable(alarm?.id) { mutableStateOf(alarm?.deleteAfterRing ?: false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showSoundPicker by remember { mutableStateOf(false) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
     var showChallengePreview by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val isReminder = kind == AlarmKind.REMINDER
@@ -150,7 +161,7 @@ fun AlarmEditorScreen(
                 navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = {
                     if (!viewModel.isNew) {
-                        IconButton(onClick = { viewModel.delete(onBack) }) {
+                        IconButton(onClick = { confirmDelete = true }) {
                             Icon(Icons.Default.Delete, contentDescription = "Eliminar alarma")
                         }
                     }
@@ -200,9 +211,11 @@ fun AlarmEditorScreen(
                     val bit = AlarmEntity.dayBit(index + 1)
                     val selected = (repeatBitmask and bit) != 0
                     Box(
-                        modifier = Modifier.weight(1f).clickable {
-                            repeatBitmask = if (selected) repeatBitmask and bit.inv() else repeatBitmask or bit
-                        },
+                        modifier = Modifier.weight(1f)
+                            .toggleable(value = selected, role = Role.Checkbox) {
+                                repeatBitmask = if (selected) repeatBitmask and bit.inv() else repeatBitmask or bit
+                            }
+                            .semantics(mergeDescendants = true) { contentDescription = DIA_NOMBRES_COMPLETOS[index] },
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -247,6 +260,7 @@ fun AlarmEditorScreen(
                         value = CHALLENGE_LABELS.getValue(challenge),
                         onValueChange = {},
                         readOnly = true,
+                        label = { Text("Reto para apagarla") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                     )
@@ -331,6 +345,7 @@ fun AlarmEditorScreen(
                         onSaved = onBack,
                     )
                 },
+                enabled = !isSaving,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             ) { Text("Guardar") }
         }
@@ -401,6 +416,18 @@ fun AlarmEditorScreen(
                 TextButton(onClick = { confirmDiscard = false; pendingLeaveAction?.invoke() }) { Text("Salir sin guardar") }
             },
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
+        )
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(if (isReminder) "¿Eliminar recordatorio?" else "¿Eliminar alarma?") },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; viewModel.delete(onBack) }) { Text("Eliminar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
         )
     }
 }

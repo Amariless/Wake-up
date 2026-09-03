@@ -21,9 +21,17 @@ import javax.inject.Inject
 data class AppUsageRow(val packageName: String, val label: String, val minutes: Long)
 
 /** [dayLabel] ya viene formateado ("Lu", "Ma"...) para no meter lógica de fechas en la UI. */
-data class DayUsage(val epochDay: Long, val dayLabel: String, val totalMinutes: Long, val isToday: Boolean)
+data class DayUsage(
+    val epochDay: Long,
+    val dayLabel: String,
+    /** Nombre completo del día ("Lunes"), para lectores de pantalla — "Lu"/"Ma" es ambiguo sin apoyo visual. */
+    val dayLabelFull: String,
+    val totalMinutes: Long,
+    val isToday: Boolean,
+)
 
 private val DIA_CORTO = listOf("Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do")
+private val DIA_LARGO = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
 private val DEFAULT_SOCIAL_PACKAGES = listOf(
     "com.instagram.android", "com.zhiliaoapp.musically", "com.ss.android.ugc.trill",
@@ -67,6 +75,7 @@ class ScreenTimeViewModel @Inject constructor(
                 DayUsage(
                     epochDay = day,
                     dayLabel = DIA_CORTO[isoDayOfWeek - 1],
+                    dayLabelFull = DIA_LARGO[isoDayOfWeek - 1],
                     totalMinutes = totalsByDay[day] ?: 0L,
                     isToday = day == today,
                 )

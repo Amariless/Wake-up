@@ -117,23 +117,27 @@ private fun WakeUpNavHostContent(
     // la materia/tarea), para que "atrás" se sienta natural en vez de solo cerrar la app.
     LaunchedEffect(pendingDeepLink.value) {
         val target = pendingDeepLink.value ?: return@LaunchedEffect
-        navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
-        when (target) {
-            is WidgetDeepLink.Subject -> {
-                navController.navigate(Routes.FOLDERS)
-                navController.navigate(Routes.folderDetail(target.folderId))
-                navController.navigate(Routes.subjectEditor(target.folderId, target.subjectId))
-            }
-            is WidgetDeepLink.Task -> {
-                navController.navigate(Routes.FOLDERS)
-                navController.navigate(Routes.folderDetail(target.folderId))
-                navController.navigate(Routes.taskEditor(target.folderId, target.taskId))
-            }
-            WidgetDeepLink.ScreenTime -> {
-                navController.navigate(Routes.SCREEN_TIME)
-            }
-            WidgetDeepLink.NextClass -> {
-                scrollToNextClassTrigger.value += 1
+        // Mismo guard que la barra de navegación inferior (#147): sin esto, tocar un widget con un
+        // editor abierto y cambios sin guardar los descartaba de golpe, sin el diálogo de confirmación.
+        UnsavedChangesGuard.navigateOrConfirm {
+            navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+            when (target) {
+                is WidgetDeepLink.Subject -> {
+                    navController.navigate(Routes.FOLDERS)
+                    navController.navigate(Routes.folderDetail(target.folderId))
+                    navController.navigate(Routes.subjectEditor(target.folderId, target.subjectId))
+                }
+                is WidgetDeepLink.Task -> {
+                    navController.navigate(Routes.FOLDERS)
+                    navController.navigate(Routes.folderDetail(target.folderId))
+                    navController.navigate(Routes.taskEditor(target.folderId, target.taskId))
+                }
+                WidgetDeepLink.ScreenTime -> {
+                    navController.navigate(Routes.SCREEN_TIME)
+                }
+                WidgetDeepLink.NextClass -> {
+                    scrollToNextClassTrigger.value += 1
+                }
             }
         }
         pendingDeepLink.value = null

@@ -1,5 +1,7 @@
 package com.fritangui.wakeup.data.repository
 
+import androidx.room.withTransaction
+import com.fritangui.wakeup.data.db.AppDatabase
 import com.fritangui.wakeup.data.db.dao.AlarmDao
 import com.fritangui.wakeup.data.db.dao.FolderDao
 import com.fritangui.wakeup.data.db.entity.FolderEntity
@@ -9,6 +11,7 @@ import javax.inject.Singleton
 
 @Singleton
 class FolderRepository @Inject constructor(
+    private val db: AppDatabase,
     private val folderDao: FolderDao,
     private val alarmDao: AlarmDao,
 ) {
@@ -35,10 +38,11 @@ class FolderRepository @Inject constructor(
      * Marca la carpeta como terminada: deja de aparecer como activa (se archiva,
      * de solo lectura en la UI) y desactiva todas sus alarmas propias. La
      * cancelación real en AlarmManager y de los recordatorios de tareas la hace
-     * el caso de uso [com.fritangui.wakeup.domain.usecase.TerminateFolder], que
-     * también depende de [com.fritangui.wakeup.alarm.AlarmScheduler].
+     * [com.fritangui.wakeup.alarm.AlarmController.terminateFolder], que llama a esto.
+     * Las dos escrituras van en una sola transacción: si el proceso muere entre
+     * medio, no puede quedar la carpeta archivada con sus alarmas todavía encendidas.
      */
-    suspend fun markTerminated(id: Long) {
+    suspend fun markTerminated(id: Long) = db.withTransaction {
         folderDao.markTerminated(id)
         alarmDao.disableAllForFolder(id)
     }

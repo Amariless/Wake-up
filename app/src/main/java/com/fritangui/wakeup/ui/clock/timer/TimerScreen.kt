@@ -150,6 +150,7 @@ private fun TimerIdleContent(
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
                 centerEmphasis = 1.1f,
+                contentDescriptionLabel = "Horas",
             )
             WheelPicker(
                 value = minutesInput,
@@ -160,6 +161,7 @@ private fun TimerIdleContent(
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
                 centerEmphasis = 1.1f,
+                contentDescriptionLabel = "Minutos",
             )
             WheelPicker(
                 value = secondsInput,
@@ -170,6 +172,7 @@ private fun TimerIdleContent(
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
                 centerEmphasis = 1.1f,
+                contentDescriptionLabel = "Segundos",
             )
         }
 

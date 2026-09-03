@@ -69,6 +69,15 @@ class SystemUsageStatsSource @Inject constructor(
                 // valores enteros (1 y 2) — cubre tanto versiones viejas como nuevas de Android.
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> {
                     val pkg = event.packageName ?: continue
+                    // Si ya había una sesión abierta para este paquete (dos MOVE_TO_FOREGROUND
+                    // seguidos sin un MOVE_TO_BACKGROUND entre medio), se cierra primero el tramo que
+                    // ya llevaba — si no, ese tramo se perdía sin contarse al pisarlo sin más.
+                    val previousStart = foregroundSinceMillis[pkg]
+                    if (previousStart != null) {
+                        val clippedStart = previousStart.coerceAtLeast(startOfDayMillis)
+                        val duration = (event.timeStamp - clippedStart).coerceAtLeast(0L)
+                        totalsMillis[pkg] = (totalsMillis[pkg] ?: 0L) + duration
+                    }
                     foregroundSinceMillis[pkg] = event.timeStamp
                 }
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {

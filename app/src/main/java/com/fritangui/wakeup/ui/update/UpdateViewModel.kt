@@ -33,6 +33,11 @@ class UpdateViewModel @Inject constructor(
     }
 
     fun startDownload() {
+        // Sin este guard, un doble-tap en "Descargar" (o "Reintentar" tras un Failed) lanzaba dos
+        // colecciones de download() en paralelo: cada una borra el archivo/registro de la otra al
+        // empezar (ver ApkDownloadInstaller.download), dejando el progreso pegado en 0% o un Failed
+        // espurio.
+        if (_downloadState.value is DownloadState.Downloading) return
         val available = _checkState.value as? UpdateCheckState.Available ?: return
         viewModelScope.launch {
             apkDownloadInstaller.download(available.info).collect { state ->

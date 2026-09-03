@@ -189,7 +189,14 @@ private fun ChecklistRow(item: ChecklistItem, context: android.content.Context) 
                         false -> Icons.Default.RadioButtonUnchecked
                         null -> Icons.Default.HelpOutline
                     },
-                    contentDescription = null,
+                    // Antes null: un usuario de TalkBack no tenía forma de distinguir los tres
+                    // estados salvo inferirlo del texto "Ver"/"Activar" (que ni siquiera distingue
+                    // "no concedido" de "no se puede verificar", ambos muestran "Activar").
+                    contentDescription = when (checked) {
+                        true -> "Concedido"
+                        false -> "No concedido"
+                        null -> "Estado desconocido, confirma manualmente"
+                    },
                     tint = when (checked) {
                         true -> Color(0xFF00BFA6)
                         false -> MaterialTheme.colorScheme.outline

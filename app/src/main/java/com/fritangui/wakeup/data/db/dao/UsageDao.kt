@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.fritangui.wakeup.data.db.entity.AppUsageDailyEntity
 import com.fritangui.wakeup.data.db.entity.BlockRuleEntity
@@ -68,4 +69,27 @@ interface UsageDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSurfaceUsage(usage: BlockSurfaceUsageEntity)
+
+    // UPDATE directo (no INSERT ... ON CONFLICT DO UPDATE): esa sintaxis de upsert de SQLite recién
+    // existe desde 3.24 (2018), y el SQLite embebido de Android en minSdk 26-28 es más viejo que eso
+    // — habría fallado con un error de sintaxis en esos dispositivos.
+    @Query("UPDATE block_surface_usage SET accumulatedMillis = accumulatedMillis + :deltaMillis WHERE dateEpochDay = :dateEpochDay AND surface = :surface")
+    suspend fun incrementSurfaceUsageMillis(dateEpochDay: Long, surface: BlockSurface, deltaMillis: Long): Int
+
+    /**
+     * Incremento atómico: evita la carrera lectura-modificación-escritura de leer
+     * accumulatedMillis en Kotlin y recién después escribir current+delta, que perdía incrementos
+     * cuando dos flushes (p.ej. flushAccumulatedTime y periodicFlush) se solapaban. El UPDATE de
+     * arriba no afecta filas la primera vez del día para esa superficie (todavía no existe la fila);
+     * @Transaction hace que ese caso quede serializado por SQLite igual que el resto: si dos
+     * llamadas concurrentes ven 0 filas afectadas, la segunda transacción no arranca hasta que la
+     * primera termine de insertar, así que para cuando le toca, el UPDATE ya encuentra la fila.
+     */
+    @Transaction
+    suspend fun addSurfaceUsageMillis(dateEpochDay: Long, surface: BlockSurface, deltaMillis: Long) {
+        val updated = incrementSurfaceUsageMillis(dateEpochDay, surface, deltaMillis)
+        if (updated == 0) {
+            upsertSurfaceUsage(BlockSurfaceUsageEntity(dateEpochDay, surface, deltaMillis))
+        }
+    }
 }

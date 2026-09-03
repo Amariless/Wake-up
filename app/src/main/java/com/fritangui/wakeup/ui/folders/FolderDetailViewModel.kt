@@ -83,7 +83,11 @@ class FolderDetailViewModel @Inject constructor(
     /** Borra la materia y sus horarios (cascada). Las tareas que tenía asociadas no se borran,
      *  solo quedan sin materia (ver SET_NULL en la FK de TaskEntity). */
     fun deleteSubject(subject: SubjectEntity) {
-        viewModelScope.launch { subjectRepository.delete(subject) }
+        viewModelScope.launch {
+            val sessions = subjects.value.firstOrNull { it.subject.id == subject.id }?.sessions.orEmpty()
+            sessions.forEach { alarmController.cancelClassReminder(it.id) }
+            subjectRepository.delete(subject)
+        }
     }
 
     fun setAlarmEnabled(alarmId: Long, enabled: Boolean) {

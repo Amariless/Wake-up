@@ -88,6 +88,17 @@ object ReelsNodeDetector {
             for (i in 0 until node.childCount) {
                 node.getChild(i)?.let { queue.add(it) }
             }
+            // recycle() es no-op desde API 33, pero minSdk de este proyecto es 26: en 26-32 el
+            // contrato de la API exige reciclar cada AccessibilityNodeInfo obtenido o se agota el
+            // pool interno del cliente de accesibilidad del sistema tras uso sostenido.
+            @Suppress("DEPRECATION")
+            node.recycle()
+        }
+        // Si se llegó al límite de MAX_NODES_VISITED, lo que haya quedado sin visitar en la cola
+        // también son nodos obtenidos que hay que liberar.
+        while (queue.isNotEmpty()) {
+            @Suppress("DEPRECATION")
+            queue.removeFirst().recycle()
         }
         return ids
     }

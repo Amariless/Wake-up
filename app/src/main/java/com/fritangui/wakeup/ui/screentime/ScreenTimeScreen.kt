@@ -40,6 +40,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -153,7 +155,14 @@ private fun WeeklyBarChart(days: List<DayUsage>) {
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         days.forEach { day ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                // El Canvas de la barra no expone nada a servicios de accesibilidad por sí solo, y
+                // antes solo el nombre corto del día ("Lu") era legible por TalkBack, sin el dato de
+                // minutos que es la información central del gráfico.
+                modifier = Modifier.weight(1f)
+                    .semantics(mergeDescendants = true) { contentDescription = "${day.dayLabelFull}: ${formatDuration(day.totalMinutes)}" },
+            ) {
                 val barColor = if (day.isToday) WakeUpPrimary else WakeUpSecondary
                 Canvas(modifier = Modifier.weight(1f).width(20.dp)) {
                     val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)

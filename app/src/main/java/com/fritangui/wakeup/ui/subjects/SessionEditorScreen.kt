@@ -3,13 +3,13 @@
 package com.fritangui.wakeup.ui.subjects
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -33,6 +33,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,6 +45,7 @@ import com.fritangui.wakeup.ui.components.WheelTimePicker
 import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 
 private val DIA_NOMBRES = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
+private val DIA_NOMBRES_COMPLETOS = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
 /**
  * Pantalla completa (no diálogo flotante) para crear/editar un horario de clase. Antes era un
@@ -69,11 +73,11 @@ fun SessionEditorScreen(
     val initialStartMinute = remember(initial) { (initial?.startMinuteOfDay ?: 7 * 60) % 60 }
     val initialEndHour = remember(initial) { (initial?.endMinuteOfDay ?: 9 * 60) / 60 }
     val initialEndMinute = remember(initial) { (initial?.endMinuteOfDay ?: 9 * 60) % 60 }
-    var selectedDays by remember(initial) { mutableStateOf(initialSelectedDays) }
-    var startHour by remember(initial) { mutableStateOf(initialStartHour) }
-    var startMinute by remember(initial) { mutableStateOf(initialStartMinute) }
-    var endHour by remember(initial) { mutableStateOf(initialEndHour) }
-    var endMinute by remember(initial) { mutableStateOf(initialEndMinute) }
+    var selectedDays by rememberSaveable(initial) { mutableStateOf(initialSelectedDays) }
+    var startHour by rememberSaveable(initial) { mutableStateOf(initialStartHour) }
+    var startMinute by rememberSaveable(initial) { mutableStateOf(initialStartMinute) }
+    var endHour by rememberSaveable(initial) { mutableStateOf(initialEndHour) }
+    var endMinute by rememberSaveable(initial) { mutableStateOf(initialEndMinute) }
     var room by rememberSaveable(initial) { mutableStateOf(initial?.room ?: "") }
     var confirmDiscard by remember { mutableStateOf(false) }
     var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -128,7 +132,12 @@ fun SessionEditorScreen(
         onBack()
     }
 
-    val canSave = room.isNotBlank() && selectedDays.isNotEmpty() && (endHour * 60 + endMinute) > (startHour * 60 + startMinute)
+    // Días que ya tienen otro horario para esta misma materia (sin contar el que se está editando):
+    // sin este chequeo, crear un horario nuevo marcando un día que ya tenía uno dejaba dos horarios
+    // solapados en ese día en vez de avisar.
+    val clashingDays = selectedDays.filter { day -> sessions.any { it.dayOfWeek == day && it.id != initial?.id } }
+    val canSave = room.isNotBlank() && selectedDays.isNotEmpty() && clashingDays.isEmpty() &&
+        (endHour * 60 + endMinute) > (startHour * 60 + startMinute)
 
     Scaffold(
         topBar = {
@@ -167,17 +176,30 @@ fun SessionEditorScreen(
                         label.take(1),
                         style = if (isSelected) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.clickable {
-                            selectedDays = if (initial != null) {
-                                setOf(iso)
-                            } else if (iso in selectedDays) {
-                                (selectedDays - iso).ifEmpty { setOf(iso) }
-                            } else {
-                                selectedDays + iso
+                        modifier = Modifier
+                            .toggleable(value = isSelected, role = Role.Checkbox) {
+                                selectedDays = if (initial != null) {
+                                    setOf(iso)
+                                } else if (iso in selectedDays) {
+                                    (selectedDays - iso).ifEmpty { setOf(iso) }
+                                } else {
+                                    selectedDays + iso
+                                }
                             }
-                        }.padding(12.dp),
+                            .semantics(mergeDescendants = true) { contentDescription = DIA_NOMBRES_COMPLETOS[index] }
+                            .padding(12.dp),
                     )
                 }
+            }
+
+            if (clashingDays.isNotEmpty()) {
+                Text(
+                    "Ya hay un horario en " + clashingDays.sorted().joinToString(", ") { DIA_NOMBRES_COMPLETOS[it - 1] },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    textAlign = TextAlign.Center,
+                )
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
