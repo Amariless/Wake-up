@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+
 package com.fritangui.wakeup.ui.theme
 
 import androidx.compose.material3.Typography
@@ -13,7 +15,8 @@ import com.fritangui.wakeup.R
  * Space Grotesk (títulos, fecha, números de reloj/temporizador) y Manrope (todo lo demás): las dos
  * tipografías del rediseño 2026. Son fuentes variables (un solo archivo, eje "wght") — cada peso de
  * [FontFamily] de abajo es la misma fuente pidiéndole al renderer una instancia distinta del eje,
- * no un archivo separado por peso.
+ * no un archivo separado por peso. FontVariation es experimental en esta versión de Compose UI, de
+ * ahí el @OptIn de arriba (si no, el compilador lo trata como error, no solo advertencia).
  */
 private fun variableFont(resId: Int, weight: FontWeight) = Font(
     resId = resId,
