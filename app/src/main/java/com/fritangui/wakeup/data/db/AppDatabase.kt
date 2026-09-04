@@ -49,6 +49,16 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "wakeup.db"
 
+        // No-op: el esquema de la v1 y la v2 son idénticos (confirmado comparando
+        // app/schemas/.../1.json y 2.json), pero Room exige un objeto Migration por cada
+        // salto de versión sin importar si el esquema cambió realmente — si falta esta,
+        // Room no encuentra la cadena 1→2→...→6 y recurre al fallback destructivo.
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Sin cambios de esquema entre v1 y v2.
+            }
+        }
+
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE alarms ADD COLUMN kind TEXT NOT NULL DEFAULT 'ALARM'")

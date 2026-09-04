@@ -39,38 +39,44 @@ class UpdateChecker @Inject constructor(
                 connectTimeout = 10_000
                 readTimeout = 10_000
             }
-            val code = connection.responseCode
-            if (code !in 200..299) {
-                return@withContext UpdateCheckState.Error("GitHub respondió $code (¿ya existe algún release?)")
+            try {
+                val code = connection.responseCode
+                if (code !in 200..299) {
+                    return@withContext UpdateCheckState.Error("GitHub respondió $code (¿ya existe algún release?)")
+                }
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val root = json.parseToJsonElement(body).jsonObject
+
+                val tagName = root["tag_name"]?.jsonPrimitive?.content
+                    ?: return@withContext UpdateCheckState.Error("Release sin tag_name")
+                val remoteVersionCode = tagName.substringAfterLast('-').toIntOrNull()
+                    ?: return@withContext UpdateCheckState.Error("No se pudo leer la versión del tag \"$tagName\"")
+
+                val apkAsset = root["assets"]?.jsonArray
+                    ?.map { it.jsonObject }
+                    ?.firstOrNull { asset -> asset["name"]?.jsonPrimitive?.content?.endsWith(".apk") == true }
+                    ?: return@withContext UpdateCheckState.Error("El release más reciente no tiene un .apk adjunto")
+
+                val downloadUrl = apkAsset["browser_download_url"]?.jsonPrimitive?.content
+                    ?: return@withContext UpdateCheckState.Error("Falta la URL de descarga del APK")
+
+                if (remoteVersionCode <= currentVersionCode()) {
+                    return@withContext UpdateCheckState.UpToDate
+                }
+
+                UpdateCheckState.Available(
+                    UpdateInfo(
+                        versionCode = remoteVersionCode,
+                        releaseName = root["name"]?.jsonPrimitive?.content ?: tagName,
+                        downloadUrl = downloadUrl,
+                        fileSizeBytes = apkAsset["size"]?.jsonPrimitive?.longOrNull ?: 0L,
+                    ),
+                )
+            } finally {
+                // Sin esto, cada revisión de actualización dejaba la conexión/stream sin liberar
+                // explícitamente en vez de cerrarla apenas se termina de usar.
+                connection.disconnect()
             }
-            val body = connection.inputStream.bufferedReader().use { it.readText() }
-            val root = json.parseToJsonElement(body).jsonObject
-
-            val tagName = root["tag_name"]?.jsonPrimitive?.content
-                ?: return@withContext UpdateCheckState.Error("Release sin tag_name")
-            val remoteVersionCode = tagName.substringAfterLast('-').toIntOrNull()
-                ?: return@withContext UpdateCheckState.Error("No se pudo leer la versión del tag \"$tagName\"")
-
-            val apkAsset = root["assets"]?.jsonArray
-                ?.map { it.jsonObject }
-                ?.firstOrNull { asset -> asset["name"]?.jsonPrimitive?.content?.endsWith(".apk") == true }
-                ?: return@withContext UpdateCheckState.Error("El release más reciente no tiene un .apk adjunto")
-
-            val downloadUrl = apkAsset["browser_download_url"]?.jsonPrimitive?.content
-                ?: return@withContext UpdateCheckState.Error("Falta la URL de descarga del APK")
-
-            if (remoteVersionCode <= currentVersionCode()) {
-                return@withContext UpdateCheckState.UpToDate
-            }
-
-            UpdateCheckState.Available(
-                UpdateInfo(
-                    versionCode = remoteVersionCode,
-                    releaseName = root["name"]?.jsonPrimitive?.content ?: tagName,
-                    downloadUrl = downloadUrl,
-                    fileSizeBytes = apkAsset["size"]?.jsonPrimitive?.longOrNull ?: 0L,
-                ),
-            )
         }.getOrElse { e ->
             UpdateCheckState.Error(e.message ?: "No se pudo conectar con GitHub")
         }

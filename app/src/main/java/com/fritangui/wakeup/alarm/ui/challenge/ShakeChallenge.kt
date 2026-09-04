@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -30,6 +31,9 @@ fun ShakeChallenge(difficulty: Int, onCompleted: () -> Unit) {
     val context = LocalContext.current
     val requiredShakes = remember(difficulty) { (6 + difficulty * 4).coerceAtMost(30) }
     var shakeCount by remember { mutableIntStateOf(0) }
+    // Sin esto, seguir agitando después de llegar a requiredShakes disparaba onCompleted() de nuevo
+    // en cada sacudida adicional mientras el usuario seguía moviendo el teléfono.
+    var completed by remember { mutableStateOf(false) }
 
     DisposableEffect(context) {
         val sensorManager = context.getSystemService<SensorManager>()
@@ -51,7 +55,10 @@ fun ShakeChallenge(difficulty: Int, onCompleted: () -> Unit) {
                     lastShakeAtMs = now
                     armed = false
                     shakeCount++
-                    if (shakeCount >= requiredShakes) onCompleted()
+                    if (shakeCount >= requiredShakes && !completed) {
+                        completed = true
+                        onCompleted()
+                    }
                 } else if (!armed && gForce < SHAKE_REARM_G) {
                     armed = true
                 }

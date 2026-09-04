@@ -2,7 +2,32 @@ package com.fritangui.wakeup.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta base "Wake up": azules profundos + acento ámbar (alarma/energía) + verde-agua (bienestar)
+// Rediseño "Minimalismo táctil" (2026): fondo cálido neutro + acentos pastel-saturados para
+// codificar prioridad/materia/estado. Reemplaza a la paleta azul/ámbar de abajo como identidad
+// visual por defecto de la app (ver WakeUpTheme) — se mantiene *solo* en modo claro por ahora,
+// los mockups del rediseño no cubrieron una variante oscura.
+val WakeUpBg = Color(0xFFFAF7F2)
+val WakeUpSurface = Color(0xFFFFFFFF)
+val WakeUpSurfaceAlt = Color(0xFFF1EDE6)
+val WakeUpBorder = Color(0xFFE6E1D7)
+val WakeUpTextPrimary = Color(0xFF221F1B)
+val WakeUpTextSecondary = Color(0xFF736C60)
+val WakeUpTextTertiary = Color(0xFFA39C8E)
+
+val WakeUpCoral = Color(0xFFE8735C)
+val WakeUpAmber = Color(0xFFE3A548)
+val WakeUpSage = Color(0xFF6FA786)
+val WakeUpIndigo = Color(0xFF6B79D6)
+val WakeUpLavender = Color(0xFF9C86C7)
+val WakeUpSky = Color(0xFF5FA8C7)
+
+// Radios de esquina y elevación del rediseño, en un solo lugar para no repetir los mismos números
+// mágicos en cada pantalla (ver también Shape.kt, que expone los mismos radios como Shapes de M3).
+val WakeUpShadowColor = Color(0xFF221F1B)
+
+// --- Paleta anterior (2024): azules profundos + acento ámbar + verde-agua. Se conserva porque los
+// widgets de home screen (Glance no puede leer MaterialTheme) siguen dibujándose con estos valores
+// concretos — no son parte del rediseño de pantallas dentro de la app.
 val WakeUpPrimary = Color(0xFF3D5AFE)
 val WakeUpPrimaryDark = Color(0xFF8DA0FF)
 val WakeUpOnPrimaryDark = Color(0xFF0B1130)

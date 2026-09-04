@@ -28,10 +28,15 @@ class ScreenTimeWorker @AssistedInject constructor(
     private val widgetRefresher: WidgetRefresher,
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = try {
         refresher.refreshNow()
         widgetRefresher.refreshAll()
-        return Result.success()
+        Result.success()
+    } catch (_: Exception) {
+        // Sin este catch, un error transitorio (p.ej. de Room) al volcar el uso de hoy tumbaba todo
+        // el worker sin reintento: como es trabajo periódico (~15 min), el widget quedaba
+        // desactualizado hasta el siguiente ciclo en vez de reintentarse antes.
+        Result.retry()
     }
 
     companion object {

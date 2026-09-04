@@ -3,8 +3,8 @@
     <style name="Theme.WakeUp" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowBackground">@color/wake_up_background_dark</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@color/wake_up_background_light</item>
     </style>
 
     <!-- Tema para AlarmRingingActivity: debe poder mostrarse sobre la pantalla de bloqueo -->
@@ -20,7 +20,7 @@
          android:windowSplashScreenAnimatedIcon con un mipmap adaptativo funciona igual que en el
          launcher: el sistema usa la capa de primer plano. -->
     <style name="Theme.WakeUp.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/wake_up_background_dark</item>
+        <item name="windowSplashScreenBackground">@color/wake_up_background_light</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <item name="postSplashScreenTheme">@style/Theme.WakeUp</item>
     </style>

@@ -19,6 +19,10 @@ object PermissionRevocationTracker {
         Tracked("notifications", "Notificaciones") { PermissionStatus.hasNotificationPermission(it) },
         Tracked("exact_alarms", "Alarmas y recordatorios exactos") { PermissionStatus.hasExactAlarmPermission(it) },
         Tracked("accessibility", "Servicio de accesibilidad (bloqueo de Reels/TikTok)") { PermissionStatus.hasAccessibilityServiceEnabled(it) },
+        // Sin este permiso, BlockOverlayService no puede dibujar el overlay bloqueante: falla en
+        // silencio (ver BlockOverlayService.addOverlayView) y el bloqueo de Reels/TikTok deja de
+        // funcionar sin ningún aviso — por eso hay que trackearlo igual que los demás.
+        Tracked("overlay", "Mostrar sobre otras apps (bloqueo de Reels/TikTok)") { PermissionStatus.hasOverlayPermission(it) },
         Tracked("battery", "Ignorar optimización de batería") { PermissionStatus.hasIgnoreBatteryOptimizations(it) },
         Tracked("usage_access", "Acceso a datos de uso") { PermissionStatus.hasUsageAccess(it) },
     )

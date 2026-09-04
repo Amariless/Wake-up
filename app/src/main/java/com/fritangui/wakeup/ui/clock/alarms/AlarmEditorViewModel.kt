@@ -40,6 +40,11 @@ class AlarmEditorViewModel @Inject constructor(
     private val _savedFeedback = MutableStateFlow<String?>(null)
     val savedFeedback: StateFlow<String?> = _savedFeedback.asStateFlow()
 
+    // Evita que un doble-tap en "Guardar" (el botón sigue tocable durante el delay(1100) de abajo)
+    // dispare dos guardados en paralelo, cada uno haciendo su propio popBackStack() al terminar.
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
     init {
         if (!isNew) {
             viewModelScope.launch { _alarm.value = alarmRepository.getById(alarmId) }
@@ -60,6 +65,8 @@ class AlarmEditorViewModel @Inject constructor(
         deleteAfterRing: Boolean,
         onSaved: () -> Unit,
     ) {
+        if (_isSaving.value) return
+        _isSaving.value = true
         viewModelScope.launch {
             val existing = _alarm.value
             val entity = AlarmEntity(
@@ -96,6 +103,7 @@ class AlarmEditorViewModel @Inject constructor(
             // Pequeña pausa para que el mensaje de arriba alcance a leerse antes de salir de la
             // pantalla; onSaved() normalmente navega hacia atrás.
             delay(1100)
+            _isSaving.value = false
             onSaved()
         }
     }

@@ -110,6 +110,7 @@ fun TaskEditorScreen(
     var showNoSubjectConfirm by remember { mutableStateOf(false) }
     var dontAskAgainChecked by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Cualquier campo distinto de lo que llegó de la BD (o, para una tarea nueva, distinto del
@@ -179,7 +180,7 @@ fun TaskEditorScreen(
                 navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = {
                     if (!viewModel.isNew) {
-                        IconButton(onClick = { viewModel.delete(onBack) }) {
+                        IconButton(onClick = { confirmDelete = true }) {
                             Icon(Icons.Default.Delete, contentDescription = "Eliminar tarea")
                         }
                     }
@@ -386,6 +387,18 @@ fun TaskEditorScreen(
                 TextButton(onClick = { confirmDiscard = false; pendingLeaveAction?.invoke() }) { Text("Salir sin guardar") }
             },
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
+        )
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("¿Eliminar tarea?") },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; viewModel.delete(onBack) }) { Text("Eliminar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
         )
     }
 }

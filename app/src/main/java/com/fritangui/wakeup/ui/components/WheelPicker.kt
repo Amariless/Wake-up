@@ -28,12 +28,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Selector tipo "rueda" (como el reloj nativo de Android/MIUI): se desliza con el dedo en
@@ -66,6 +73,8 @@ fun WheelPicker(
     textStyle: TextStyle = MaterialTheme.typography.headlineMedium,
     /** Multiplicador extra de tamaño SOLO para el ítem central (1f = sin cambio); ver #151. */
     centerEmphasis: Float = 1f,
+    /** Qué representa esta rueda para lectores de pantalla (p.ej. "Hora", "Minuto"). */
+    contentDescriptionLabel: String = "Valor",
 ) {
     val items = remember(range) { range.toList() }
     val itemCount = items.size
@@ -127,7 +136,34 @@ fun WheelPicker(
     val dimColor = MaterialTheme.colorScheme.outline
     val emphasisColor = LocalContentColor.current
 
-    Box(modifier = modifier.width(width).height(itemHeight * visibleCount), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .width(width)
+            .height(itemHeight * visibleCount)
+            // Sin esto, la única forma de cambiar el valor era un gesto de arrastre continuo: con
+            // TalkBack activo no había forma de saber qué representaba la rueda ni su valor actual,
+            // ni ninguna acción táctil para cambiarlo. Con progressBarRangeInfo + setProgress,
+            // TalkBack anuncia el valor y ofrece el gesto estándar de deslizar arriba/abajo para
+            // ajustarlo (el mismo patrón que un slider nativo).
+            .semantics {
+                contentDescription = contentDescriptionLabel
+                stateDescription = label(value)
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    current = value.toFloat(),
+                    range = range.first.toFloat()..range.last.toFloat(),
+                )
+                setProgress { targetValue ->
+                    val next = targetValue.roundToInt().coerceIn(range.first, range.last)
+                    if (next != value) {
+                        onValueChange(next)
+                        true
+                    } else {
+                        false
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
         LazyColumn(
             state = listState,
             flingBehavior = flingBehavior,
@@ -174,8 +210,8 @@ fun WheelTimePicker(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        WheelPicker(value = hour, range = 0..23, onValueChange = onHourChange)
+        WheelPicker(value = hour, range = 0..23, onValueChange = onHourChange, contentDescriptionLabel = "Hora")
         Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.width(20.dp), textAlign = TextAlign.Center)
-        WheelPicker(value = minute, range = 0..59, onValueChange = onMinuteChange)
+        WheelPicker(value = minute, range = 0..59, onValueChange = onMinuteChange, contentDescriptionLabel = "Minuto")
     }
 }

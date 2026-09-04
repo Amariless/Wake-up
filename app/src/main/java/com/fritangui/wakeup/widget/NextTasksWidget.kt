@@ -156,10 +156,11 @@ class NextTasksWidget : GlanceAppWidget() {
                 if (task.dueAtEpochMillis != null) {
                     Text(formatDue(task.dueAtEpochMillis, use24Hour), style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 12.sp))
                 }
-                // Menos contraste que la fecha (fecha ya usa WakeUpOutlineDark): la materia es
-                // información secundaria, no hace falta que compita visualmente con lo demás.
+                // Mismo color que la fecha (WakeUpOutlineDark, sin atenuar): con alpha=0.6 el
+                // contraste contra el fondo del widget bajaba a ~2.5:1, muy por debajo del mínimo de
+                // WCAG 2.2 (4.5:1 para texto normal, criterio 1.4.3).
                 if (subjectName != null) {
-                    Text(subjectName, style = TextStyle(color = ColorProvider(WakeUpOutlineDark.copy(alpha = 0.6f)), fontSize = 11.sp))
+                    Text(subjectName, style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 11.sp))
                 }
                 if (task.isNoteImportant && task.notes.isNotBlank()) {
                     Text(

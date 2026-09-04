@@ -55,6 +55,14 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
     private var currentSurface: BlockSurface? = null
     private var surfaceStartedAtElapsedMs: Long = 0L
     private var lastBlockTriggerAtElapsedMs: Long = 0L
+    private var lastLimitCheckAtElapsedMs: Long = 0L
+
+    // El recorrido de nodos de Instagram/TikTok (hasta 500, ver ReelsNodeDetector) es el trabajo más
+    // caro de este servicio; sin este throttle se repetía en el hilo del evento varias veces por
+    // segundo durante el scroll/autoplay, con impacto directo en la fluidez general del teléfono.
+    // Entre chequeos se reutiliza la última superficie detectada.
+    private var lastNodeDetectionAtElapsedMs: Long = 0L
+    private var cachedNodeDetectionSurface: BlockSurface? = null
     /** "Botón 5 minutos más" del overlay: deja pasar el límite de esa superficie hasta este instante. */
     private val snoozedUntilElapsedMs = mutableMapOf<BlockSurface, Long>()
 
@@ -111,10 +119,15 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
         // (únicas apps con detección real de sub-pantalla); el resto del catálogo se resuelve directo
         // por nombre de paquete, sin tocar el árbol de accesibilidad.
         val resolvedSurface: BlockSurface? = if (packageName == "com.instagram.android" || packageName in ReelsNodeDetector.TIKTOK_PACKAGES) {
-            val root = rootInActiveWindow
-            val result = if (root != null) ReelsNodeDetector.detect(root, packageName) else ReelsNodeDetector.DetectionResult(null, emptySet())
-            _lastDetection.value = DetectionDebugInfo(packageName, result.surface, result.matchedIds)
-            result.surface
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastNodeDetectionAtElapsedMs >= NODE_DETECTION_THROTTLE_MS) {
+                lastNodeDetectionAtElapsedMs = now
+                val root = rootInActiveWindow
+                val result = if (root != null) ReelsNodeDetector.detect(root, packageName) else ReelsNodeDetector.DetectionResult(null, emptySet())
+                _lastDetection.value = DetectionDebugInfo(packageName, result.surface, result.matchedIds)
+                cachedNodeDetectionSurface = result.surface
+            }
+            cachedNodeDetectionSurface
         } else {
             wholeAppSurfaceByPackage[packageName]
         }
@@ -189,6 +202,10 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
         if (now < (snoozedUntilElapsedMs[surface] ?: 0L)) return
         // Evita disparar el overlay en cada evento: como mucho una vez cada 10s.
         if (now - lastBlockTriggerAtElapsedMs < 10_000) return
+        // Evita consultar Room en cada evento mientras el usuario sigue por debajo del límite: el
+        // guard de arriba solo throttlea DESPUÉS de bloquear una vez, este throttlea siempre.
+        if (now - lastLimitCheckAtElapsedMs < LIMIT_CHECK_INTERVAL_MS) return
+        lastLimitCheckAtElapsedMs = now
 
         scope.launch {
             val persisted = usageRepository.getSurfaceUsageMillis(todayEpochDay(), surface)
@@ -272,6 +289,8 @@ class ReelsBlockAccessibilityService : AccessibilityService() {
         private const val ALERT_RECHECK_INTERVAL_MS = 20_000L
         private const val PERIODIC_FLUSH_INTERVAL_MS = 15_000L
         private const val LEAVE_DEBOUNCE_MS = 2_500L
+        private const val LIMIT_CHECK_INTERVAL_MS = 8_000L
+        private const val NODE_DETECTION_THROTTLE_MS = 700L
 
         // El overlay de bloqueo (otro proceso/componente, no un AccessibilityService) no puede
         // llamar directo a performGlobalAction ni tocar el estado de instancia de este servicio;

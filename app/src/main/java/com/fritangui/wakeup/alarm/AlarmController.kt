@@ -2,6 +2,7 @@ package com.fritangui.wakeup.alarm
 
 import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.entity.AlarmEntity
+import com.fritangui.wakeup.data.db.entity.FolderEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.data.repository.AlarmRepository
 import com.fritangui.wakeup.data.repository.FolderRepository
@@ -60,17 +61,40 @@ class AlarmController @Inject constructor(
         alarmScheduler.cancelAllTaskReminders(task.id)
     }
 
+    /** Cancela el aviso de "próxima clase" (#144) de una sesión puntual, p.ej. antes de borrarla. */
+    fun cancelClassReminder(sessionId: Long) = alarmScheduler.cancelClassReminder(sessionId)
+
     /**
      * Marca una carpeta como terminada: desactiva sus alarmas propias y cancela
-     * tanto esas alarmas como los recordatorios pendientes de sus tareas. No
-     * borra nada, solo apaga las notificaciones/alarmas futuras.
+     * esas alarmas, los recordatorios pendientes de sus tareas y los avisos de
+     * "próxima clase" (#144) de sus materias. No borra nada, solo apaga las
+     * notificaciones/alarmas futuras.
      */
     suspend fun terminateFolder(folderId: Long) {
         val alarms = alarmRepository.getAllForFolder(folderId)
         alarms.forEach { alarmScheduler.cancelAlarm(it.id) }
         val tasks = taskRepository.getAllForFolder(folderId)
         tasks.forEach { alarmScheduler.cancelAllTaskReminders(it.id) }
+        val sessions = subjectRepository.observeWithSessionsByFolder(folderId).first().flatMap { it.sessions }
+        sessions.forEach { alarmScheduler.cancelClassReminder(it.id) }
         folderRepository.markTerminated(folderId)
+    }
+
+    /**
+     * Borra una carpeta y, antes, cancela en AlarmManager todo lo que colgaba de ella
+     * (alarmas propias, recordatorios de tareas y avisos de "próxima clase"). El borrado
+     * en Room de tareas/alarmas/materias/sesiones ocurre solo por el CASCADE de las
+     * foreign keys, que nunca toca AlarmManager por su cuenta — sin este paso, esos
+     * PendingIntent quedarían armados apuntando a filas que ya no existen.
+     */
+    suspend fun deleteFolderAndCancelAll(folder: FolderEntity) {
+        val alarms = alarmRepository.getAllForFolder(folder.id)
+        alarms.forEach { alarmScheduler.cancelAlarm(it.id) }
+        val tasks = taskRepository.getAllForFolder(folder.id)
+        tasks.forEach { alarmScheduler.cancelAllTaskReminders(it.id) }
+        val sessions = subjectRepository.observeWithSessionsByFolder(folder.id).first().flatMap { it.sessions }
+        sessions.forEach { alarmScheduler.cancelClassReminder(it.id) }
+        folderRepository.delete(folder)
     }
 
     suspend fun reactivateFolder(folderId: Long) {

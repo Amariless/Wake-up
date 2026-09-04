@@ -6,15 +6,28 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
@@ -25,9 +38,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -67,7 +86,10 @@ private data class BottomDestination(
     val navRoute: String,
     val matchPattern: String,
     val label: String,
+    /** Trazo fino cuando el tab no está seleccionado; [iconSelected] (relleno sólido) cuando sí — ver
+     *  la barra flotante más abajo. */
     val icon: ImageVector,
+    val iconSelected: ImageVector,
     /** true si esta es la carpeta marcada como principal (necesita apilar la lista debajo, ver #43). */
     val isPinnedFolder: Boolean = false,
 )
@@ -117,48 +139,66 @@ private fun WakeUpNavHostContent(
     // la materia/tarea), para que "atrás" se sienta natural en vez de solo cerrar la app.
     LaunchedEffect(pendingDeepLink.value) {
         val target = pendingDeepLink.value ?: return@LaunchedEffect
-        navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
-        when (target) {
-            is WidgetDeepLink.Subject -> {
-                navController.navigate(Routes.FOLDERS)
-                navController.navigate(Routes.folderDetail(target.folderId))
-                navController.navigate(Routes.subjectEditor(target.folderId, target.subjectId))
-            }
-            is WidgetDeepLink.Task -> {
-                navController.navigate(Routes.FOLDERS)
-                navController.navigate(Routes.folderDetail(target.folderId))
-                navController.navigate(Routes.taskEditor(target.folderId, target.taskId))
-            }
-            WidgetDeepLink.ScreenTime -> {
-                navController.navigate(Routes.SCREEN_TIME)
-            }
-            WidgetDeepLink.NextClass -> {
-                scrollToNextClassTrigger.value += 1
+        // Mismo guard que la barra de navegación inferior (#147): sin esto, tocar un widget con un
+        // editor abierto y cambios sin guardar los descartaba de golpe, sin el diálogo de confirmación.
+        UnsavedChangesGuard.navigateOrConfirm {
+            navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+            when (target) {
+                is WidgetDeepLink.Subject -> {
+                    navController.navigate(Routes.FOLDERS)
+                    navController.navigate(Routes.folderDetail(target.folderId))
+                    navController.navigate(Routes.subjectEditor(target.folderId, target.subjectId))
+                }
+                is WidgetDeepLink.Task -> {
+                    navController.navigate(Routes.FOLDERS)
+                    navController.navigate(Routes.folderDetail(target.folderId))
+                    navController.navigate(Routes.taskEditor(target.folderId, target.taskId))
+                }
+                WidgetDeepLink.ScreenTime -> {
+                    navController.navigate(Routes.SCREEN_TIME)
+                }
+                WidgetDeepLink.NextClass -> {
+                    scrollToNextClassTrigger.value += 1
+                }
             }
         }
         pendingDeepLink.value = null
     }
 
     val bottomDestinations = listOf(
-        BottomDestination(Routes.HOME, Routes.HOME, "Inicio", Icons.Default.Home),
+        BottomDestination(Routes.HOME, Routes.HOME, "Inicio", Icons.Outlined.Home, Icons.Default.Home),
         if (pinnedFolder != null) {
             BottomDestination(
                 Routes.folderDetail(pinnedFolder!!.id),
                 Routes.FOLDER_DETAIL,
                 pinnedFolder!!.name,
+                Icons.Outlined.Folder,
                 Icons.Default.Folder,
                 isPinnedFolder = true,
             )
         } else {
-            BottomDestination(Routes.FOLDERS, Routes.FOLDERS, "Carpetas", Icons.Default.Folder)
+            BottomDestination(Routes.FOLDERS, Routes.FOLDERS, "Carpetas", Icons.Outlined.Folder, Icons.Default.Folder)
         },
-        BottomDestination(Routes.CLOCK, Routes.CLOCK, "Reloj", Icons.Default.Alarm),
-        BottomDestination(Routes.SCREEN_TIME, Routes.SCREEN_TIME, "Bienestar", Icons.Default.AccessTime),
+        BottomDestination(Routes.CLOCK, Routes.CLOCK, "Reloj", Icons.Outlined.Alarm, Icons.Default.Alarm),
+        BottomDestination(Routes.SCREEN_TIME, Routes.SCREEN_TIME, "Bienestar", Icons.Outlined.AccessTime, Icons.Default.AccessTime),
     )
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            // Barra flotante (pastilla redondeada con sombra, separada de los bordes) en vez de la
+            // NavigationBar de ancho completo de Material — así queda el look del rediseño 2026.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 20.dp)
+                    .shadow(elevation = 10.dp, shape = RoundedCornerShape(26.dp), clip = false)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(26.dp))
+                    .height(68.dp)
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 bottomDestinations.forEach { dest ->
                     // Para la carpeta fija no basta con comparar el patrón de ruta: cualquier
                     // detalle de carpeta matchea "folder/{folderId}", así que hay que comparar
@@ -170,13 +210,15 @@ private fun WakeUpNavHostContent(
                     } else {
                         currentDestination?.hierarchy?.any { it.route == dest.matchPattern } == true
                     }
-                    NavigationBarItem(
-                        selected = isSelected,
+                    BottomNavItem(
+                        dest = dest,
+                        isSelected = isSelected,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             // Si ya estás en ese tab, no hay nada que navegar: evita relanzar la
                             // pantalla (recomposición completa + reconsulta a la BD) y la animación
                             // de transición cada vez que se vuelve a tocar el mismo ícono.
-                            if (isSelected) return@NavigationBarItem
+                            if (isSelected) return@BottomNavItem
                             // Si el editor que está abierto (materia/tarea/alarma/horario) tiene
                             // cambios sin guardar, deja que muestre su propio diálogo de "¿salir sin
                             // guardar?" antes de navegar — antes cambiar de tab de golpe los
@@ -211,8 +253,6 @@ private fun WakeUpNavHostContent(
                                 }
                             }
                         },
-                        icon = { Icon(dest.icon, contentDescription = dest.label) },
-                        label = { Text(dest.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     )
                 }
             }
@@ -348,6 +388,46 @@ private fun WakeUpNavHostContent(
 
             composable(Routes.UPDATE) { UpdateScreen(onBack = { navController.popBackStack() }) }
         }
+    }
+}
+
+/** Un ítem de la barra flotante: trazo fino + texto atenuado en reposo, ícono de relleno sólido +
+ *  fondo/texto coral cuando está seleccionado (brief: "íconos de trazo fino que cambien a relleno
+ *  sólido al ser seleccionados"). */
+@Composable
+private fun BottomNavItem(dest: BottomDestination, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline
+    Column(
+        modifier = modifier
+            .widthIn(min = 52.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .then(
+                if (isSelected) {
+                    Modifier.background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f))
+                } else {
+                    Modifier
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            if (isSelected) dest.iconSelected else dest.icon,
+            contentDescription = dest.label,
+            tint = contentColor,
+            modifier = Modifier.size(22.dp),
+        )
+        Text(
+            dest.label,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 

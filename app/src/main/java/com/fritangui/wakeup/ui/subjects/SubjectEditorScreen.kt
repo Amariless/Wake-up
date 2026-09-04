@@ -67,7 +67,7 @@ fun SubjectEditorScreen(
     val defaultColor = remember { SubjectColorPalette.first().toArgb() }
     var name by rememberSaveable(subject?.id) { mutableStateOf(subject?.name ?: "") }
     var professor by rememberSaveable(subject?.id) { mutableStateOf(subject?.professor ?: "") }
-    var selectedColor by remember(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
+    var selectedColor by rememberSaveable(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
     var selectedIcon by rememberSaveable(subject?.id) { mutableStateOf(subject?.iconKey) }
     var confirmDiscard by remember { mutableStateOf(false) }
     var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }

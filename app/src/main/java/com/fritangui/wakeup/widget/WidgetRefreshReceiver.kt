@@ -11,9 +11,10 @@ import javax.inject.Inject
 
 /**
  * Se dispara justo cuando empieza o termina una clase (ver [WidgetRefreshScheduler]): refresca
- * los widgets ahí mismo — [WidgetRefresher.refreshAll] ya se encarga de reprogramar el siguiente
- * cruce al final — para que "Próximas clases" no dependa solo del refresco periódico de ~30 min
- * de Android (#154).
+ * el widget de clases ahí mismo — [WidgetRefresher.refreshClasses] ya se encarga de reprogramar el
+ * siguiente cruce al final — para que "Próximas clases" no dependa solo del refresco periódico de
+ * ~30 min de Android (#154). Solo ese widget: un cruce de horario no cambia datos de tareas ni de
+ * uso de pantalla, así que no hace falta recomponer los otros dos también.
  */
 @AndroidEntryPoint
 class WidgetRefreshReceiver : BroadcastReceiver() {
@@ -24,7 +25,7 @@ class WidgetRefreshReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                widgetRefresher.refreshAll()
+                widgetRefresher.refreshClasses()
             } finally {
                 pendingResult.finish()
             }

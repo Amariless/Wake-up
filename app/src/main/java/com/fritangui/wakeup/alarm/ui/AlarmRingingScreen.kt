@@ -14,6 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.alarm.RingingForegroundService
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -37,8 +41,16 @@ fun AlarmRingingScreen(
     LaunchedEffect(alarmId) { viewModel.load(alarmId) }
     val alarm by viewModel.alarm.collectAsState()
     val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
-    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-    val challenge = alarm?.dismissChallenge ?: DismissChallengeType.NONE
+    // El usuario puede tardar más de un minuto en resolver el reto; sin este ticker la hora quedaba
+    // congelada en el minuto exacto en que sonó la alarma.
+    var now by remember { mutableStateOf(Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000)
+            now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        }
+    }
+    val challenge = effectiveDismissChallengeType(context, alarm?.dismissChallenge ?: DismissChallengeType.NONE)
 
     Column(
         modifier = Modifier

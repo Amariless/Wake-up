@@ -55,15 +55,13 @@ import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
-import com.fritangui.wakeup.ui.theme.WakeUpPrimary
-import com.fritangui.wakeup.ui.theme.WakeUpSecondary
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 private val DIA_LARGO = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
-private val CARD_RADIUS = 20.dp
+private val CARD_RADIUS = 16.dp
 
 /** Filas planas de la tarjeta de "Próximas clases" — planas (no anidadas en un solo `item`) a
  *  propósito, para poder hacer scroll a una fila concreta con [androidx.compose.foundation.lazy.LazyListState] (#142). */
@@ -178,7 +176,7 @@ fun HomeScreen(
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), state = listState) {
                     item(key = "classes_title") {
-                        CardTitleRow("Próximas clases", WakeUpPrimary, roundedBottom = classCardRows.size <= 1 && classCardRows.firstOrNull() == ClassCardRow.EmptyRow)
+                        CardTitleRow("Próximas clases", MaterialTheme.colorScheme.primary, roundedBottom = classCardRows.size <= 1 && classCardRows.firstOrNull() == ClassCardRow.EmptyRow)
                     }
                     itemsIndexed(classCardRows, key = { index, _ -> "class_row_$index" }) { index, row ->
                         val isLast = index == classCardRows.lastIndex
@@ -193,7 +191,7 @@ fun HomeScreen(
                         }
                     }
                     item(key = "tasks_title") {
-                        CardTitleRow("Próximas tareas", WakeUpSecondary, roundedBottom = upcomingTasks.isEmpty(), topPadding = 16.dp)
+                        CardTitleRow("Próximas tareas", MaterialTheme.colorScheme.secondary, roundedBottom = upcomingTasks.isEmpty(), topPadding = 16.dp)
                     }
                     if (upcomingTasks.isEmpty()) {
                         item(key = "tasks_empty") { CardEmptyText("No hay tareas próximas", roundedBottom = true) }
@@ -218,21 +216,23 @@ fun HomeScreen(
 
 @Composable
 private fun LowAlarmVolumeBanner(onFix: () -> Unit) {
+    val onWarning = MaterialTheme.colorScheme.error
     Card(
         modifier = Modifier.fillMaxWidth().padding(16.dp, 16.dp, 16.dp, 0.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF3A1418)),
+        colors = CardDefaults.cardColors(containerColor = onWarning.copy(alpha = 0.10f)),
+        shape = RoundedCornerShape(16.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Filled.VolumeOff, contentDescription = null, tint = Color(0xFFFF6B6B))
+            Icon(Icons.AutoMirrored.Filled.VolumeOff, contentDescription = null, tint = onWarning)
             Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                Text("Volumen de alarma bajo", style = MaterialTheme.typography.titleSmall, color = Color(0xFFFF6B6B))
+                Text("Volumen de alarma bajo", style = MaterialTheme.typography.titleSmall, color = onWarning)
                 Text(
                     "Está por debajo de la mitad: puede que no te despiertes con tus alarmas.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFFFC9C9),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            TextButton(onClick = onFix) { Text("Subir", color = Color(0xFFFF6B6B)) }
+            TextButton(onClick = onFix) { Text("Subir", color = onWarning, fontWeight = FontWeight.Bold) }
         }
     }
 }
@@ -324,10 +324,10 @@ private fun DayHeader(label: String, isToday: Boolean, isNextClassDay: Boolean) 
             modifier = Modifier
                 .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 2.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(WakeUpPrimary.copy(alpha = 0.22f))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
                 .padding(horizontal = 10.dp, vertical = 3.dp),
         ) {
-            Text("$label · Hoy", style = MaterialTheme.typography.labelLarge, color = WakeUpPrimary, fontWeight = FontWeight.Bold)
+            Text("$label · Hoy", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
         isNextClassDay -> Box(
             modifier = Modifier

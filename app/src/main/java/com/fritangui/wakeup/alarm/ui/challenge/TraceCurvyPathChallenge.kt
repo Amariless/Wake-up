@@ -41,6 +41,9 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
     val tolerancePx = (130f - difficulty * 15f).coerceAtLeast(90f)
     var progressFraction by remember { mutableFloatStateOf(0f) }
     var offTrack by remember { mutableStateOf(false) }
+    // onDrag corre en cada frame de movimiento del dedo: sin esto, seguir cerca del final tras
+    // completar la curva disparaba onCompleted() decenas de veces por segundo hasta soltar.
+    var completed by remember { mutableStateOf(false) }
 
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val lineColor = MaterialTheme.colorScheme.primary
@@ -108,7 +111,10 @@ fun TraceCurvyPathChallenge(difficulty: Int, onCompleted: () -> Unit) {
                                     progressIndex = advanced
                                     cursorIndex = progressIndex.toFloat()
                                     progressFraction = progressIndex.toFloat() / (samples.size - 1)
-                                    if (progressIndex >= samples.size - 2) onCompleted()
+                                    if (progressIndex >= samples.size - 2 && !completed) {
+                                        completed = true
+                                        onCompleted()
+                                    }
                                     return@detectDragGestures
                                 }
                                 missStreak++

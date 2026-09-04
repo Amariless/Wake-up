@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlin.math.hypot
 import kotlin.random.Random
@@ -35,6 +36,9 @@ fun DrawPatternChallenge(difficulty: Int, onCompleted: () -> Unit) {
     val dotCount = (3 + difficulty).coerceIn(3, 6)
     var nextExpected by remember(dotCount) { mutableStateOf(0) }
     var failedFlash by remember { mutableStateOf(false) }
+    // En dp, no en píxeles crudos: en densidades altas, un radio fijo en px podía equivaler a menos
+    // de 24dp — por debajo del tamaño mínimo de objetivo táctil de WCAG 2.2 (SC 2.5.8, 44-48dp).
+    val hitRadiusPx = with(LocalDensity.current) { HIT_RADIUS_DP.dp.toPx() }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text("Traza los puntos en orden, del 1 al $dotCount, sin soltar el dedo")
@@ -55,10 +59,10 @@ fun DrawPatternChallenge(difficulty: Int, onCompleted: () -> Unit) {
                     .pointerInput(dotCount) {
                         detectDragGestures(
                             onDragStart = { start ->
-                                nextExpected = if (nearestDotIndex(start, dots) == 0) 1 else 0
+                                nextExpected = if (nearestDotIndex(start, dots, hitRadiusPx) == 0) 1 else 0
                             },
                             onDrag = { change, _ ->
-                                val hit = nearestDotIndex(change.position, dots)
+                                val hit = nearestDotIndex(change.position, dots, hitRadiusPx)
                                 if (hit == nextExpected) {
                                     nextExpected++
                                     if (nextExpected >= dotCount) onCompleted()
@@ -120,7 +124,10 @@ fun DrawPatternChallenge(difficulty: Int, onCompleted: () -> Unit) {
     }
 }
 
-private fun nearestDotIndex(position: Offset, dots: List<Offset>, hitRadiusPx: Float = 70f): Int? {
+/** Radio del objetivo táctil de cada punto, en dp: mínimo de WCAG 2.2 SC 2.5.8 (44-48dp de diámetro). */
+private const val HIT_RADIUS_DP = 24f
+
+private fun nearestDotIndex(position: Offset, dots: List<Offset>, hitRadiusPx: Float): Int? {
     var closestIndex: Int? = null
     var closestDistance = Float.MAX_VALUE
     dots.forEachIndexed { index, dot ->

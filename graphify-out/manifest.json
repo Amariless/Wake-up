@@ -1,0 +1,926 @@
+{
+  "app/build.gradle.kts": {
+    "mtime": 1787551803.8305275,
+    "seen": 1788384920.298825,
+    "ast_hash": "c1ee0f1eda601fd742974d2b86523328",
+    "semantic_hash": "c1ee0f1eda601fd742974d2b86523328"
+  },
+  "app/schemas/com.fritangui.wakeup.data.db.AppDatabase/1.json": {
+    "mtime": 1787551803.8307831,
+    "seen": 1788384920.29883,
+    "ast_hash": "5489eedb59c7d49930d93c786f078dc6",
+    "semantic_hash": "5489eedb59c7d49930d93c786f078dc6"
+  },
+  "app/schemas/com.fritangui.wakeup.data.db.AppDatabase/2.json": {
+    "mtime": 1787551803.830901,
+    "seen": 1788384920.298833,
+    "ast_hash": "09f8117b4480c1f4d85d5c226df157c6",
+    "semantic_hash": "09f8117b4480c1f4d85d5c226df157c6"
+  },
+  "app/schemas/com.fritangui.wakeup.data.db.AppDatabase/3.json": {
+    "mtime": 1787551803.830901,
+    "seen": 1788384920.298834,
+    "ast_hash": "7d5d01d079d8508743fc0f65507398b2",
+    "semantic_hash": "7d5d01d079d8508743fc0f65507398b2"
+  },
+  "app/schemas/com.fritangui.wakeup.data.db.AppDatabase/4.json": {
+    "mtime": 1787551803.830901,
+    "seen": 1788384920.2988353,
+    "ast_hash": "427f5cc263ea5ff97a21aec1e8946e36",
+    "semantic_hash": "427f5cc263ea5ff97a21aec1e8946e36"
+  },
+  "app/schemas/com.fritangui.wakeup.data.db.AppDatabase/5.json": {
+    "mtime": 1787551803.830901,
+    "seen": 1788384920.2988362,
+    "ast_hash": "ce8ba2080391ddf6b846d84ec6dcdc0b",
+    "semantic_hash": "ce8ba2080391ddf6b846d84ec6dcdc0b"
+  },
+  "app/schemas/com.fritangui.wakeup.data.db.AppDatabase/6.json": {
+    "mtime": 1787551803.830901,
+    "seen": 1788384920.2988372,
+    "ast_hash": "1a2b6574c68f7328d6afd5f736ff31f8",
+    "semantic_hash": "1a2b6574c68f7328d6afd5f736ff31f8"
+  },
+  "app/src/main/java/com/fritangui/wakeup/AppReadyState.kt": {
+    "mtime": 1787551803.831114,
+    "seen": 1788384920.2988384,
+    "ast_hash": "6ed0868a26f00df70c6bd7203e3bed58",
+    "semantic_hash": "6ed0868a26f00df70c6bd7203e3bed58"
+  },
+  "app/src/main/java/com/fritangui/wakeup/MainActivity.kt": {
+    "mtime": 1787551803.831243,
+    "seen": 1788384920.298839,
+    "ast_hash": "8ce083b7b94d953f7fbb9b0527f9ce01",
+    "semantic_hash": "8ce083b7b94d953f7fbb9b0527f9ce01"
+  },
+  "app/src/main/java/com/fritangui/wakeup/WakeUpApp.kt": {
+    "mtime": 1787551803.831243,
+    "seen": 1788384920.2988398,
+    "ast_hash": "ffbce8d7d187deff7913e0552f28cde3",
+    "semantic_hash": "ffbce8d7d187deff7913e0552f28cde3"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/AlarmConstants.kt": {
+    "mtime": 1787551803.831243,
+    "seen": 1788384920.2988405,
+    "ast_hash": "e89b005dedbd79db7c1f2a178e24fa74",
+    "semantic_hash": "e89b005dedbd79db7c1f2a178e24fa74"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/AlarmController.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988417,
+    "ast_hash": "d0a910d337553adb43222dbc8f991a27",
+    "semantic_hash": "d0a910d337553adb43222dbc8f991a27"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/AlarmReceiver.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988427,
+    "ast_hash": "0c00fbfe015b05b3524eb9290bd0d17f",
+    "semantic_hash": "0c00fbfe015b05b3524eb9290bd0d17f"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/AlarmRingingActivity.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988434,
+    "ast_hash": "ae193aa662e2c9aab27772d786e7c943",
+    "semantic_hash": "ae193aa662e2c9aab27772d786e7c943"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/AlarmScheduler.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.298844,
+    "ast_hash": "06119fb21240947e789fe2ea02def40c",
+    "semantic_hash": "06119fb21240947e789fe2ea02def40c"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/AppReliabilityWorker.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988448,
+    "ast_hash": "7f459683e2cfe957e89187f58fac2a51",
+    "semantic_hash": "7f459683e2cfe957e89187f58fac2a51"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/BootReceiver.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988458,
+    "ast_hash": "c8c616c52299c88e9b3640c7933a7841",
+    "semantic_hash": "c8c616c52299c88e9b3640c7933a7841"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ClassReminderReceiver.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988467,
+    "ast_hash": "641f24ff7d6c25ccb6ed08343faed0ff",
+    "semantic_hash": "641f24ff7d6c25ccb6ed08343faed0ff"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/PreAlarmReceiver.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988477,
+    "ast_hash": "b01e612985d35129948bfbd91a8a71c5",
+    "semantic_hash": "b01e612985d35129948bfbd91a8a71c5"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/RingingForegroundService.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988493,
+    "ast_hash": "67c6c4b5d5a5c8e6f426a73c736a2fe8",
+    "semantic_hash": "67c6c4b5d5a5c8e6f426a73c736a2fe8"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/TaskReminderReceiver.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.29885,
+    "ast_hash": "d7666096449f41334213709733412423",
+    "semantic_hash": "d7666096449f41334213709733412423"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/TimerForegroundService.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.298851,
+    "ast_hash": "49ceeba89d3aa4b3bb061b5cc3e244e8",
+    "semantic_hash": "49ceeba89d3aa4b3bb061b5cc3e244e8"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/TimerRingingActivity.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.2988522,
+    "ast_hash": "578e62485dc03fc2c622c602550da4a4",
+    "semantic_hash": "578e62485dc03fc2c622c602550da4a4"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/sound/AlarmSoundPreviewPlayer.kt": {
+    "mtime": 1787551803.831376,
+    "seen": 1788384920.298853,
+    "ast_hash": "72404cd88aff2c7bf5a02ccf36f466ec",
+    "semantic_hash": "72404cd88aff2c7bf5a02ccf36f466ec"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/sound/AlarmSounds.kt": {
+    "mtime": 1787551803.8318617,
+    "seen": 1788384920.2988539,
+    "ast_hash": "ae05fbc4f91fb4dfa26db98118a22c22",
+    "semantic_hash": "ae05fbc4f91fb4dfa26db98118a22c22"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/sound/NotificationSounds.kt": {
+    "mtime": 1787551803.8318617,
+    "seen": 1788384920.2988546,
+    "ast_hash": "86c6dd4212b5301657b0edefc2e82d51",
+    "semantic_hash": "86c6dd4212b5301657b0edefc2e82d51"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/AlarmRingingScreen.kt": {
+    "mtime": 1787551803.8318617,
+    "seen": 1788384920.2988558,
+    "ast_hash": "f2f0e8530b00778ed9e16a186af2dbc0",
+    "semantic_hash": "f2f0e8530b00778ed9e16a186af2dbc0"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/AlarmRingingViewModel.kt": {
+    "mtime": 1787551803.8320246,
+    "seen": 1788384920.2988565,
+    "ast_hash": "7fb8a1ef4c3f86d51bf0a4265038e184",
+    "semantic_hash": "7fb8a1ef4c3f86d51bf0a4265038e184"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/DismissChallengeContent.kt": {
+    "mtime": 1787551803.8320246,
+    "seen": 1788384920.2988575,
+    "ast_hash": "d191c7fa6562497864f907f2077ca5f7",
+    "semantic_hash": "d191c7fa6562497864f907f2077ca5f7"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/MuteTemporarilyButton.kt": {
+    "mtime": 1787551803.8320246,
+    "seen": 1788384920.2988582,
+    "ast_hash": "c265abe5fceea64631276d57e8c8bb15",
+    "semantic_hash": "c265abe5fceea64631276d57e8c8bb15"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/TimerRingingScreen.kt": {
+    "mtime": 1787551803.8320246,
+    "seen": 1788384920.2988591,
+    "ast_hash": "04f586b0f45ee4b6babd7cc83262b889",
+    "semantic_hash": "04f586b0f45ee4b6babd7cc83262b889"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/challenge/DrawPatternChallenge.kt": {
+    "mtime": 1787551803.8320246,
+    "seen": 1788384920.29886,
+    "ast_hash": "5d9466a1cb512c68de0eff7e9df00212",
+    "semantic_hash": "5d9466a1cb512c68de0eff7e9df00212"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/challenge/MathChallenge.kt": {
+    "mtime": 1787551803.8323002,
+    "seen": 1788384920.2988608,
+    "ast_hash": "f7751dcc3dc635b261a1d346610a4a58",
+    "semantic_hash": "f7751dcc3dc635b261a1d346610a4a58"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/challenge/ShakeChallenge.kt": {
+    "mtime": 1787551803.8323002,
+    "seen": 1788384920.2988615,
+    "ast_hash": "f1867bc9ccb868f36e05621d158f0116",
+    "semantic_hash": "f1867bc9ccb868f36e05621d158f0116"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/challenge/TraceCurvyPathChallenge.kt": {
+    "mtime": 1787551803.8323002,
+    "seen": 1788384920.2988627,
+    "ast_hash": "282c0291c8434ef35ac3002f6754db3a",
+    "semantic_hash": "282c0291c8434ef35ac3002f6754db3a"
+  },
+  "app/src/main/java/com/fritangui/wakeup/alarm/ui/challenge/TypePhraseChallenge.kt": {
+    "mtime": 1787551803.8323002,
+    "seen": 1788384920.2988634,
+    "ast_hash": "43f2fa45392709469ad8b3461c3d16f9",
+    "semantic_hash": "43f2fa45392709469ad8b3461c3d16f9"
+  },
+  "app/src/main/java/com/fritangui/wakeup/blocking/BlockOverlayService.kt": {
+    "mtime": 1787551803.8323002,
+    "seen": 1788384920.2988644,
+    "ast_hash": "f0a1970be65f6bd198a1cd91ec81fa56",
+    "semantic_hash": "f0a1970be65f6bd198a1cd91ec81fa56"
+  },
+  "app/src/main/java/com/fritangui/wakeup/blocking/BlockableAppCatalog.kt": {
+    "mtime": 1787551803.832681,
+    "seen": 1788384920.298865,
+    "ast_hash": "beb1313a417cdbcd583d938e7d2c1d23",
+    "semantic_hash": "beb1313a417cdbcd583d938e7d2c1d23"
+  },
+  "app/src/main/java/com/fritangui/wakeup/blocking/NodeInspectorScreen.kt": {
+    "mtime": 1787551803.832681,
+    "seen": 1788384920.298866,
+    "ast_hash": "92f7176788551f8c0d3c2fd9861b2112",
+    "semantic_hash": "92f7176788551f8c0d3c2fd9861b2112"
+  },
+  "app/src/main/java/com/fritangui/wakeup/blocking/ReelsBlockAccessibilityService.kt": {
+    "mtime": 1787551803.832681,
+    "seen": 1788384920.2988667,
+    "ast_hash": "9c85661ae8df1e18204f2e104e0b5a77",
+    "semantic_hash": "9c85661ae8df1e18204f2e104e0b5a77"
+  },
+  "app/src/main/java/com/fritangui/wakeup/blocking/ReelsNodeDetector.kt": {
+    "mtime": 1787551803.832681,
+    "seen": 1788384920.2988675,
+    "ast_hash": "ffa2e2d05160c0a4d498aba13a95a3a2",
+    "semantic_hash": "ffa2e2d05160c0a4d498aba13a95a3a2"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/datastore/SettingsDataStore.kt": {
+    "mtime": 1787551803.832954,
+    "seen": 1788384920.2988684,
+    "ast_hash": "8e95cc1f5e56b716ac2a931ba78529e7",
+    "semantic_hash": "8e95cc1f5e56b716ac2a931ba78529e7"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/AppDatabase.kt": {
+    "mtime": 1787551803.832954,
+    "seen": 1788384920.2988691,
+    "ast_hash": "1d0a0baaf92792d73fefac7af5e41bd0",
+    "semantic_hash": "1d0a0baaf92792d73fefac7af5e41bd0"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/Converters.kt": {
+    "mtime": 1787551803.8331645,
+    "seen": 1788384920.298871,
+    "ast_hash": "d84246aa6edce21286f41b38d6f93e37",
+    "semantic_hash": "d84246aa6edce21286f41b38d6f93e37"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/dao/AlarmDao.kt": {
+    "mtime": 1787551803.8331645,
+    "seen": 1788384920.2988718,
+    "ast_hash": "13b444cdd2d6ca2b71dc1856755e8754",
+    "semantic_hash": "13b444cdd2d6ca2b71dc1856755e8754"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/dao/FolderDao.kt": {
+    "mtime": 1787551803.8332691,
+    "seen": 1788384920.2988725,
+    "ast_hash": "45156f8144c1be5b5b07c95e756854b5",
+    "semantic_hash": "45156f8144c1be5b5b07c95e756854b5"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/dao/SubjectDao.kt": {
+    "mtime": 1787551803.8332691,
+    "seen": 1788384920.2988734,
+    "ast_hash": "da1b3f31cfb3cdb2b590ce9c4b9fbefb",
+    "semantic_hash": "da1b3f31cfb3cdb2b590ce9c4b9fbefb"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/dao/TaskDao.kt": {
+    "mtime": 1787551803.8332691,
+    "seen": 1788384920.2988741,
+    "ast_hash": "b3fbca7e2232100cc500de51d1409ca6",
+    "semantic_hash": "b3fbca7e2232100cc500de51d1409ca6"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/dao/UsageDao.kt": {
+    "mtime": 1787551803.8332691,
+    "seen": 1788384920.298875,
+    "ast_hash": "ddbc585a004f5cdd7f5997d0f2de18b5",
+    "semantic_hash": "ddbc585a004f5cdd7f5997d0f2de18b5"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/entity/AlarmEntity.kt": {
+    "mtime": 1787551803.8332691,
+    "seen": 1788384920.2988758,
+    "ast_hash": "35d4d964087a7e342c4413b820cefd26",
+    "semantic_hash": "35d4d964087a7e342c4413b820cefd26"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/entity/ClassSessionEntity.kt": {
+    "mtime": 1787551803.833507,
+    "seen": 1788384920.2988768,
+    "ast_hash": "3b78d39f8dab1a6487127cca87025d72",
+    "semantic_hash": "3b78d39f8dab1a6487127cca87025d72"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/entity/FolderEntity.kt": {
+    "mtime": 1787551803.833507,
+    "seen": 1788384920.2988775,
+    "ast_hash": "1dc96686a7c939cb882dc6945c9778b7",
+    "semantic_hash": "1dc96686a7c939cb882dc6945c9778b7"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/entity/SubjectEntity.kt": {
+    "mtime": 1787551803.833507,
+    "seen": 1788384920.2988782,
+    "ast_hash": "179aad6b8bf47a10a894871a060decab",
+    "semantic_hash": "179aad6b8bf47a10a894871a060decab"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/entity/TaskEntity.kt": {
+    "mtime": 1787551803.833507,
+    "seen": 1788384920.298879,
+    "ast_hash": "8eece790538a9bf748591766e0caf73a",
+    "semantic_hash": "8eece790538a9bf748591766e0caf73a"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/db/entity/UsageEntities.kt": {
+    "mtime": 1787551803.833507,
+    "seen": 1788384920.29888,
+    "ast_hash": "ef53d0db8eff27a79f8e535eda110b62",
+    "semantic_hash": "ef53d0db8eff27a79f8e535eda110b62"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/repository/AlarmRepository.kt": {
+    "mtime": 1787551803.833507,
+    "seen": 1788384920.2988808,
+    "ast_hash": "e7194b6ba843696181864c128d7b191e",
+    "semantic_hash": "e7194b6ba843696181864c128d7b191e"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/repository/FolderRepository.kt": {
+    "mtime": 1787551803.833837,
+    "seen": 1788384920.2988815,
+    "ast_hash": "02d2f5c1122977e70502f78bbcdeebf5",
+    "semantic_hash": "02d2f5c1122977e70502f78bbcdeebf5"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/repository/SubjectRepository.kt": {
+    "mtime": 1787551803.833837,
+    "seen": 1788384920.2988822,
+    "ast_hash": "c857a82f86c018a9015479260325c1a5",
+    "semantic_hash": "c857a82f86c018a9015479260325c1a5"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/repository/TaskRepository.kt": {
+    "mtime": 1787551803.833837,
+    "seen": 1788384920.2988834,
+    "ast_hash": "580e2d4eec1eed2498217373d5a1e334",
+    "semantic_hash": "580e2d4eec1eed2498217373d5a1e334"
+  },
+  "app/src/main/java/com/fritangui/wakeup/data/repository/UsageRepository.kt": {
+    "mtime": 1787551803.833837,
+    "seen": 1788384920.2988842,
+    "ast_hash": "862e3ebf9080f31b4cfcb8a7e71fcb05",
+    "semantic_hash": "862e3ebf9080f31b4cfcb8a7e71fcb05"
+  },
+  "app/src/main/java/com/fritangui/wakeup/di/DatabaseModule.kt": {
+    "mtime": 1787551803.833837,
+    "seen": 1788384920.2988849,
+    "ast_hash": "43627516046c278b54e3b1a3bbf3cf8b",
+    "semantic_hash": "43627516046c278b54e3b1a3bbf3cf8b"
+  },
+  "app/src/main/java/com/fritangui/wakeup/domain/AlarmTiming.kt": {
+    "mtime": 1787551803.833837,
+    "seen": 1788384920.2988856,
+    "ast_hash": "c77d21a66fad6ee766c9de7ce7455d95",
+    "semantic_hash": "c77d21a66fad6ee766c9de7ce7455d95"
+  },
+  "app/src/main/java/com/fritangui/wakeup/domain/ClassReminderTiming.kt": {
+    "mtime": 1787551803.8340528,
+    "seen": 1788384920.2988863,
+    "ast_hash": "40f393d3e7f99d1d3f181977eae2107e",
+    "semantic_hash": "40f393d3e7f99d1d3f181977eae2107e"
+  },
+  "app/src/main/java/com/fritangui/wakeup/domain/DateUtils.kt": {
+    "mtime": 1787551803.8340528,
+    "seen": 1788384920.2988875,
+    "ast_hash": "3b7aff78dd85087422bf82885e177717",
+    "semantic_hash": "3b7aff78dd85087422bf82885e177717"
+  },
+  "app/src/main/java/com/fritangui/wakeup/domain/NextClassOccurrence.kt": {
+    "mtime": 1787551803.8340528,
+    "seen": 1788384920.2988882,
+    "ast_hash": "25eda7a46e853e4cff17202eb4253195",
+    "semantic_hash": "25eda7a46e853e4cff17202eb4253195"
+  },
+  "app/src/main/java/com/fritangui/wakeup/domain/ReminderPlanning.kt": {
+    "mtime": 1787551803.8340528,
+    "seen": 1788384920.298889,
+    "ast_hash": "c316d3ec07bbda52263a77cce4e55852",
+    "semantic_hash": "c316d3ec07bbda52263a77cce4e55852"
+  },
+  "app/src/main/java/com/fritangui/wakeup/domain/WeeklyClassSchedule.kt": {
+    "mtime": 1787551803.8340528,
+    "seen": 1788384920.2988896,
+    "ast_hash": "e51514b51da1fe713a587206947979b2",
+    "semantic_hash": "e51514b51da1fe713a587206947979b2"
+  },
+  "app/src/main/java/com/fritangui/wakeup/notifications/NotificationHelper.kt": {
+    "mtime": 1787551803.8340528,
+    "seen": 1788384920.2988908,
+    "ast_hash": "e44a936a101049a1b0a510fd3551da04",
+    "semantic_hash": "e44a936a101049a1b0a510fd3551da04"
+  },
+  "app/src/main/java/com/fritangui/wakeup/permissions/AlarmVolumeStatus.kt": {
+    "mtime": 1787551803.8340528,
+    "seen": 1788384920.2988915,
+    "ast_hash": "27de5ba11f920e29ec2818737a40ef97",
+    "semantic_hash": "27de5ba11f920e29ec2818737a40ef97"
+  },
+  "app/src/main/java/com/fritangui/wakeup/permissions/PermissionIntents.kt": {
+    "mtime": 1787551803.834346,
+    "seen": 1788384920.2988923,
+    "ast_hash": "3f500eba9bd493bb84f5b343aa67defc",
+    "semantic_hash": "3f500eba9bd493bb84f5b343aa67defc"
+  },
+  "app/src/main/java/com/fritangui/wakeup/permissions/PermissionRevocationTracker.kt": {
+    "mtime": 1787551803.834346,
+    "seen": 1788384920.298893,
+    "ast_hash": "8c4a3313d8c11c42a7609204dd2f7a28",
+    "semantic_hash": "8c4a3313d8c11c42a7609204dd2f7a28"
+  },
+  "app/src/main/java/com/fritangui/wakeup/permissions/PermissionStatus.kt": {
+    "mtime": 1787551803.834346,
+    "seen": 1788384920.298894,
+    "ast_hash": "062ba4f00026fb35cff58db1b95194e3",
+    "semantic_hash": "062ba4f00026fb35cff58db1b95194e3"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/MainNavViewModel.kt": {
+    "mtime": 1787551803.834346,
+    "seen": 1788384920.298895,
+    "ast_hash": "df259811b64e16279a097da7b2c5afea",
+    "semantic_hash": "df259811b64e16279a097da7b2c5afea"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/WakeUpNavHost.kt": {
+    "mtime": 1787551803.8345742,
+    "seen": 1788384920.2988956,
+    "ast_hash": "bf7a20205ef69dbbb9a3420c8688d308",
+    "semantic_hash": "bf7a20205ef69dbbb9a3420c8688d308"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/blocking/BlockingScreen.kt": {
+    "mtime": 1787551803.8345742,
+    "seen": 1788384920.2988963,
+    "ast_hash": "a541b04d3dd52136baeea1ceb8789ba9",
+    "semantic_hash": "a541b04d3dd52136baeea1ceb8789ba9"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/blocking/BlockingViewModel.kt": {
+    "mtime": 1787551803.8347797,
+    "seen": 1788384920.2988975,
+    "ast_hash": "c28bfb2d5659de915bb407ba45d7fa0c",
+    "semantic_hash": "c28bfb2d5659de915bb407ba45d7fa0c"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/ClockScreen.kt": {
+    "mtime": 1787551803.8347797,
+    "seen": 1788384920.2988982,
+    "ast_hash": "43239e85399cc45c2d5d62ae3a641948",
+    "semantic_hash": "43239e85399cc45c2d5d62ae3a641948"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/alarms/AlarmEditorScreen.kt": {
+    "mtime": 1787551803.8349087,
+    "seen": 1788384920.298899,
+    "ast_hash": "87c584ef917d9cabfb1b528c16413fc2",
+    "semantic_hash": "87c584ef917d9cabfb1b528c16413fc2"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/alarms/AlarmEditorViewModel.kt": {
+    "mtime": 1787551803.8349671,
+    "seen": 1788384920.2989,
+    "ast_hash": "26137c181a3b803eb3e8979e9bf76e8d",
+    "semantic_hash": "26137c181a3b803eb3e8979e9bf76e8d"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/alarms/AlarmSoundPickerDialog.kt": {
+    "mtime": 1787551803.8349671,
+    "seen": 1788384920.298901,
+    "ast_hash": "d5a920c801f7a6a9746bdc76859afcc0",
+    "semantic_hash": "d5a920c801f7a6a9746bdc76859afcc0"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/alarms/AlarmSoundPreviewHolderViewModel.kt": {
+    "mtime": 1787551803.8349671,
+    "seen": 1788384920.298902,
+    "ast_hash": "7f483f03638196f8abbd305b754201c1",
+    "semantic_hash": "7f483f03638196f8abbd305b754201c1"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/alarms/AlarmsListScreen.kt": {
+    "mtime": 1787551803.8349671,
+    "seen": 1788384920.2989028,
+    "ast_hash": "e326114c90e179dfc86ba07010b3915c",
+    "semantic_hash": "e326114c90e179dfc86ba07010b3915c"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/alarms/AlarmsViewModel.kt": {
+    "mtime": 1787551803.8349671,
+    "seen": 1788384920.2989035,
+    "ast_hash": "819aa0eeb0b62891f6ccbe4e748bf1a5",
+    "semantic_hash": "819aa0eeb0b62891f6ccbe4e748bf1a5"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/stopwatch/StopwatchScreen.kt": {
+    "mtime": 1787551803.8349671,
+    "seen": 1788384920.2989044,
+    "ast_hash": "ba6f7efca2235f8c610a6d0adea44dd1",
+    "semantic_hash": "ba6f7efca2235f8c610a6d0adea44dd1"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/stopwatch/StopwatchViewModel.kt": {
+    "mtime": 1787551803.8352187,
+    "seen": 1788384920.2989051,
+    "ast_hash": "71e5af4460107c9ffb4e5fd0cec6c1a7",
+    "semantic_hash": "71e5af4460107c9ffb4e5fd0cec6c1a7"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/timer/TimerScreen.kt": {
+    "mtime": 1787551803.8352187,
+    "seen": 1788384920.298906,
+    "ast_hash": "db55fa3f0936c5dea8eb2a0feaa1b8f6",
+    "semantic_hash": "db55fa3f0936c5dea8eb2a0feaa1b8f6"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/clock/timer/TimerViewModel.kt": {
+    "mtime": 1787551803.8352916,
+    "seen": 1788384920.298908,
+    "ast_hash": "4df03fc5e263a94d9013c3e9ee0cec52",
+    "semantic_hash": "4df03fc5e263a94d9013c3e9ee0cec52"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/components/AppTimePickerDialog.kt": {
+    "mtime": 1787551803.8352916,
+    "seen": 1788384920.298909,
+    "ast_hash": "c83a57e9d7c1ccc9773eb34803b108c2",
+    "semantic_hash": "c83a57e9d7c1ccc9773eb34803b108c2"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/components/ClockFormat.kt": {
+    "mtime": 1787551803.8354027,
+    "seen": 1788384920.2989097,
+    "ast_hash": "4cf9362d49d08453a795874906ff83af",
+    "semantic_hash": "4cf9362d49d08453a795874906ff83af"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/components/ListAutoFormat.kt": {
+    "mtime": 1787551803.8354027,
+    "seen": 1788384920.2989106,
+    "ast_hash": "2114bcba40db2df3e5232a6c14ff7e39",
+    "semantic_hash": "2114bcba40db2df3e5232a6c14ff7e39"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/components/WheelPicker.kt": {
+    "mtime": 1787551803.8354027,
+    "seen": 1788384920.2989116,
+    "ast_hash": "cc052d0466511c2f3534bd4f4fe03314",
+    "semantic_hash": "cc052d0466511c2f3534bd4f4fe03314"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/devtools/DevToolsScreen.kt": {
+    "mtime": 1787551803.8354027,
+    "seen": 1788384920.2989125,
+    "ast_hash": "61127e8450e4a43a2afd40ded71ed2ea",
+    "semantic_hash": "61127e8450e4a43a2afd40ded71ed2ea"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/devtools/DevToolsViewModel.kt": {
+    "mtime": 1787551803.835694,
+    "seen": 1788384920.2989132,
+    "ast_hash": "db5779ac6e05c94f71700e2c88720b8f",
+    "semantic_hash": "db5779ac6e05c94f71700e2c88720b8f"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/folders/FolderDetailScreen.kt": {
+    "mtime": 1787551803.835694,
+    "seen": 1788384920.2989142,
+    "ast_hash": "558cf0dbf75426d6ec8fd630fbc7799d",
+    "semantic_hash": "558cf0dbf75426d6ec8fd630fbc7799d"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/folders/FolderDetailViewModel.kt": {
+    "mtime": 1787551803.8358057,
+    "seen": 1788384920.2989151,
+    "ast_hash": "953e2dfd09f66e63a209ad5cff08e6c2",
+    "semantic_hash": "953e2dfd09f66e63a209ad5cff08e6c2"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/folders/FoldersScreen.kt": {
+    "mtime": 1787551803.8358057,
+    "seen": 1788384920.2989159,
+    "ast_hash": "09607044e28def3c43d249b0628c9c8e",
+    "semantic_hash": "09607044e28def3c43d249b0628c9c8e"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/folders/FoldersViewModel.kt": {
+    "mtime": 1787551803.8358057,
+    "seen": 1788384920.2989166,
+    "ast_hash": "d28f124c3f096bebc4fdc5db512abfd4",
+    "semantic_hash": "d28f124c3f096bebc4fdc5db512abfd4"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/home/HomeScreen.kt": {
+    "mtime": 1787551803.8358057,
+    "seen": 1788384920.2989173,
+    "ast_hash": "56373255d5074c47dcddadf259d3cb63",
+    "semantic_hash": "56373255d5074c47dcddadf259d3cb63"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/home/HomeViewModel.kt": {
+    "mtime": 1787551803.8361146,
+    "seen": 1788384920.2989185,
+    "ast_hash": "7712d0c64318ac65142a41d324453319",
+    "semantic_hash": "7712d0c64318ac65142a41d324453319"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/navigation/Routes.kt": {
+    "mtime": 1787551803.8361146,
+    "seen": 1788384920.2989194,
+    "ast_hash": "2a8580a982ed21544af195f075bdedf2",
+    "semantic_hash": "2a8580a982ed21544af195f075bdedf2"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/navigation/UnsavedChangesGuard.kt": {
+    "mtime": 1787551803.836192,
+    "seen": 1788384920.2989202,
+    "ast_hash": "fa9f7a6895311796df99bd73dba0c68c",
+    "semantic_hash": "fa9f7a6895311796df99bd73dba0c68c"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/onboarding/XiaomiOnboardingScreen.kt": {
+    "mtime": 1787551803.836192,
+    "seen": 1788384920.298921,
+    "ast_hash": "b0a0bbc7364db5259f359c294037006e",
+    "semantic_hash": "b0a0bbc7364db5259f359c294037006e"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/onboarding/XiaomiOnboardingViewModel.kt": {
+    "mtime": 1787551803.8362813,
+    "seen": 1788384920.298922,
+    "ast_hash": "b5fe3a78354b47988aad760284683a18",
+    "semantic_hash": "b5fe3a78354b47988aad760284683a18"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/screentime/ScreenTimeScreen.kt": {
+    "mtime": 1787551803.8362813,
+    "seen": 1788384920.2989228,
+    "ast_hash": "10d6c9a99e15d8054f3bc74d592e8faf",
+    "semantic_hash": "10d6c9a99e15d8054f3bc74d592e8faf"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/screentime/ScreenTimeViewModel.kt": {
+    "mtime": 1787551803.836377,
+    "seen": 1788384920.2989237,
+    "ast_hash": "2859025f6a027160d8895e404bbc3ca2",
+    "semantic_hash": "2859025f6a027160d8895e404bbc3ca2"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/settings/SettingsScreen.kt": {
+    "mtime": 1787551803.836377,
+    "seen": 1788384920.2989244,
+    "ast_hash": "1aa401b42c8f977d1fe9d2b52a010c36",
+    "semantic_hash": "1aa401b42c8f977d1fe9d2b52a010c36"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/settings/SettingsViewModel.kt": {
+    "mtime": 1787551803.8364642,
+    "seen": 1788384920.2989254,
+    "ast_hash": "f70b69fff5f534533f137b79662fac46",
+    "semantic_hash": "f70b69fff5f534533f137b79662fac46"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/subjects/SessionEditorScreen.kt": {
+    "mtime": 1787551803.8364642,
+    "seen": 1788384920.298926,
+    "ast_hash": "778587eaae2117f8fbe7176593e56b12",
+    "semantic_hash": "778587eaae2117f8fbe7176593e56b12"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/subjects/SubjectEditorScreen.kt": {
+    "mtime": 1787551803.836562,
+    "seen": 1788384920.298927,
+    "ast_hash": "18721552399b66020ef5fad0cecab785",
+    "semantic_hash": "18721552399b66020ef5fad0cecab785"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/subjects/SubjectEditorViewModel.kt": {
+    "mtime": 1787551803.836562,
+    "seen": 1788384920.2989278,
+    "ast_hash": "db8359b8720e9ae316aabac5f2d5524e",
+    "semantic_hash": "db8359b8720e9ae316aabac5f2d5524e"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/subjects/SubjectIcons.kt": {
+    "mtime": 1787551803.836562,
+    "seen": 1788384920.2989287,
+    "ast_hash": "9c6645d6888dbe0e40bcbbc0e8c6c91c",
+    "semantic_hash": "9c6645d6888dbe0e40bcbbc0e8c6c91c"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/tasks/TaskCreationSessionState.kt": {
+    "mtime": 1787551803.836562,
+    "seen": 1788384920.2989297,
+    "ast_hash": "f93c583a8de8cb7aa8338eeedd32f034",
+    "semantic_hash": "f93c583a8de8cb7aa8338eeedd32f034"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/tasks/TaskEditorScreen.kt": {
+    "mtime": 1787551803.8366687,
+    "seen": 1788384920.2989304,
+    "ast_hash": "b93ae82d8424740e9ead63452eff8532",
+    "semantic_hash": "b93ae82d8424740e9ead63452eff8532"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/tasks/TaskEditorViewModel.kt": {
+    "mtime": 1787551803.8366687,
+    "seen": 1788384920.2989311,
+    "ast_hash": "dfd6a379fafd0d71c9696dd9d4baec70",
+    "semantic_hash": "dfd6a379fafd0d71c9696dd9d4baec70"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/tasks/TaskListItems.kt": {
+    "mtime": 1787551803.8366687,
+    "seen": 1788384920.298932,
+    "ast_hash": "de44123b9d77571e7949bcde77ee02a7",
+    "semantic_hash": "de44123b9d77571e7949bcde77ee02a7"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/theme/Color.kt": {
+    "mtime": 1787551803.8366687,
+    "seen": 1788384920.298933,
+    "ast_hash": "71fa2c252d49a1431a4c7b4816472cc7",
+    "semantic_hash": "71fa2c252d49a1431a4c7b4816472cc7"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/theme/Shape.kt": {
+    "mtime": 1787551803.8367927,
+    "seen": 1788384920.2989337,
+    "ast_hash": "2c431673c400be54f882ca4294dfa4dc",
+    "semantic_hash": "2c431673c400be54f882ca4294dfa4dc"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/theme/Theme.kt": {
+    "mtime": 1787551803.8367927,
+    "seen": 1788384920.2989347,
+    "ast_hash": "1b0bb2b836c01317bafd00d56261cec9",
+    "semantic_hash": "1b0bb2b836c01317bafd00d56261cec9"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/theme/Type.kt": {
+    "mtime": 1787551803.8367927,
+    "seen": 1788384920.2989357,
+    "ast_hash": "dd41da24b0736dbccb9683867925cef3",
+    "semantic_hash": "dd41da24b0736dbccb9683867925cef3"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/update/UpdateScreen.kt": {
+    "mtime": 1787551803.8367927,
+    "seen": 1788384920.2989366,
+    "ast_hash": "e84d9eaee7a6ff5eb9c86be131cbe342",
+    "semantic_hash": "e84d9eaee7a6ff5eb9c86be131cbe342"
+  },
+  "app/src/main/java/com/fritangui/wakeup/ui/update/UpdateViewModel.kt": {
+    "mtime": 1787551803.8369136,
+    "seen": 1788384920.2989395,
+    "ast_hash": "48873022cbec5530c7747286b0f0554a",
+    "semantic_hash": "48873022cbec5530c7747286b0f0554a"
+  },
+  "app/src/main/java/com/fritangui/wakeup/update/ApkDownloadInstaller.kt": {
+    "mtime": 1787551803.8369136,
+    "seen": 1788384920.2989404,
+    "ast_hash": "0b95297047682e2150838db78b1fd767",
+    "semantic_hash": "0b95297047682e2150838db78b1fd767"
+  },
+  "app/src/main/java/com/fritangui/wakeup/update/UpdateChecker.kt": {
+    "mtime": 1787551803.8370187,
+    "seen": 1788384920.2989411,
+    "ast_hash": "9fe6503c536b19ce3f70f6cb0090c28c",
+    "semantic_hash": "9fe6503c536b19ce3f70f6cb0090c28c"
+  },
+  "app/src/main/java/com/fritangui/wakeup/update/UpdateModels.kt": {
+    "mtime": 1787551803.8370187,
+    "seen": 1788384920.2989419,
+    "ast_hash": "587498aa164079c3841f7d500635f52b",
+    "semantic_hash": "587498aa164079c3841f7d500635f52b"
+  },
+  "app/src/main/java/com/fritangui/wakeup/usage/ScreenTimeRefresher.kt": {
+    "mtime": 1787551803.8370187,
+    "seen": 1788384920.2989428,
+    "ast_hash": "49b64d441ca1f304fa7363e7ae652f2e",
+    "semantic_hash": "49b64d441ca1f304fa7363e7ae652f2e"
+  },
+  "app/src/main/java/com/fritangui/wakeup/usage/ScreenTimeWorker.kt": {
+    "mtime": 1787551803.837112,
+    "seen": 1788384920.2989438,
+    "ast_hash": "5796a0ea5f969db7bbf681cfdb837c49",
+    "semantic_hash": "5796a0ea5f969db7bbf681cfdb837c49"
+  },
+  "app/src/main/java/com/fritangui/wakeup/usage/SystemUsageStatsSource.kt": {
+    "mtime": 1787551803.837112,
+    "seen": 1788384920.2989445,
+    "ast_hash": "07aa1b8890bd759d4d9c5d62448f31d7",
+    "semantic_hash": "07aa1b8890bd759d4d9c5d62448f31d7"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/NextClassesWidget.kt": {
+    "mtime": 1787551803.837112,
+    "seen": 1788384920.2989452,
+    "ast_hash": "188c7ffc2c6ac2deff32cf1eb9a5a0b3",
+    "semantic_hash": "188c7ffc2c6ac2deff32cf1eb9a5a0b3"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/NextTasksWidget.kt": {
+    "mtime": 1787551803.8372552,
+    "seen": 1788384920.2989461,
+    "ast_hash": "f29d8e0058a3486cedaf5fa51a851509",
+    "semantic_hash": "f29d8e0058a3486cedaf5fa51a851509"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/ScreenTimeWidget.kt": {
+    "mtime": 1787551803.8372552,
+    "seen": 1788384920.2989469,
+    "ast_hash": "0c4e7ec341b6a3b3e62e6fd68ccd58f4",
+    "semantic_hash": "0c4e7ec341b6a3b3e62e6fd68ccd58f4"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/WidgetDeepLink.kt": {
+    "mtime": 1787551803.8372552,
+    "seen": 1788384920.2989478,
+    "ast_hash": "6e4667357a4f59aefd7befe5f6ebd91c",
+    "semantic_hash": "6e4667357a4f59aefd7befe5f6ebd91c"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/WidgetEntryPoint.kt": {
+    "mtime": 1787551803.8372552,
+    "seen": 1788384920.2989485,
+    "ast_hash": "3e38790c9c24c3fd09f7ffa305c7f9b6",
+    "semantic_hash": "3e38790c9c24c3fd09f7ffa305c7f9b6"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/WidgetRefreshReceiver.kt": {
+    "mtime": 1787551803.8372552,
+    "seen": 1788384920.2989495,
+    "ast_hash": "c4b0089750f8363706c04595bcf4044f",
+    "semantic_hash": "c4b0089750f8363706c04595bcf4044f"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/WidgetRefreshScheduler.kt": {
+    "mtime": 1787551803.8372552,
+    "seen": 1788384920.2989502,
+    "ast_hash": "953747601b956942f7519c97471d3311",
+    "semantic_hash": "953747601b956942f7519c97471d3311"
+  },
+  "app/src/main/java/com/fritangui/wakeup/widget/WidgetRefresher.kt": {
+    "mtime": 1787551803.8372552,
+    "seen": 1788384920.298951,
+    "ast_hash": "dff85d7ac7edef9aa8839f421375af28",
+    "semantic_hash": "dff85d7ac7edef9aa8839f421375af28"
+  },
+  "app/src/test/java/com/fritangui/wakeup/domain/AlarmTimingTest.kt": {
+    "mtime": 1787551803.8416626,
+    "seen": 1788384920.2989516,
+    "ast_hash": "73ae52bd704551de53d0b92b002a1426",
+    "semantic_hash": "73ae52bd704551de53d0b92b002a1426"
+  },
+  "app/src/test/java/com/fritangui/wakeup/domain/NextClassOccurrenceTest.kt": {
+    "mtime": 1787551803.8417773,
+    "seen": 1788384920.2989523,
+    "ast_hash": "05dde2dc077ea9b7bbaa556eaec2b37e",
+    "semantic_hash": "05dde2dc077ea9b7bbaa556eaec2b37e"
+  },
+  "app/src/test/java/com/fritangui/wakeup/domain/ReminderPlanningTest.kt": {
+    "mtime": 1787551803.8417773,
+    "seen": 1788384920.2989535,
+    "ast_hash": "eb2d7befc2581cd32ff4fa0b3179718a",
+    "semantic_hash": "eb2d7befc2581cd32ff4fa0b3179718a"
+  },
+  "build.gradle.kts": {
+    "mtime": 1787551803.8417773,
+    "seen": 1788384920.2989542,
+    "ast_hash": "af5829b45de92e2cfd1a6763bebc8123",
+    "semantic_hash": "af5829b45de92e2cfd1a6763bebc8123"
+  },
+  "gradlew": {
+    "mtime": 1787551803.842116,
+    "seen": 1788384920.298955,
+    "ast_hash": "f092910dfa8e47c5a37a452c3f6baf8a",
+    "semantic_hash": "f092910dfa8e47c5a37a452c3f6baf8a"
+  },
+  "settings.gradle.kts": {
+    "mtime": 1787551803.842116,
+    "seen": 1788384920.2989557,
+    "ast_hash": "ec0b63e2bff7a48eefa9d97222c9df22",
+    "semantic_hash": "ec0b63e2bff7a48eefa9d97222c9df22"
+  },
+  ".github/workflows/release.yml": {
+    "mtime": 1787551803.8305275,
+    "seen": 1788384920.2989569,
+    "ast_hash": "a34ebdc7ac48cff58b2bac306e17001e",
+    "semantic_hash": "a34ebdc7ac48cff58b2bac306e17001e"
+  },
+  "README.md": {
+    "mtime": 1787551803.8305275,
+    "seen": 1788384920.2989576,
+    "ast_hash": "456bfc48400850c886499f435a1b9746",
+    "semantic_hash": "456bfc48400850c886499f435a1b9746"
+  },
+  "app/src/main/res/raw/alarm_classic_beep.wav": {
+    "mtime": 1787551803.8387554,
+    "seen": 1788384920.2989583,
+    "ast_hash": "0f9b15c2502ca95fb1e5c3cd12fc874d",
+    "semantic_hash": "0f9b15c2502ca95fb1e5c3cd12fc874d"
+  },
+  "app/src/main/res/raw/alarm_classic_bell.wav": {
+    "mtime": 1787551803.8391297,
+    "seen": 1788384920.298959,
+    "ast_hash": "22f097dedf42a1f854c0116649ac155d",
+    "semantic_hash": "22f097dedf42a1f854c0116649ac155d"
+  },
+  "app/src/main/res/raw/alarm_digital_beep.wav": {
+    "mtime": 1787551803.8391297,
+    "seen": 1788384920.2989602,
+    "ast_hash": "5711b3fc84a3a0f781034341bfadff2e",
+    "semantic_hash": "5711b3fc84a3a0f781034341bfadff2e"
+  },
+  "app/src/main/res/raw/alarm_gentle_chime.wav": {
+    "mtime": 1787551803.8391297,
+    "seen": 1788384920.298961,
+    "ast_hash": "8bb3c188e2eb158b7fccc8ca65014dc9",
+    "semantic_hash": "8bb3c188e2eb158b7fccc8ca65014dc9"
+  },
+  "app/src/main/res/raw/alarm_marimba_urgent.wav": {
+    "mtime": 1787551803.8391297,
+    "seen": 1788384920.2989616,
+    "ast_hash": "b8e7e9127149862a6410c401a78f4b02",
+    "semantic_hash": "b8e7e9127149862a6410c401a78f4b02"
+  },
+  "app/src/main/res/raw/alarm_rising_siren.wav": {
+    "mtime": 1787551803.8393588,
+    "seen": 1788384920.2989626,
+    "ast_hash": "a598c4c83fc2293023d78270b0d8d552",
+    "semantic_hash": "a598c4c83fc2293023d78270b0d8d552"
+  },
+  "app/src/main/res/raw/alarm_urgent_pulse.wav": {
+    "mtime": 1787551803.8393588,
+    "seen": 1788384920.2989635,
+    "ast_hash": "92452392486c180ea21d264d0fd8e078",
+    "semantic_hash": "92452392486c180ea21d264d0fd8e078"
+  },
+  "app/src/main/res/raw/notif_double_pop.wav": {
+    "mtime": 1787551803.8393588,
+    "seen": 1788384920.2989643,
+    "ast_hash": "87b66131d877f962f1f1af3eed9f8e8d",
+    "semantic_hash": "87b66131d877f962f1f1af3eed9f8e8d"
+  },
+  "app/src/main/res/raw/notif_gentle_ding.wav": {
+    "mtime": 1787551803.840359,
+    "seen": 1788384920.298965,
+    "ast_hash": "84118a79bf01b0ce7c1a555a6fdb7885",
+    "semantic_hash": "84118a79bf01b0ce7c1a555a6fdb7885"
+  },
+  "app/src/main/res/raw/notif_soft_ping.wav": {
+    "mtime": 1787551803.840359,
+    "seen": 1788384920.2989657,
+    "ast_hash": "a6fcf5aed7eca48b7ff0277076bcf8b0",
+    "semantic_hash": "a6fcf5aed7eca48b7ff0277076bcf8b0"
+  },
+  "app/src/main/res/raw/notif_subtle_tick.wav": {
+    "mtime": 1787551803.840359,
+    "seen": 1788384920.298967,
+    "ast_hash": "7a2683cbd0db522e2fd1c78d834235f0",
+    "semantic_hash": "7a2683cbd0db522e2fd1c78d834235f0"
+  }
+}

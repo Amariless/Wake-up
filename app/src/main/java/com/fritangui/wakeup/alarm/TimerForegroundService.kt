@@ -57,6 +57,13 @@ class TimerForegroundService : LifecycleService() {
     private var watchdogRunnable: Runnable? = null
     private var watchdogTicks = 0
 
+    // Wakelock exclusivo de la cuenta regresiva (independiente del de sonando, abajo): sin esto, el
+    // tick de runTicker() es un simple `delay()` sin nada que mantenga el CPU despierto, así que con
+    // la pantalla bloqueada el sistema puede entrar en Doze/sueño profundo y el bucle se retrasa o
+    // directamente no avanza hasta que algo más despierte el teléfono — el temporizador "se pausa" o
+    // no llega a sonar a la hora real aunque la UI, al reabrir la app, muestre que sigue corriendo.
+    private var countdownWakeLock: PowerManager.WakeLock? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
@@ -106,6 +113,7 @@ class TimerForegroundService : LifecycleService() {
             NotificationHelper.TIMER_RUNNING_NOTIF_ID,
             notificationHelper.buildTimerRunningNotification(durationMillis, false, pausePendingIntent(), cancelPendingIntent()),
         )
+        acquireCountdownWakeLock(durationMillis)
         runTicker()
     }
 
@@ -113,6 +121,7 @@ class TimerForegroundService : LifecycleService() {
         val current = _state.value
         if (!current.isRunning) return
         tickJob?.cancel()
+        releaseCountdownWakeLock()
         _state.value = current.copy(isRunning = false)
         notificationHelper.notifyTimerRunning(current.remainingMillis, true, resumePendingIntent(), cancelPendingIntent())
     }
@@ -121,15 +130,38 @@ class TimerForegroundService : LifecycleService() {
         val current = _state.value
         if (current.isRunning || current.remainingMillis <= 0) return
         _state.value = current.copy(isRunning = true)
+        acquireCountdownWakeLock(current.remainingMillis)
         runTicker()
     }
 
     private fun cancelTimer() {
         tickJob?.cancel()
+        releaseCountdownWakeLock()
         _state.value = TimerUiState()
         notificationHelper.cancelTimerRunningNotification()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    /**
+     * Mantiene el CPU despierto durante toda la cuenta regresiva. Sin esto, `runTicker()` es un
+     * simple bucle con `delay()`: con la pantalla bloqueada el sistema puede entrar en Doze/sueño
+     * profundo y ese bucle se retrasa o no avanza, así que el temporizador "se pausa" o suena tarde
+     * (o nunca hasta que algo más despierte el teléfono). El timeout incluye un margen extra por si
+     * el tick se atrasa un poco (GC, Doze) antes de llegar a él.
+     */
+    private fun acquireCountdownWakeLock(remainingMillis: Long) {
+        val pm = getSystemService<PowerManager>() ?: return
+        releaseCountdownWakeLock()
+        countdownWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WakeUp:TimerCountdownWakeLock").apply {
+            setReferenceCounted(false)
+            acquire(remainingMillis + COUNTDOWN_WAKE_LOCK_BUFFER_MS)
+        }
+    }
+
+    private fun releaseCountdownWakeLock() {
+        runCatching { countdownWakeLock?.release() }
+        countdownWakeLock = null
     }
 
     private fun runTicker() {
@@ -153,6 +185,7 @@ class TimerForegroundService : LifecycleService() {
     private fun startRinging() {
         val current = _state.value
         _state.value = current.copy(isRunning = false, isRinging = true, remainingMillis = 0)
+        releaseCountdownWakeLock()
         notificationHelper.cancelTimerRunningNotification()
         acquireWakeLock()
 
@@ -182,6 +215,10 @@ class TimerForegroundService : LifecycleService() {
         watchdogRunnable = object : Runnable {
             override fun run() {
                 if (!_state.value.isRinging) return
+                // Renueva el wakelock en cada tick (ver comentario equivalente en
+                // RingingForegroundService.startWatchdog): sin esto, un timeout fijo podía perderse
+                // a mitad de sonar si el usuario tarda mucho en apagarlo.
+                wakeLock?.acquire(RINGING_WAKE_LOCK_TIMEOUT_MS)
                 if (!TimerRingingActivity.isVisible) launchRingingActivity()
                 watchdogTicks++
                 val delayMs = if (watchdogTicks < 10) 3_000L else 12_000L
@@ -192,36 +229,17 @@ class TimerForegroundService : LifecycleService() {
     }
 
     private fun startSoundAndVibration() {
-        runCatching {
-            mediaPlayer = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
-                )
-                setDataSource(this@TimerForegroundService, Uri.parse(AlarmSounds.defaultSoundUriFor(this@TimerForegroundService)))
-                isLooping = true
-                prepare()
-                start()
-            }
-        }.onFailure {
-            runCatching {
-                val fallback = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getValidRingtoneUri(this)
-                mediaPlayer = MediaPlayer().apply {
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build(),
-                    )
-                    setDataSource(this@TimerForegroundService, fallback!!)
-                    isLooping = true
-                    prepare()
-                    start()
-                }
-            }
+        val primaryUri = Uri.parse(AlarmSounds.defaultSoundUriFor(this))
+        val started = runCatching { playAlarmSound(primaryUri) }.isSuccess
+        if (!started) {
+            // Igual que RingingForegroundService.startSoundAndVibration: si ni siquiera el sonido
+            // embebido pudiera reproducirse, cae al tono de alarma del sistema, y si tampoco hay
+            // ninguno configurado (ROM/emulador sin ninguno), reintenta con el embebido de nuevo en
+            // vez de quedar en silencio total sin ningún log ni aviso.
+            val fallbackUri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getValidRingtoneUri(this)
+                ?: primaryUri
+            runCatching { playAlarmSound(fallbackUri) }
         }
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             getSystemService<VibratorManager>()?.defaultVibrator
@@ -232,10 +250,28 @@ class TimerForegroundService : LifecycleService() {
         vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 500), 0))
     }
 
+    private fun playAlarmSound(uri: Uri) {
+        mediaPlayer = MediaPlayer().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            setDataSource(this@TimerForegroundService, uri)
+            isLooping = true
+            prepare()
+            start()
+        }
+    }
+
     private fun acquireWakeLock() {
         val pm = getSystemService<PowerManager>() ?: return
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WakeUp:TimerRingingWakeLock")
-            .apply { acquire(10 * 60 * 1000L) }
+            .apply {
+                setReferenceCounted(false)
+                acquire(RINGING_WAKE_LOCK_TIMEOUT_MS)
+            }
     }
 
     private fun stopRinging() {
@@ -268,8 +304,16 @@ class TimerForegroundService : LifecycleService() {
     override fun onDestroy() {
         tickJob?.cancel()
         watchdogRunnable?.let { watchdogHandler.removeCallbacks(it) }
+        // Réplica de la limpieza de stopRinging(): si el sistema mata el servicio a mitad de sonar
+        // (presión de memoria, stopService externo), sin esto el vibrador quedaba con un patrón
+        // infinito sin cancelar y _state seguía reportando isRinging=true (la pantalla "¡Tiempo!"
+        // nunca se autocerraba porque su LaunchedEffect nunca veía el cambio a false).
+        vibrator?.cancel()
+        vibrator = null
         runCatching { mediaPlayer?.release() }
         runCatching { wakeLock?.release() }
+        releaseCountdownWakeLock()
+        _state.value = TimerUiState()
         super.onDestroy()
     }
 
@@ -285,6 +329,10 @@ class TimerForegroundService : LifecycleService() {
         const val EXTRA_DIFFICULTY = "extra_difficulty"
 
         private const val TIMER_ACTIVITY_REQUEST_CODE = 60_102
+        private const val RINGING_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
+        // Margen sobre el remaining real por si el tick de runTicker() se atrasa un poco antes de
+        // llegar a él (no se pierde el wakelock justo antes de llegar a cero).
+        private const val COUNTDOWN_WAKE_LOCK_BUFFER_MS = 30_000L
 
         private val _state = MutableStateFlow(TimerUiState())
         val state: StateFlow<TimerUiState> = _state.asStateFlow()

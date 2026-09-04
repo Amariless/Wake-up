@@ -18,9 +18,19 @@ class WidgetRefresher @Inject constructor(
     private val widgetRefreshScheduler: WidgetRefreshScheduler,
 ) {
     suspend fun refreshAll() {
-        NextClassesWidget().updateAll(context)
+        refreshClasses()
         NextTasksWidget().updateAll(context)
         ScreenTimeWidget().updateAll(context)
+    }
+
+    /**
+     * Solo el widget de "próximas clases" (+ reprogramar el próximo cruce de horario, #154). Antes,
+     * cada cruce de horario de clase (varias veces al día) disparaba una recomposición Glance
+     * completa de los 3 widgets vía [refreshAll], aunque ningún dato de tareas o de uso de pantalla
+     * hubiera cambiado.
+     */
+    suspend fun refreshClasses() {
+        NextClassesWidget().updateAll(context)
         // Reprograma la alarma del próximo cruce de horario (#154) cada vez que se refresca, sea
         // por qué motivo sea (edición de datos, refresco periódico, arranque de la app, o el
         // propio cruce disparándose) — así siempre queda armada para el cruce más reciente.

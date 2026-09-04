@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.alarm.sound.AlarmSounds
@@ -175,7 +177,18 @@ private fun AlarmRow(
                         contentDescription = "Previsualizar sonido",
                     )
                 }
-                Switch(checked = alarm.isEnabled, onCheckedChange = onToggle)
+                Switch(
+                    checked = alarm.isEnabled,
+                    onCheckedChange = onToggle,
+                    // Sin esto, un usuario de TalkBack que llega a este switch en una lista con
+                    // varias alarmas solo escucha "interruptor, activado/desactivado", sin saber a
+                    // cuál de las filas corresponde.
+                    modifier = Modifier.semantics {
+                        contentDescription = "${if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma"} " +
+                            "%02d:%02d".format(alarm.hour, alarm.minute) +
+                            (alarm.label.takeIf { it.isNotBlank() }?.let { ", $it" } ?: "")
+                    },
+                )
             }
         }
     }

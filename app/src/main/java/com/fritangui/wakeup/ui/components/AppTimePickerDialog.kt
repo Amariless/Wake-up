@@ -68,10 +68,11 @@ fun AppTimePickerDialog(
                 onValueChange = { isPm = it == 1 },
                 width = 64.dp,
                 label = { if (it == 0) "AM" else "PM" },
+                contentDescriptionLabel = "AM o PM",
             )
-            WheelPicker(value = hour12, range = 1..12, onValueChange = { hour12 = it })
+            WheelPicker(value = hour12, range = 1..12, onValueChange = { hour12 = it }, contentDescriptionLabel = "Hora")
             Text(":", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 4.dp), textAlign = TextAlign.Center)
-            WheelPicker(value = minute, range = 0..59, onValueChange = { minute = it })
+            WheelPicker(value = minute, range = 0..59, onValueChange = { minute = it }, contentDescriptionLabel = "Minuto")
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
