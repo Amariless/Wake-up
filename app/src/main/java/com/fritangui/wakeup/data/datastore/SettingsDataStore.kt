@@ -17,6 +17,9 @@ import javax.inject.Singleton
 
 private val Context.dataStore by preferencesDataStore(name = "wakeup_settings")
 
+/** "Sistema" = sigue el tema claro/oscuro del teléfono; "Claro"/"Oscuro" fuerzan uno fijo. */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 /**
  * Configuración global de la app que no encaja como fila de una tabla:
  * onboarding completado, tema, última carpeta seleccionada, etc.
@@ -28,6 +31,7 @@ class SettingsDataStore @Inject constructor(
     private object Keys {
         val XIAOMI_ONBOARDING_DONE = booleanPreferencesKey("xiaomi_onboarding_done")
         val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
         val PINNED_FOLDER_ID = stringPreferencesKey("last_selected_folder_id")
         val DEFAULT_REMINDER_WEEK_BEFORE_MIN = intPreferencesKey("default_reminder_week_min")
         val DEFAULT_REMINDER_DAY_BEFORE_MIN = intPreferencesKey("default_reminder_day_min")
@@ -61,6 +65,15 @@ class SettingsDataStore @Inject constructor(
 
     suspend fun setDynamicColorEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.DYNAMIC_COLOR_ENABLED] = enabled }
+    }
+
+    /** Por defecto sigue al sistema — la mayoría espera que la app respete el tema del teléfono. */
+    val themeMode: Flow<ThemeMode> = context.dataStore.data.map {
+        runCatching { ThemeMode.valueOf(it[Keys.THEME_MODE] ?: "") }.getOrDefault(ThemeMode.SYSTEM)
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { it[Keys.THEME_MODE] = mode.name }
     }
 
     /** La "carpeta principal": si está marcada, el tab de "Carpetas" abre directo su detalle. */

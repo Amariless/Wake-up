@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -16,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fritangui.wakeup.data.datastore.ThemeMode
 import com.fritangui.wakeup.ui.WakeUpNavHost
 import com.fritangui.wakeup.ui.settings.SettingsViewModel
 import com.fritangui.wakeup.ui.theme.WakeUpTheme
@@ -65,7 +67,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun WakeUpRoot(pendingDeepLink: MutableState<WidgetDeepLink?>, settingsViewModel: SettingsViewModel = hiltViewModel()) {
     val dynamicColor by settingsViewModel.dynamicColorEnabled.collectAsState()
-    WakeUpTheme(dynamicColor = dynamicColor) {
+    val themeMode by settingsViewModel.themeMode.collectAsState()
+    val darkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+    WakeUpTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
         Surface(modifier = Modifier.fillMaxSize()) {
             WakeUpNavHost(pendingDeepLink = pendingDeepLink)
         }

@@ -48,44 +48,45 @@ private val LightColors = lightColorScheme(
     error = WakeUpError,
 )
 
-// Paleta oscura hecha a mano (no solo darkColorScheme(primary=...)): controla también los
-// "container" y las superficies escalonadas que usan Card/NavigationBar/Slider/Chips, para que
-// no se sientan todas del mismo gris genérico de Material.
+// Variante oscura del mismo rediseño ("Night", ver Color.kt): mismos 6 acentos aclarados un poco
+// para que no se vean apagados sobre fondo oscuro, sobre un carbón cálido (no negro puro). Mismo
+// mapeo de roles que LightColors de arriba.
 private val DarkColors = darkColorScheme(
-    primary = WakeUpPrimaryDark,
-    onPrimary = WakeUpOnPrimaryDark,
-    primaryContainer = WakeUpPrimaryContainerDark,
-    onPrimaryContainer = WakeUpOnPrimaryContainerDark,
-    secondary = WakeUpSecondary,
-    onSecondary = WakeUpOnSecondaryDark,
-    secondaryContainer = WakeUpSecondaryContainerDark,
-    onSecondaryContainer = WakeUpOnSecondaryContainerDark,
-    tertiary = WakeUpTertiary,
-    onTertiary = WakeUpOnTertiaryDark,
-    background = WakeUpBackgroundDark,
-    onBackground = androidx.compose.ui.graphics.Color(0xFFE3E5EC),
-    surface = WakeUpSurfaceDark,
-    onSurface = androidx.compose.ui.graphics.Color(0xFFE3E5EC),
-    surfaceVariant = WakeUpSurfaceVariantDark,
-    onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFC4CAD9),
-    surfaceContainer = WakeUpSurfaceContainerDark,
-    surfaceContainerHigh = WakeUpSurfaceContainerHighDark,
-    surfaceContainerHighest = WakeUpSurfaceVariantDark,
-    outline = WakeUpOutlineDark,
-    outlineVariant = WakeUpOutlineVariantDark,
+    primary = WakeUpIndigoNight,
+    onPrimary = WakeUpBgNight,
+    primaryContainer = WakeUpIndigoNight.copy(alpha = 0.18f).compositeOver(WakeUpSurfaceNight),
+    onPrimaryContainer = WakeUpIndigoNight,
+    secondary = WakeUpCoralNight,
+    onSecondary = WakeUpBgNight,
+    secondaryContainer = WakeUpCoralNight.copy(alpha = 0.18f).compositeOver(WakeUpSurfaceNight),
+    onSecondaryContainer = WakeUpCoralNight,
+    tertiary = WakeUpSageNight,
+    onTertiary = WakeUpBgNight,
+    background = WakeUpBgNight,
+    onBackground = WakeUpTextPrimaryNight,
+    surface = WakeUpSurfaceNight,
+    onSurface = WakeUpTextPrimaryNight,
+    surfaceVariant = WakeUpSurfaceAltNight,
+    onSurfaceVariant = WakeUpTextSecondaryNight,
+    surfaceContainer = WakeUpSurfaceNight,
+    surfaceContainerLow = WakeUpSurfaceNight,
+    surfaceContainerHigh = WakeUpSurfaceAltNight,
+    surfaceContainerHighest = WakeUpSurfaceAltNight,
+    outline = WakeUpTextSecondaryNight,
+    outlineVariant = WakeUpBorderNight,
     error = WakeUpErrorDark,
 )
 
 /**
- * Tema de la app. El default es **claro siempre** (no sigue el tema del sistema): es la identidad
- * visual del rediseño 2026 ("Minimalismo táctil"), pensada como fondo cálido neutro de punta a
- * punta. `DarkColors` se conserva por si se vuelve a exponer un modo oscuro más adelante, pero hoy
- * nada pasa `darkTheme = true`. El color dinámico (Android 12+) sigue disponible y configurable
- * desde Ajustes.
+ * Tema de la app: el rediseño 2026 ("Minimalismo táctil"), en su variante clara u oscura. Por
+ * defecto sigue el tema del sistema ([isSystemInDarkTheme]) — quien llama a esto (ver [MainActivity])
+ * puede pasar un [darkTheme] explícito para que la preferencia de Ajustes ("Claro"/"Oscuro"/
+ * "Sistema") tenga la última palabra. El color dinámico (Android 12+) sigue disponible y
+ * configurable desde Ajustes, en cuyo caso pisa esta paleta tanto en claro como en oscuro.
  */
 @Composable
 fun WakeUpTheme(
-    darkTheme: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {

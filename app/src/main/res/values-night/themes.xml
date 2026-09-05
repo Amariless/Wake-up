@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mismo Theme.WakeUp de values/themes.xml, pero con el fondo oscuro del rediseño: el sistema
+         elige este archivo solo cuando el teléfono está en modo oscuro, así que cubre el caso más
+         común (preferencia "Sistema", el default de Ajustes → Tema). Quien elige "Oscuro"/"Claro" a
+         mano puede ver el splash en el color contrario al elegido por un instante si no coincide
+         con el modo del sistema — Compose lo corrige apenas carga, ver WakeUpTheme. -->
+    <style name="Theme.WakeUp" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/wake_up_background_night</item>
+    </style>
+
+    <style name="Theme.WakeUp.Alarm" parent="Theme.WakeUp">
+        <item name="android:windowShowWallpaper">true</item>
+    </style>
+
+    <style name="Theme.WakeUp.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/wake_up_background_night</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.WakeUp</item>
+    </style>
+</resources>
