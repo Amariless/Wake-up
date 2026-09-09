@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.data.repository.SubjectRepository
 import com.fritangui.wakeup.data.repository.TaskRepository
+import com.fritangui.wakeup.data.repository.UsageRepository
 import com.fritangui.wakeup.domain.WeeklyClassDay
 import com.fritangui.wakeup.domain.computeWeeklyClassSchedule
+import com.fritangui.wakeup.domain.todayEpochDay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +20,14 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     subjectRepository: SubjectRepository,
     taskRepository: TaskRepository,
+    usageRepository: UsageRepository,
 ) : ViewModel() {
+
+    /** Minutos de pantalla acumulados hoy (todas las apps), para la tarjeta de Bienestar de Inicio
+     *  — misma fuente que usa la pestaña Bienestar, solo que sumada en un único total. */
+    val todayScreenTimeMinutes: StateFlow<Long> = usageRepository.observeForDay(todayEpochDay())
+        .map { rows -> rows.sumOf { it.minutesUsed } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
     private val subjectsWithSessions = subjectRepository.observeWithSessionsForActiveFolders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

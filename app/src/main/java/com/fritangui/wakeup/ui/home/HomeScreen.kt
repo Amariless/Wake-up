@@ -22,8 +22,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.filled.AddTask
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -42,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -79,12 +84,19 @@ fun HomeScreen(
     /** Se incrementa cada vez que se toca el encabezado del widget de "Próximas clases" (#142): un
      *  nuevo valor (aunque ya se esté en Inicio) vuelve a disparar el scroll a la clase actual/próxima. */
     scrollToNextClassSignal: Int = 0,
+    // Acciones rápidas (rediseño): alarma nueva general, saltar a Enfoque en Reloj, o ir a elegir
+    // carpeta para una tarea nueva.
+    onNewAlarm: () -> Unit = {},
+    onOpenFocus: () -> Unit = {},
+    onOpenNewTask: () -> Unit = {},
+    onOpenWellbeing: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val weeklyClassDays by viewModel.weeklyClassDays.collectAsState()
     val upcomingTasks by viewModel.upcomingTasks.collectAsState()
     val subjectColorsById by viewModel.subjectColorsById.collectAsState()
     val subjectNamesById by viewModel.subjectNamesById.collectAsState()
+    val todayScreenTimeMinutes by viewModel.todayScreenTimeMinutes.collectAsState()
 
     // Chequeo en vivo (no cacheado en el ViewModel) cada vez que se abre/vuelve a Inicio: si el
     // volumen de alarma está por debajo de la mitad, un aviso bien visible en vez de descubrirlo
@@ -208,8 +220,95 @@ fun HomeScreen(
                             }
                         }
                     }
+                    item(key = "quick_actions_title") {
+                        Text(
+                            "Acciones rápidas",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 20.dp, bottom = 10.dp),
+                        )
+                    }
+                    item(key = "quick_actions") {
+                        QuickActionsRow(onNewAlarm = onNewAlarm, onOpenFocus = onOpenFocus, onOpenNewTask = onOpenNewTask)
+                    }
+                    item(key = "wellbeing") {
+                        WellbeingCard(
+                            screenTimeMinutesToday = todayScreenTimeMinutes,
+                            onClick = onOpenWellbeing,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+/** Fila de 3 atajos (rediseño): crear una alarma general, saltar a Enfoque en Reloj, o ir a elegir
+ *  la carpeta donde crear una tarea. Un color de acento distinto por ícono, como en el mockup. */
+@Composable
+private fun QuickActionsRow(onNewAlarm: () -> Unit, onOpenFocus: () -> Unit, onOpenNewTask: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+        QuickActionButton("Alarma", Icons.Default.Alarm, MaterialTheme.colorScheme.secondary, onNewAlarm, Modifier.weight(1f))
+        QuickActionButton("Enfoque", Icons.Default.Timer, MaterialTheme.colorScheme.primary, onOpenFocus, Modifier.weight(1f))
+        QuickActionButton("Tarea", Icons.Default.AddTask, MaterialTheme.colorScheme.tertiary, onOpenNewTask, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun QuickActionButton(label: String, icon: ImageVector, accent: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(22.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+/** Resumen de pantalla de hoy (rediseño), con el mismo dato que ya muestra la pestaña Bienestar —
+ *  toca para ir ahí. Sin porcentaje de "límite diario": la app no tiene un límite general de
+ *  pantalla configurable (el límite que sí existe es específico de Reels/TikTok, ver Bloqueo), así
+ *  que mostrar un porcentaje inventado sería engañoso. */
+@Composable
+private fun WellbeingCard(screenTimeMinutesToday: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
+        }
+        Column(modifier = Modifier.padding(start = 14.dp)) {
+            val hours = screenTimeMinutesToday / 60
+            val minutes = screenTimeMinutesToday % 60
+            val label = if (hours > 0) "${hours}h ${minutes}m de pantalla hoy" else "${minutes}m de pantalla hoy"
+            Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Toca para ver el detalle",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+            )
         }
     }
 }

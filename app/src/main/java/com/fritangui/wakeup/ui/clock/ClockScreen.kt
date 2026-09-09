@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,13 +50,23 @@ import kotlinx.datetime.Clock
 private val TABS = listOf("Alarmas", "Temporizador", "Cronómetro")
 
 @Composable
-fun ClockScreen(onOpenAlarm: (Long) -> Unit, onNewAlarm: () -> Unit) {
+fun ClockScreen(
+    onOpenAlarm: (Long) -> Unit,
+    onNewAlarm: () -> Unit,
+    /** Se incrementa desde la acción rápida "Enfoque" de Inicio: salta a la sub-pestaña
+     *  Temporizador, igual que scrollToNextClassSignal salta el scroll de Inicio (ver WakeUpNavHost). */
+    jumpToTimerTabSignal: Int = 0,
+) {
     // #145: antes solo se podía cambiar de sub-pestaña tocándola; con HorizontalPager también se
     // puede deslizar hacia el lado. pagerState ya persiste la página seleccionada (rememberSaveable
     // por dentro), así que reemplaza al `tabIndex` suelto de antes.
     val pagerState = rememberPagerState(pageCount = { TABS.size })
     val coroutineScope = rememberCoroutineScope()
     val tabIndex = pagerState.currentPage
+
+    LaunchedEffect(jumpToTimerTabSignal) {
+        if (jumpToTimerTabSignal > 0) pagerState.animateScrollToPage(1)
+    }
     // La misma instancia que usa AlarmsListScreen (comparten NavBackStackEntry): se pasa
     // explícitamente para no depender de que Hilt la resuelva igual en los dos sitios.
     val alarmsViewModel: AlarmsViewModel = hiltViewModel()
@@ -124,6 +136,7 @@ fun ClockScreen(onOpenAlarm: (Long) -> Unit, onNewAlarm: () -> Unit) {
  *  vez del TabRow con subrayado de Material — mismo lenguaje visual que la barra de navegación. */
 @Composable
 private fun SegmentedTabRow(tabs: List<String>, selectedIndex: Int, onSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
@@ -145,7 +158,10 @@ private fun SegmentedTabRow(tabs: List<String>, selectedIndex: Int, onSelected: 
                             Modifier
                         },
                     )
-                    .clickable { onSelected(index) }
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onSelected(index)
+                    }
                     .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {

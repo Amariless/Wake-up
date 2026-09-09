@@ -41,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
@@ -221,6 +223,7 @@ private fun TimerRunningContent(
     onResume: () -> Unit,
     onStop: () -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val targetProgress = if (totalMillis > 0) remainingMillis.toFloat() / totalMillis else 0f
         // Ni siquiera hace falta que el tick se vea "saltar": se anima suave entre cada valor,
@@ -246,10 +249,19 @@ private fun TimerRunningContent(
             }
         }
         Row(modifier = Modifier.padding(top = 32.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            OutlinedIconButton(onClick = onStop, modifier = Modifier.size(52.dp)) {
+            OutlinedIconButton(
+                onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onStop() },
+                modifier = Modifier.size(52.dp),
+            ) {
                 Icon(Icons.Default.Stop, contentDescription = "Apagar")
             }
-            FilledIconButton(onClick = if (isRunning) onPause else onResume, modifier = Modifier.size(68.dp)) {
+            FilledIconButton(
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (isRunning) onPause() else onResume()
+                },
+                modifier = Modifier.size(68.dp),
+            ) {
                 Icon(
                     if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isRunning) "Pausar" else "Reanudar",

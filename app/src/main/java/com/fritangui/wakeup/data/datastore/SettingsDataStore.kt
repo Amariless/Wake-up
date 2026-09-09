@@ -67,9 +67,10 @@ class SettingsDataStore @Inject constructor(
         context.dataStore.edit { it[Keys.DYNAMIC_COLOR_ENABLED] = enabled }
     }
 
-    /** Por defecto sigue al sistema — la mayoría espera que la app respete el tema del teléfono. */
+    /** Por defecto oscuro (no sigue al sistema): es la identidad visual de Wake up, igual que antes
+     *  del rediseño — un reloj de alarma piensa mejor en oscuro. Claro/Sistema quedan como opción. */
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map {
-        runCatching { ThemeMode.valueOf(it[Keys.THEME_MODE] ?: "") }.getOrDefault(ThemeMode.SYSTEM)
+        runCatching { ThemeMode.valueOf(it[Keys.THEME_MODE] ?: "") }.getOrDefault(ThemeMode.DARK)
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {

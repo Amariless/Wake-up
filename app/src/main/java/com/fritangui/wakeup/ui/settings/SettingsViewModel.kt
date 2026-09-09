@@ -26,7 +26,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     val themeMode: StateFlow<ThemeMode> = settingsDataStore.themeMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.DARK)
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settingsDataStore.setThemeMode(mode) }
