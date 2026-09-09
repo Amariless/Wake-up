@@ -21,6 +21,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.BuildConfig
+import com.fritangui.wakeup.data.datastore.ThemeMode
 
 @Composable
 fun SettingsScreen(
@@ -42,6 +46,7 @@ fun SettingsScreen(
     onOpenUpdate: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
+    val themeMode by viewModel.themeMode.collectAsState()
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
     val use24HourFormat by viewModel.use24HourFormat.collectAsState()
     val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
@@ -63,6 +68,27 @@ fun SettingsScreen(
         // Sin verticalScroll el contenido se cortaba abajo (más visible con "Color dinámico" +
         // "Buscar actualizaciones" + "Permisos" + panel de dev en builds debug, ver #148).
         Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState())) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text("Tema", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Claro, oscuro, o el que tenga tu teléfono",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    val options = listOf(ThemeMode.SYSTEM to "Sistema", ThemeMode.LIGHT to "Claro", ThemeMode.DARK to "Oscuro")
+                    options.forEachIndexed { index, (mode, label) ->
+                        SegmentedButton(
+                            selected = themeMode == mode,
+                            onClick = { viewModel.setThemeMode(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+            }
+            HorizontalDivider()
             SettingsRow("Color dinámico", "Usa los colores del fondo de tu teléfono (Android 12+)") {
                 Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)
             }

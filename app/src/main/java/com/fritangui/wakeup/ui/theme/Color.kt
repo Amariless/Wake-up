@@ -4,8 +4,7 @@ import androidx.compose.ui.graphics.Color
 
 // Rediseño "Minimalismo táctil" (2026): fondo cálido neutro + acentos pastel-saturados para
 // codificar prioridad/materia/estado. Reemplaza a la paleta azul/ámbar de abajo como identidad
-// visual por defecto de la app (ver WakeUpTheme) — se mantiene *solo* en modo claro por ahora,
-// los mockups del rediseño no cubrieron una variante oscura.
+// visual por defecto de la app (ver WakeUpTheme).
 val WakeUpBg = Color(0xFFFAF7F2)
 val WakeUpSurface = Color(0xFFFFFFFF)
 val WakeUpSurfaceAlt = Color(0xFFF1EDE6)
@@ -20,6 +19,26 @@ val WakeUpSage = Color(0xFF6FA786)
 val WakeUpIndigo = Color(0xFF6B79D6)
 val WakeUpLavender = Color(0xFF9C86C7)
 val WakeUpSky = Color(0xFF5FA8C7)
+
+// Variante oscura del mismo sistema (sufijo "Night" para no confundirla ni con la paleta clara de
+// arriba ni con los "*Dark" de abajo, que son de los widgets y no tienen nada que ver con esto):
+// mismos 6 acentos, pero un poco más claros/luminosos — si se dejaran igual de saturados que en
+// fondo claro se verían apagados sobre un fondo oscuro. Los neutros son un carbón cálido, no negro
+// puro, para no perder la sensación "táctil" del rediseño.
+val WakeUpBgNight = Color(0xFF1C1A17)
+val WakeUpSurfaceNight = Color(0xFF262320)
+val WakeUpSurfaceAltNight = Color(0xFF302D29)
+val WakeUpBorderNight = Color(0xFF3D3934)
+val WakeUpTextPrimaryNight = Color(0xFFF5F1EA)
+val WakeUpTextSecondaryNight = Color(0xFFB6AEA1)
+val WakeUpTextTertiaryNight = Color(0xFF7D766A)
+
+val WakeUpCoralNight = Color(0xFFF0876F)
+val WakeUpAmberNight = Color(0xFFEDBB6C)
+val WakeUpSageNight = Color(0xFF86C29B)
+val WakeUpIndigoNight = Color(0xFF8B97E0)
+val WakeUpLavenderNight = Color(0xFFB7A0D9)
+val WakeUpSkyNight = Color(0xFF79BEDA)
 
 // Radios de esquina y elevación del rediseño, en un solo lugar para no repetir los mismos números
 // mágicos en cada pantalla (ver también Shape.kt, que expone los mismos radios como Shapes de M3).

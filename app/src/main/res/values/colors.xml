@@ -6,4 +6,9 @@
          usado por el splash screen y la ventana antes de que Compose pinte, para que no haya un
          flash oscuro al abrir la app ahora que el tema por defecto es claro. -->
     <color name="wake_up_background_light">#FAF7F2</color>
+    <!-- Variante oscura del rediseño (mismo valor que WakeUpBgNight en Color.kt), usada solo en
+         values-night/themes.xml — así el splash/fondo de ventana ya arranca oscuro cuando el
+         sistema está en modo oscuro, en vez de mostrar el claro un instante y recién después
+         corregirse cuando carga Compose. -->
+    <color name="wake_up_background_night">#1C1A17</color>
 </resources>

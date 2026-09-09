@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fritangui.wakeup.alarm.AlarmController
 import com.fritangui.wakeup.data.datastore.SettingsDataStore
+import com.fritangui.wakeup.data.datastore.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,13 @@ class SettingsViewModel @Inject constructor(
 
     fun setDynamicColorEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setDynamicColorEnabled(enabled) }
+    }
+
+    val themeMode: StateFlow<ThemeMode> = settingsDataStore.themeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.DARK)
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { settingsDataStore.setThemeMode(mode) }
     }
 
     val use24HourFormat: StateFlow<Boolean> = settingsDataStore.use24HourFormat

@@ -42,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -133,6 +135,10 @@ private fun WakeUpNavHostContent(
     // vuelva a disparar el scroll en Inicio, incluso si ya se estaba ahí (#142) — un simple booleano
     // "true" repetido no generaría un nuevo valor para que LaunchedEffect reaccione otra vez.
     val scrollToNextClassTrigger = remember { mutableStateOf(0) }
+
+    // Mismo patrón que scrollToNextClassTrigger de arriba: la acción rápida "Enfoque" de Inicio
+    // navega a Reloj y además necesita saltar a la sub-pestaña Temporizador (no a la 0, Alarmas).
+    val jumpToTimerTabTrigger = remember { mutableStateOf(0) }
 
     // Al tocar una clase/tarea en un widget de home screen: arma la misma pila de navegación que
     // tendría si hubieras llegado ahí tocando dentro de la app (Inicio → Carpetas → esa carpeta →
@@ -276,6 +282,26 @@ private fun WakeUpNavHostContent(
                     onOpenSubject = { folderId, subjectId -> navController.navigate(Routes.subjectEditor(folderId, subjectId)) },
                     onOpenTask = { folderId, taskId -> navController.navigate(Routes.taskEditor(folderId, taskId)) },
                     scrollToNextClassSignal = scrollToNextClassSignal,
+                    // Acciones rápidas del rediseño: "Alarma" abre una alarma general nueva,
+                    // "Enfoque" lleva a Reloj y salta directo a la sub-pestaña Temporizador, "Tarea"
+                    // lleva a elegir la carpeta donde crearla (una tarea siempre pertenece a una).
+                    onNewAlarm = { navController.navigate(Routes.alarmEditor()) },
+                    onOpenFocus = {
+                        navController.navigate(Routes.CLOCK) {
+                            popUpTo(Routes.HOME) { inclusive = false; saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                        jumpToTimerTabTrigger.value += 1
+                    },
+                    onOpenNewTask = { navController.navigate(Routes.FOLDERS) },
+                    onOpenWellbeing = {
+                        navController.navigate(Routes.SCREEN_TIME) {
+                            popUpTo(Routes.HOME) { inclusive = false; saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                 )
             }
 
@@ -359,9 +385,11 @@ private fun WakeUpNavHostContent(
             }
 
             composable(Routes.CLOCK) {
+                val jumpToTimerTabSignal by jumpToTimerTabTrigger
                 ClockScreen(
                     onOpenAlarm = { navController.navigate(Routes.alarmEditor(alarmId = it)) },
                     onNewAlarm = { navController.navigate(Routes.alarmEditor()) },
+                    jumpToTimerTabSignal = jumpToTimerTabSignal,
                 )
             }
 
@@ -397,6 +425,9 @@ private fun WakeUpNavHostContent(
 @Composable
 private fun BottomNavItem(dest: BottomDestination, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline
+    // Microinteracción del rediseño: un tap corto de háptica al cambiar de tab, como en iOS/Material
+    // You — un gesto físico chico que refuerza que el toque "prendió" algo, no solo visual.
+    val haptics = LocalHapticFeedback.current
     Column(
         modifier = modifier
             .widthIn(min = 52.dp)
@@ -408,7 +439,10 @@ private fun BottomNavItem(dest: BottomDestination, isSelected: Boolean, modifier
                     Modifier
                 },
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            })
             .padding(vertical = 8.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,8 +18,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -26,7 +28,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
@@ -218,20 +223,51 @@ private fun TimerRunningContent(
     onResume: () -> Unit,
     onStop: () -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val targetProgress = if (totalMillis > 0) remainingMillis.toFloat() / totalMillis else 0f
         // Ni siquiera hace falta que el tick se vea "saltar": se anima suave entre cada valor,
         // así que aunque el servicio actualice cada 500ms, visualmente es una transición continua.
         val animatedProgress by animateFloatAsState(targetValue = targetProgress, animationSpec = tween(450), label = "timer_progress")
-        CircularProgressIndicator(progress = { animatedProgress }, modifier = Modifier.padding(bottom = 16.dp))
-        Text(formatMillis(remainingMillis), style = MaterialTheme.typography.displayLarge)
-        Row(modifier = Modifier.padding(top = 24.dp)) {
-            if (isRunning) {
-                OutlinedButton(onClick = onPause, modifier = Modifier.padding(end = 8.dp)) { Text("Pausar") }
-            } else {
-                OutlinedButton(onClick = onResume, modifier = Modifier.padding(end = 8.dp)) { Text("Reanudar") }
+        // Anillo grande con el tiempo adentro (en vez de un anillo chico + el número debajo): así
+        // se lee de un vistazo cuánto falta sin tener que separar la mirada entre dos elementos.
+        Box(modifier = Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = 10.dp,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeCap = StrokeCap.Round,
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(formatMillis(remainingMillis), style = MaterialTheme.typography.displayMedium)
+                Text(
+                    "RESTANTE",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                )
             }
-            Button(onClick = onStop) { Text("Apagar") }
+        }
+        Row(modifier = Modifier.padding(top = 32.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            OutlinedIconButton(
+                onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onStop() },
+                modifier = Modifier.size(52.dp),
+            ) {
+                Icon(Icons.Default.Stop, contentDescription = "Apagar")
+            }
+            FilledIconButton(
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (isRunning) onPause() else onResume()
+                },
+                modifier = Modifier.size(68.dp),
+            ) {
+                Icon(
+                    if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isRunning) "Pausar" else "Reanudar",
+                    modifier = Modifier.size(28.dp),
+                )
+            }
         }
     }
 }
