@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,6 +33,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -50,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,7 +65,12 @@ fun FoldersScreen(
 ) {
     val folders by viewModel.folders.collectAsState()
     val pinnedFolderId by viewModel.pinnedFolderId.collectAsState()
+    val pinnedFolderSummary by viewModel.pinnedFolderSummary.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
+    // La fijada tiene su propia tarjeta destacada más abajo — no hace falta repetirla también como
+    // fila plana en la lista de debajo.
+    val pinnedFolder = folders.firstOrNull { it.id == pinnedFolderId }
+    val restFolders = if (pinnedFolder != null) folders.filterNot { it.id == pinnedFolderId } else folders
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Carpetas") }) },
@@ -82,7 +90,17 @@ fun FoldersScreen(
             // renderizada justo detrás de la TopAppBar, invisible del todo (#5, encontrado con
             // captura del usuario).
             LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp, 8.dp)) {
-                items(folders, key = { it.id }) { folder ->
+                if (pinnedFolder != null) {
+                    item(key = "pinned_hero") {
+                        PinnedFolderHeroCard(
+                            folder = pinnedFolder,
+                            summary = pinnedFolderSummary,
+                            onClick = { onOpenFolder(pinnedFolder.id) },
+                            modifier = Modifier.padding(bottom = 6.dp),
+                        )
+                    }
+                }
+                items(restFolders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
                         isPinned = folder.id == pinnedFolderId,
@@ -105,6 +123,57 @@ fun FoldersScreen(
                 showCreateDialog = false
             },
         )
+    }
+}
+
+/** Tarjeta destacada de la carpeta fijada (rediseño): materias y progreso de tareas reales, no
+ *  inventados — [PinnedFolderSummary] sale de la misma BD que ya usa el resto de la app. */
+@Composable
+private fun PinnedFolderHeroCard(folder: FolderEntity, summary: PinnedFolderSummary?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(20.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(13.dp))
+            Text(
+                "CARPETA PRINCIPAL",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+        Text(folder.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+        if (summary != null) {
+            Text(
+                if (summary.subjectCount == 1) "1 materia" else "${summary.subjectCount} materias",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            if (summary.totalTasks > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                    LinearProgressIndicator(
+                        progress = { summary.doneTasks.toFloat() / summary.totalTasks },
+                        modifier = Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(999.dp)),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        color = MaterialTheme.colorScheme.secondary,
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    )
+                    Text(
+                        "${summary.doneTasks}/${summary.totalTasks}",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
+            }
+        }
     }
 }
 
