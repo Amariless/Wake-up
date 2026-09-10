@@ -28,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -198,9 +197,9 @@ private fun ChecklistRow(item: ChecklistItem, context: android.content.Context) 
                         null -> "Estado desconocido, confirma manualmente"
                     },
                     tint = when (checked) {
-                        true -> Color(0xFF00BFA6)
+                        true -> MaterialTheme.colorScheme.tertiary
                         false -> MaterialTheme.colorScheme.outline
-                        null -> Color(0xFFFFC857)
+                        null -> MaterialTheme.colorScheme.secondary
                     },
                 )
                 Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {

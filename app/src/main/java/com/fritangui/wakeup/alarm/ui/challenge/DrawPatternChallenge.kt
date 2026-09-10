@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -39,6 +38,10 @@ fun DrawPatternChallenge(difficulty: Int, onCompleted: () -> Unit) {
     // En dp, no en píxeles crudos: en densidades altas, un radio fijo en px podía equivaler a menos
     // de 24dp — por debajo del tamaño mínimo de objetivo táctil de WCAG 2.2 (SC 2.5.8, 44-48dp).
     val hitRadiusPx = with(LocalDensity.current) { HIT_RADIUS_DP.dp.toPx() }
+    // Se capturan acá (no adentro del Canvas): DrawScope no es un contexto @Composable, así que
+    // MaterialTheme.colorScheme no se puede leer directamente dentro de drawCircle/drawLine.
+    val doneColor = MaterialTheme.colorScheme.tertiary
+    val idleColor = MaterialTheme.colorScheme.outline
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text("Traza los puntos en orden, del 1 al $dotCount, sin soltar el dedo")
@@ -83,7 +86,7 @@ fun DrawPatternChallenge(difficulty: Int, onCompleted: () -> Unit) {
                 dots.forEachIndexed { index, offset ->
                     val done = index < nextExpected
                     drawCircle(
-                        color = if (done) Color(0xFF00BFA6) else Color(0xFF9AA5B1),
+                        color = if (done) doneColor else idleColor,
                         radius = 26f,
                         center = offset,
                         style = Stroke(width = if (done) 8f else 4f),
@@ -112,7 +115,7 @@ fun DrawPatternChallenge(difficulty: Int, onCompleted: () -> Unit) {
                 if (nextExpected > 1) {
                     for (i in 1 until nextExpected) {
                         drawLine(
-                            color = Color(0xFF00BFA6),
+                            color = doneColor,
                             start = dots[i - 1],
                             end = dots[i],
                             strokeWidth = 6f,

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +15,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import androidx.lifecycle.LifecycleService
@@ -22,6 +24,11 @@ import com.fritangui.wakeup.R
 import com.fritangui.wakeup.WakeUpApp
 import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.entity.BlockSurface
+import com.fritangui.wakeup.ui.theme.WakeUpBgNight
+import com.fritangui.wakeup.ui.theme.WakeUpCoralNight
+import com.fritangui.wakeup.ui.theme.WakeUpSurfaceAltNight
+import com.fritangui.wakeup.ui.theme.WakeUpTextPrimaryNight
+import com.fritangui.wakeup.ui.theme.WakeUpTextSecondaryNight
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -71,30 +78,47 @@ class BlockOverlayService : LifecycleService() {
             .setOngoing(true)
             .build()
 
+    /** Fondo relleno y redondeado para los botones del overlay (rediseño 2026) — no hay layout XML
+     *  acá (la vista se arma a mano para poder dibujarse desde un Service), así que el estilo de
+     *  los botones del sistema se reemplaza a mano en vez de con un theme de XML. */
+    private fun roundedFill(fillColor: Int, radiusDp: Float = 14f): GradientDrawable {
+        val density = resources.displayMetrics.density
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusDp * density
+            setColor(fillColor)
+        }
+    }
+
     private fun showBlockOverlay(label: String, surface: BlockSurface?, graceMinutes: Int) {
         removeCurrentOverlay()
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#E6101319"))
+            // Fondo del rediseño (antes un rojo genérico aparte de la paleta) — sigue siendo casi
+            // opaco a propósito: esto es una pantalla de "te bloqueamos", tiene que sentirse como un
+            // freno real, no como una tarjeta más.
+            setBackgroundColor(WakeUpBgNight.copy(alpha = 0.96f).toArgb())
             setPadding(64, 64, 64, 64)
         }
         val title = TextView(this).apply {
             text = "⏰ Límite diario alcanzado"
-            setTextColor(Color.WHITE)
+            setTextColor(WakeUpTextPrimaryNight.toArgb())
             textSize = 24f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         }
         val message = TextView(this).apply {
             text = "Ya usaste tu tiempo de hoy en $label."
-            setTextColor(Color.LTGRAY)
+            setTextColor(WakeUpTextSecondaryNight.toArgb())
             textSize = 16f
             gravity = Gravity.CENTER
             setPadding(0, 32, 0, 48)
         }
         val closeButton = Button(this).apply {
             text = "Cerrar app"
+            setTextColor(WakeUpBgNight.toArgb())
+            background = roundedFill(WakeUpCoralNight.toArgb())
             setOnClickListener {
                 ReelsBlockAccessibilityService.requestGoHome()
                 removeOverlayAndStop()
@@ -102,6 +126,8 @@ class BlockOverlayService : LifecycleService() {
         }
         val graceButton = Button(this).apply {
             text = "$graceMinutes minutos más"
+            setTextColor(WakeUpTextPrimaryNight.toArgb())
+            background = roundedFill(WakeUpSurfaceAltNight.toArgb())
             setOnClickListener {
                 if (surface != null) ReelsBlockAccessibilityService.snooze(surface, graceMinutes.minutes)
                 showGraceOverlay(label, graceMinutes)
