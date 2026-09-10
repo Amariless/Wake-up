@@ -13,9 +13,14 @@ val WakeUpTextPrimary = Color(0xFF221F1B)
 val WakeUpTextSecondary = Color(0xFF736C60)
 val WakeUpTextTertiary = Color(0xFFA39C8E)
 
-val WakeUpCoral = Color(0xFFE8735C)
+// Coral y salvia bajaron un pelín de luminosidad (imperceptible a simple vista) respecto a los
+// valores originales del mockup: como íconos/texto sobre superficie clara (nav inferior
+// seleccionado, acciones rápidas, tarjeta de Bienestar) medían 2.6-3.0:1 de contraste — por debajo
+// del mínimo 3:1 de WCAG 2.2 para gráficos/texto grande (1.4.11). Ahora dan ~3.0-3.1:1. Sin cambios
+// en modo oscuro (WakeUpCoralNight/WakeUpSageNight ya cumplían de sobra, 6.9-8.4:1).
+val WakeUpCoral = Color(0xFFE76F58)
 val WakeUpAmber = Color(0xFFE3A548)
-val WakeUpSage = Color(0xFF6FA786)
+val WakeUpSage = Color(0xFF66A17E)
 val WakeUpIndigo = Color(0xFF6B79D6)
 val WakeUpLavender = Color(0xFF9C86C7)
 val WakeUpSky = Color(0xFF5FA8C7)
