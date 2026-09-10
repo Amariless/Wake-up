@@ -2,14 +2,17 @@
 
 package com.fritangui.wakeup.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -32,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -66,77 +70,109 @@ fun SettingsScreen(
     ) { padding ->
         // Sin verticalScroll el contenido se cortaba abajo (más visible con "Color dinámico" +
         // "Buscar actualizaciones" + "Permisos" + panel de dev en builds debug, ver #148).
-        Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState())) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("Tema", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Claro, oscuro, o el que tenga tu teléfono",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                    val options = listOf(ThemeMode.SYSTEM to "Sistema", ThemeMode.LIGHT to "Claro", ThemeMode.DARK to "Oscuro")
-                    options.forEachIndexed { index, (mode, label) ->
-                        SegmentedButton(
-                            selected = themeMode == mode,
-                            onClick = { viewModel.setThemeMode(mode) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                        ) {
-                            Text(label)
+        Column(modifier = Modifier.padding(padding).padding(bottom = 16.dp).verticalScroll(rememberScrollState())) {
+            SettingsSection("Apariencia") {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Text("Tema", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Claro, oscuro, o el que tenga tu teléfono",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                        val options = listOf(ThemeMode.SYSTEM to "Sistema", ThemeMode.LIGHT to "Claro", ThemeMode.DARK to "Oscuro")
+                        options.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = themeMode == mode,
+                                onClick = { viewModel.setThemeMode(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                            ) {
+                                Text(label)
+                            }
                         }
                     }
                 }
-            }
-            HorizontalDivider()
-            SettingsRow("Color dinámico", "Usa los colores del fondo de tu teléfono (Android 12+)") {
-                Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)
-            }
-            HorizontalDivider()
-            SettingsRow("Formato de 24 horas", "Si está apagado, se muestra la hora en 12h con AM/PM") {
-                Switch(checked = use24HourFormat, onCheckedChange = viewModel::setUse24HourFormat)
-            }
-            HorizontalDivider()
-            SettingsRow("Prórroga de bloqueo", "Minutos del botón \"X minutos más\" al alcanzar el límite de Reels/TikTok") {
-                NumberStepper(value = blockGraceMinutes, range = 1..30, onValueChange = viewModel::setBlockGraceMinutes)
-            }
-            HorizontalDivider()
-            SettingsRow("Aviso de próxima clase", "Notificación cuando tu próxima clase está por empezar") {
-                Switch(checked = nextClassNotificationMinutes > 0, onCheckedChange = viewModel::setNextClassNotificationEnabled)
-            }
-            if (nextClassNotificationMinutes > 0) {
-                SettingsRow("Minutos de anticipación", "Con cuánto tiempo antes avisar") {
-                    NumberStepper(value = nextClassNotificationMinutes, range = 1..60, onValueChange = viewModel::setNextClassNotificationMinutes)
-                }
-            }
-            HorizontalDivider()
-            SettingsRow("Aviso de volumen bajo", "Avisa si el volumen de alarma está por debajo de la mitad y tienes una alarma por sonar pronto") {
-                Switch(checked = lowAlarmVolumeWarningEnabled, onCheckedChange = viewModel::setLowAlarmVolumeWarningEnabled)
-            }
-            if (lowAlarmVolumeWarningEnabled) {
-                SettingsRow("Con cuánta anticipación", "Horas antes de la alarma para empezar a avisar") {
-                    NumberStepper(value = lowAlarmVolumeWarningHoursAhead, range = 1..24, onValueChange = viewModel::setLowAlarmVolumeWarningHoursAhead)
-                }
-            }
-            HorizontalDivider()
-            SettingsLinkRow("Buscar actualizaciones", "Revisa el repositorio de GitHub por una versión nueva", onOpenUpdate)
-            SettingsLinkRow("Permisos", "Notificaciones, alarmas exactas, accesibilidad y más", onOpenXiaomiWizard)
-            // Tiempo de pantalla y Bloqueo de Reels/TikTok ya no están acá: la pestaña Bienestar
-            // (antes "Tiempo de pantalla") ya cubre las dos, tenerlas duplicadas en Ajustes solo
-            // confundía — y de paso, navegar hasta Bienestar por acá dejaba una entrada extra en la
-            // pila de navegación que a veces hacía que el tab de Inicio terminara cayendo ahí en
-            // vez de a Inicio.
-            if (BuildConfig.DEV_TOOLS_ENABLED) {
                 HorizontalDivider()
-                SettingsLinkRow("Panel de desarrollador", "Solo en builds debug", onOpenDevTools)
+                SettingsRow("Color dinámico", "Usa los colores del fondo de tu teléfono (Android 12+)") {
+                    Switch(checked = dynamicColor, onCheckedChange = viewModel::setDynamicColorEnabled)
+                }
             }
-            HorizontalDivider()
+
+            SettingsSection("Reloj y alarmas") {
+                SettingsRow("Formato de 24 horas", "Si está apagado, se muestra la hora en 12h con AM/PM") {
+                    Switch(checked = use24HourFormat, onCheckedChange = viewModel::setUse24HourFormat)
+                }
+                HorizontalDivider()
+                SettingsRow("Aviso de volumen bajo", "Avisa si el volumen de alarma está por debajo de la mitad y tienes una alarma por sonar pronto") {
+                    Switch(checked = lowAlarmVolumeWarningEnabled, onCheckedChange = viewModel::setLowAlarmVolumeWarningEnabled)
+                }
+                if (lowAlarmVolumeWarningEnabled) {
+                    HorizontalDivider()
+                    SettingsRow("Con cuánta anticipación", "Horas antes de la alarma para empezar a avisar") {
+                        NumberStepper(value = lowAlarmVolumeWarningHoursAhead, range = 1..24, onValueChange = viewModel::setLowAlarmVolumeWarningHoursAhead)
+                    }
+                }
+            }
+
+            SettingsSection("Agenda y bloqueo") {
+                SettingsRow("Aviso de próxima clase", "Notificación cuando tu próxima clase está por empezar") {
+                    Switch(checked = nextClassNotificationMinutes > 0, onCheckedChange = viewModel::setNextClassNotificationEnabled)
+                }
+                if (nextClassNotificationMinutes > 0) {
+                    HorizontalDivider()
+                    SettingsRow("Minutos de anticipación", "Con cuánto tiempo antes avisar") {
+                        NumberStepper(value = nextClassNotificationMinutes, range = 1..60, onValueChange = viewModel::setNextClassNotificationMinutes)
+                    }
+                }
+                HorizontalDivider()
+                SettingsRow("Prórroga de bloqueo", "Minutos del botón \"X minutos más\" al alcanzar el límite de Reels/TikTok") {
+                    NumberStepper(value = blockGraceMinutes, range = 1..30, onValueChange = viewModel::setBlockGraceMinutes)
+                }
+            }
+
+            SettingsSection("Más") {
+                SettingsLinkRow("Buscar actualizaciones", "Revisa el repositorio de GitHub por una versión nueva", onOpenUpdate)
+                HorizontalDivider()
+                SettingsLinkRow("Permisos", "Notificaciones, alarmas exactas, accesibilidad y más", onOpenXiaomiWizard)
+                // Tiempo de pantalla y Bloqueo de Reels/TikTok ya no están acá: la pestaña Bienestar
+                // (antes "Tiempo de pantalla") ya cubre las dos, tenerlas duplicadas en Ajustes solo
+                // confundía — y de paso, navegar hasta Bienestar por acá dejaba una entrada extra en
+                // la pila de navegación que a veces hacía que el tab de Inicio terminara cayendo ahí
+                // en vez de a Inicio.
+                if (BuildConfig.DEV_TOOLS_ENABLED) {
+                    HorizontalDivider()
+                    SettingsLinkRow("Panel de desarrollador", "Solo en builds debug", onOpenDevTools)
+                }
+            }
+
             Text(
                 "Wake up ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
+    }
+}
+
+/** Grupo de ajustes relacionados en su propia tarjeta redondeada (rediseño) — antes era una sola
+ *  lista larga separada solo por líneas finas, sin ninguna jerarquía visual entre temas distintos. */
+@Composable
+private fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier = Modifier.padding(top = 20.dp, start = 16.dp, end = 16.dp)) {
+        Text(
+            title.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer),
+            content = content,
+        )
     }
 }
 
