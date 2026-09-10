@@ -86,9 +86,10 @@ class TimerForegroundService : LifecycleService() {
 
     private var muteRunnable: Runnable? = null
 
-    /** Ver el equivalente en [RingingForegroundService.muteTemporarily]: mismo comportamiento para el temporizador. */
+    /** Ver el equivalente en [RingingForegroundService.muteTemporarily]: mismo comportamiento para el temporizador —
+     *  baja mucho el volumen (no lo deja en silencio total) y vuelve solo a su nivel normal al minuto. */
     private fun muteTemporarily() {
-        runCatching { mediaPlayer?.setVolume(0f, 0f) }
+        runCatching { mediaPlayer?.setVolume(RingingForegroundService.QUIET_VOLUME, RingingForegroundService.QUIET_VOLUME) }
         vibrator?.cancel()
         muteRunnable?.let { watchdogHandler.removeCallbacks(it) }
         muteRunnable = Runnable {

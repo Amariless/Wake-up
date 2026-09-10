@@ -49,7 +49,6 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsState()
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
     val use24HourFormat by viewModel.use24HourFormat.collectAsState()
-    val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
     val blockGraceMinutes by viewModel.blockGraceMinutes.collectAsState()
     val nextClassNotificationMinutes by viewModel.nextClassNotificationMinutes.collectAsState()
     val lowAlarmVolumeWarningEnabled by viewModel.lowAlarmVolumeWarningEnabled.collectAsState()
@@ -95,10 +94,6 @@ fun SettingsScreen(
             HorizontalDivider()
             SettingsRow("Formato de 24 horas", "Si está apagado, se muestra la hora en 12h con AM/PM") {
                 Switch(checked = use24HourFormat, onCheckedChange = viewModel::setUse24HourFormat)
-            }
-            HorizontalDivider()
-            SettingsRow("Posponer alarma", "Minutos que espera el botón \"Posponer\" al sonar una alarma") {
-                NumberStepper(value = snoozeMinutes, range = 1..30, onValueChange = viewModel::setSnoozeMinutes)
             }
             HorizontalDivider()
             SettingsRow("Prórroga de bloqueo", "Minutos del botón \"X minutos más\" al alcanzar el límite de Reels/TikTok") {

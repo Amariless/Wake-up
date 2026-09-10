@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,13 +33,11 @@ import kotlinx.datetime.toLocalDateTime
 fun AlarmRingingScreen(
     alarmId: Long,
     onDismissed: () -> Unit,
-    onSnoozed: (minutes: Int) -> Unit,
     viewModel: AlarmRingingViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     LaunchedEffect(alarmId) { viewModel.load(alarmId) }
     val alarm by viewModel.alarm.collectAsState()
-    val snoozeMinutes by viewModel.snoozeMinutes.collectAsState()
     // El usuario puede tardar más de un minuto en resolver el reto; sin este ticker la hora quedaba
     // congelada en el minuto exacto en que sonó la alarma.
     var now by remember { mutableStateOf(Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())) }
@@ -83,9 +80,6 @@ fun AlarmRingingScreen(
                 MuteTemporarilyButton(onMute = {
                     context.startService(RingingForegroundService.muteIntent(context))
                 })
-            }
-            OutlinedButton(onClick = { onSnoozed(snoozeMinutes) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Text("Posponer $snoozeMinutes minutos")
             }
         }
     }

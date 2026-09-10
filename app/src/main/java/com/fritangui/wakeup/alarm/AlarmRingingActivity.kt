@@ -13,7 +13,6 @@ import com.fritangui.wakeup.alarm.AlarmConstants.EXTRA_ALARM_ID
 import com.fritangui.wakeup.alarm.ui.AlarmRingingScreen
 import com.fritangui.wakeup.ui.theme.WakeUpTheme
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 /**
  * Activity dedicada exclusivamente a mostrar la alarma sonando. Vive fuera del
@@ -23,8 +22,6 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class AlarmRingingActivity : ComponentActivity() {
-
-    @Inject lateinit var alarmScheduler: AlarmScheduler
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,10 +34,6 @@ class AlarmRingingActivity : ComponentActivity() {
                     AlarmRingingScreen(
                         alarmId = alarmId,
                         onDismissed = { finishRinging() },
-                        onSnoozed = { minutes ->
-                            alarmScheduler.scheduleSnooze(alarmId, minutes)
-                            finishRinging()
-                        },
                     )
                 }
             }
