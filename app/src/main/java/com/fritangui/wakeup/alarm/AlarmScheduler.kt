@@ -208,34 +208,6 @@ class AlarmScheduler @Inject constructor(
         )
     }
 
-    /**
-     * Reprograma la MISMA alarma para dentro de [minutesFromNow] minutos (botón
-     * "posponer"). Reutiliza a propósito el mismo PendingIntent que la
-     * ocurrencia regular: al sonar el snooze, [RingingForegroundService] vuelve
-     * a llamar a [scheduleAlarm], que re-arma la siguiente ocurrencia real, así
-     * que el estado se autocorrige en cuanto la alarma pospuesta suena.
-     */
-    fun scheduleSnooze(alarmId: Long, minutesFromNow: Int = 5) {
-        val manager = alarmManager ?: return
-        val triggerAtMillis = System.currentTimeMillis() + minutesFromNow * 60_000L
-        val firePendingIntent = PendingIntent.getBroadcast(
-            context,
-            AlarmConstants.mainRequestCode(alarmId),
-            Intent(context, AlarmReceiver::class.java).apply {
-                action = ACTION_ALARM_FIRE
-                putExtra(EXTRA_ALARM_ID, alarmId)
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val showIntent = PendingIntent.getActivity(
-            context,
-            AlarmConstants.showIntentRequestCode(alarmId),
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        manager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent), firePendingIntent)
-    }
-
     fun canScheduleExactAlarms(): Boolean {
         val manager = alarmManager ?: return false
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) manager.canScheduleExactAlarms() else true

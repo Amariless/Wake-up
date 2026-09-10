@@ -78,12 +78,13 @@ class RingingForegroundService : LifecycleService() {
     }
 
     /**
-     * "Silenciar 20s": le da al usuario un respiro de silencio para concentrarse
-     * en el reto sin el ruido de la alarma encima. Si en esos 20s no la apagó
-     * (completando el reto), vuelve a sonar exactamente igual que antes.
+     * Le baja mucho el volumen a la alarma (no la deja en silencio total) para dar un respiro y
+     * poder concentrarse en el reto sin el ruido encima. Si en ese minuto no se apagó de verdad
+     * (completando el reto), vuelve sola a su volumen normal — a propósito: dejar que una alarma se
+     * pueda callar del todo indefinidamente derrota el propósito de que exista.
      */
     private fun muteTemporarily() {
-        runCatching { mediaPlayer?.setVolume(0f, 0f) }
+        runCatching { mediaPlayer?.setVolume(QUIET_VOLUME, QUIET_VOLUME) }
         vibrator?.cancel()
         muteRunnable?.let { watchdogHandler.removeCallbacks(it) }
         muteRunnable = Runnable {
@@ -280,7 +281,12 @@ class RingingForegroundService : LifecycleService() {
         const val ACTION_START_RINGING = "com.fritangui.wakeup.action.START_RINGING"
         const val ACTION_STOP_RINGING = AlarmConstants.ACTION_STOP_RINGING
         const val ACTION_MUTE_TEMPORARILY = "com.fritangui.wakeup.action.MUTE_TEMPORARILY"
-        const val MUTE_DURATION_MS = 20_000L
+        // 1 minuto (antes 20s) y ya no baja a 0: una alarma que se puede dejar en silencio total
+        // y quieta es una alarma que no cumple su trabajo si te volvés a dormir durante esos
+        // segundos. Bajarle mucho el volumen sigue dando el respiro para resolver el reto, pero no
+        // deja de sonar del todo — y si en un minuto no se apagó de verdad, vuelve a su volumen normal sola.
+        const val MUTE_DURATION_MS = 60_000L
+        const val QUIET_VOLUME = 0.15f
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
 
         fun stopIntent(context: Context): Intent =

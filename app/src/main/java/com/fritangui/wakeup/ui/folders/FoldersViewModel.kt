@@ -7,23 +7,45 @@ import com.fritangui.wakeup.alarm.AlarmController
 import com.fritangui.wakeup.data.datastore.SettingsDataStore
 import com.fritangui.wakeup.data.db.entity.FolderEntity
 import com.fritangui.wakeup.data.repository.FolderRepository
+import com.fritangui.wakeup.data.repository.SubjectRepository
+import com.fritangui.wakeup.data.repository.TaskRepository
 import com.fritangui.wakeup.ui.theme.FolderColorPalette
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** Resumen de la carpeta fijada, para la tarjeta destacada de Carpetas (rediseño): cuántas
+ *  materias tiene y cuántas de sus tareas ya están hechas — dato real, no inventado. */
+data class PinnedFolderSummary(val subjectCount: Int, val doneTasks: Int, val totalTasks: Int)
 
 @HiltViewModel
 class FoldersViewModel @Inject constructor(
     private val folderRepository: FolderRepository,
     private val alarmController: AlarmController,
     private val settingsDataStore: SettingsDataStore,
+    subjectRepository: SubjectRepository,
+    taskRepository: TaskRepository,
 ) : ViewModel() {
 
     val pinnedFolderId: StateFlow<Long?> = settingsDataStore.pinnedFolderId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val pinnedFolderSummary: StateFlow<PinnedFolderSummary?> = pinnedFolderId
+        .flatMapLatest { id ->
+            if (id == null) {
+                flowOf(null)
+            } else {
+                combine(subjectRepository.observeByFolder(id), taskRepository.observeByFolder(id)) { subjects, tasks ->
+                    PinnedFolderSummary(subjectCount = subjects.size, doneTasks = tasks.count { it.isCompleted }, totalTasks = tasks.size)
+                }
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     // La carpeta "principal" (pineada) siempre primero, sin importar su fecha de creación: si es

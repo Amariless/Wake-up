@@ -13,11 +13,12 @@ import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
 
 /**
- * Botón "Silenciar 20s": le da al usuario un respiro para concentrarse en el
- * reto sin el ruido de la alarma/temporizador encima. Si el reto no se
- * completa (la pantalla no se cierra) antes de que se acabe la cuenta, el
- * propio servicio vuelve a sonar solo — este composable solo manda la orden y
- * muestra la cuenta regresiva, no controla el sonido directamente.
+ * Botón "Bajar volumen 1 min": le da al usuario un respiro para concentrarse
+ * en el reto sin el ruido de la alarma/temporizador tan encima — pero no la
+ * deja en silencio total, y si en ese minuto no se resolvió el reto (la
+ * pantalla no se cerró), el propio servicio vuelve a subirla sola. Este
+ * composable solo manda la orden y muestra la cuenta regresiva, no controla
+ * el volumen directamente.
  */
 @Composable
 fun MuteTemporarilyButton(onMute: () -> Unit) {
@@ -33,11 +34,11 @@ fun MuteTemporarilyButton(onMute: () -> Unit) {
     OutlinedButton(
         onClick = {
             onMute()
-            remainingSeconds = 20
+            remainingSeconds = 60
         },
         enabled = remainingSeconds == 0,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(if (remainingSeconds > 0) "Silenciado ${remainingSeconds}s…" else "Silenciar 20s")
+        Text(if (remainingSeconds > 0) "Volumen bajo, ${remainingSeconds}s…" else "Bajar volumen 1 min")
     }
 }
