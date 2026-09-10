@@ -353,7 +353,10 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
 private fun SubjectIndicator(colorArgb: Int, iconKey: String?) {
     val icon = com.fritangui.wakeup.ui.subjects.SubjectIcons.iconFor(iconKey)
     if (icon == null) {
-        Box(modifier = Modifier.size(14.dp).background(Color(colorArgb), CircleShape))
+        // Mismo tamaño (32dp) que la rama con ícono de abajo — antes esta era un punto de 14dp
+        // nomás, y las materias con/sin ícono quedaban con pesos visuales muy distintos en la
+        // misma lista.
+        Box(modifier = Modifier.size(32.dp).background(Color(colorArgb), CircleShape))
     } else {
         Box(
             modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(colorArgb).copy(alpha = 0.22f)),
