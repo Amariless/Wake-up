@@ -38,9 +38,9 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.fritangui.wakeup.domain.todayEpochDay
 import com.fritangui.wakeup.permissions.PermissionStatus
-import com.fritangui.wakeup.ui.theme.WakeUpOnPrimary
-import com.fritangui.wakeup.ui.theme.WakeUpOutlineDark
-import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerDark
+import com.fritangui.wakeup.ui.theme.WakeUpTextPrimaryNight
+import com.fritangui.wakeup.ui.theme.WakeUpTextSecondaryNight
+import com.fritangui.wakeup.ui.theme.WakeUpSurfaceNight
 import kotlinx.coroutines.flow.first
 
 private data class TopAppUsage(val packageName: String, val label: String, val minutes: Long)
@@ -91,14 +91,14 @@ class ScreenTimeWidget : GlanceAppWidget() {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(WakeUpSurfaceContainerDark)
+                .background(WakeUpSurfaceNight)
                 .cornerRadius(20.dp)
                 .padding(14.dp),
         ) {
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "Tiempo de uso",
-                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontWeight = FontWeight.Medium, fontSize = 12.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontWeight = FontWeight.Medium, fontSize = 12.sp),
                     modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(openIntent)),
                 )
                 // Refresca los datos del widget sin tener que abrir la app — provideGlance se vuelve
@@ -106,21 +106,21 @@ class ScreenTimeWidget : GlanceAppWidget() {
                 // que antes (#153): 16sp era casi imposible de tocar con precisión.
                 Text(
                     "⟳",
-                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 22.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontSize = 22.sp),
                     modifier = GlanceModifier.padding(4.dp).clickable(actionRunCallback<RefreshScreenTimeAction>()),
                 )
             }
             if (!hasAccess) {
                 Text(
                     "Falta el permiso de uso",
-                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 13.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontSize = 13.sp),
                     modifier = GlanceModifier.padding(top = 8.dp).clickable(actionStartActivity(openIntent)),
                 )
                 return@Column
             }
             Text(
                 formatDuration(totalMinutes),
-                style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Bold, fontSize = 30.sp),
+                style = TextStyle(color = ColorProvider(WakeUpTextPrimaryNight), fontWeight = FontWeight.Bold, fontSize = 30.sp),
                 modifier = GlanceModifier.padding(top = 4.dp).clickable(actionStartActivity(openIntent)),
             )
             if (visibleApps.isNotEmpty()) {
@@ -167,7 +167,7 @@ class ScreenTimeWidget : GlanceAppWidget() {
             Spacer(modifier = GlanceModifier.width(12.dp))
             Text(
                 app.label,
-                style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontSize = 15.sp),
+                style = TextStyle(color = ColorProvider(WakeUpTextPrimaryNight), fontSize = 15.sp),
                 maxLines = 1,
             )
         }

@@ -36,10 +36,10 @@ import com.fritangui.wakeup.MainActivity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
-import com.fritangui.wakeup.ui.theme.WakeUpOnPrimary
-import com.fritangui.wakeup.ui.theme.WakeUpOutlineDark
-import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerDark
-import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerHighDark
+import com.fritangui.wakeup.ui.theme.WakeUpTextPrimaryNight
+import com.fritangui.wakeup.ui.theme.WakeUpTextSecondaryNight
+import com.fritangui.wakeup.ui.theme.WakeUpSurfaceNight
+import com.fritangui.wakeup.ui.theme.WakeUpSurfaceAltNight
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -75,7 +75,7 @@ class NextTasksWidget : GlanceAppWidget() {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(WakeUpSurfaceContainerDark)
+                .background(WakeUpSurfaceNight)
                 .cornerRadius(20.dp),
         ) {
             Row(
@@ -89,14 +89,14 @@ class NextTasksWidget : GlanceAppWidget() {
                 Spacer(modifier = GlanceModifier.width(8.dp))
                 Text(
                     "Próximas tareas",
-                    style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Bold, fontSize = 15.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextPrimaryNight), fontWeight = FontWeight.Bold, fontSize = 15.sp),
                 )
             }
 
             if (items.isEmpty()) {
                 Text(
                     "Sin tareas próximas",
-                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark)),
+                    style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight)),
                     modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).clickable(actionStartActivity(openAppIntent)),
                 )
             } else {
@@ -119,7 +119,7 @@ class NextTasksWidget : GlanceAppWidget() {
     private fun DayHeader(label: String) {
         Text(
             label,
-            style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontWeight = FontWeight.Medium, fontSize = 12.sp),
+            style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontWeight = FontWeight.Medium, fontSize = 12.sp),
             modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
         )
     }
@@ -138,29 +138,29 @@ class NextTasksWidget : GlanceAppWidget() {
                 modifier = GlanceModifier
                     .width(4.dp)
                     .height(28.dp)
-                    .background(ColorProvider(subjectColorArgb?.let { Color(it) } ?: WakeUpOutlineDark))
+                    .background(ColorProvider(subjectColorArgb?.let { Color(it) } ?: WakeUpTextSecondaryNight))
                     .cornerRadius(2.dp),
             ) {}
             Spacer(modifier = GlanceModifier.width(10.dp))
             Column(
                 modifier = GlanceModifier
-                    .background(WakeUpSurfaceContainerHighDark)
+                    .background(WakeUpSurfaceAltNight)
                     .cornerRadius(12.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 Text(
                     task.title,
-                    style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Medium, fontSize = 13.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextPrimaryNight), fontWeight = FontWeight.Medium, fontSize = 13.sp),
                 )
                 if (task.dueAtEpochMillis != null) {
-                    Text(formatDue(task.dueAtEpochMillis, use24Hour), style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 12.sp))
+                    Text(formatDue(task.dueAtEpochMillis, use24Hour), style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontSize = 12.sp))
                 }
-                // Mismo color que la fecha (WakeUpOutlineDark, sin atenuar): con alpha=0.6 el
+                // Mismo color que la fecha (WakeUpTextSecondaryNight, sin atenuar): con alpha=0.6 el
                 // contraste contra el fondo del widget bajaba a ~2.5:1, muy por debajo del mínimo de
                 // WCAG 2.2 (4.5:1 para texto normal, criterio 1.4.3).
                 if (subjectName != null) {
-                    Text(subjectName, style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 11.sp))
+                    Text(subjectName, style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontSize = 11.sp))
                 }
                 if (task.isNoteImportant && task.notes.isNotBlank()) {
                     Text(
@@ -192,7 +192,7 @@ class NextTasksWidget : GlanceAppWidget() {
     }
 
     companion object {
-        private val WakeUpSecondary = com.fritangui.wakeup.ui.theme.WakeUpSecondary
+        private val WakeUpSecondary = com.fritangui.wakeup.ui.theme.WakeUpCoralNight
         private val MES_ABREVIADO = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic")
     }
 }

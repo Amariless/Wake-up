@@ -37,10 +37,10 @@ import com.fritangui.wakeup.domain.UpcomingClassOccurrence
 import com.fritangui.wakeup.domain.computeNextClassOccurrences
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
-import com.fritangui.wakeup.ui.theme.WakeUpOnPrimary
-import com.fritangui.wakeup.ui.theme.WakeUpOutlineDark
-import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerDark
-import com.fritangui.wakeup.ui.theme.WakeUpSurfaceContainerHighDark
+import com.fritangui.wakeup.ui.theme.WakeUpTextPrimaryNight
+import com.fritangui.wakeup.ui.theme.WakeUpTextSecondaryNight
+import com.fritangui.wakeup.ui.theme.WakeUpSurfaceNight
+import com.fritangui.wakeup.ui.theme.WakeUpSurfaceAltNight
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
@@ -75,7 +75,7 @@ class NextClassesWidget : GlanceAppWidget() {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(WakeUpSurfaceContainerDark)
+                .background(WakeUpSurfaceNight)
                 .cornerRadius(20.dp),
         ) {
             Row(
@@ -89,14 +89,14 @@ class NextClassesWidget : GlanceAppWidget() {
                 Spacer(modifier = GlanceModifier.width(8.dp))
                 Text(
                     "Próximas clases",
-                    style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Bold, fontSize = 15.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextPrimaryNight), fontWeight = FontWeight.Bold, fontSize = 15.sp),
                 )
             }
 
             if (items.isEmpty()) {
                 Text(
                     "Sin clases próximas",
-                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark)),
+                    style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight)),
                     modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).clickable(actionStartActivity(headerIntent)),
                 )
             } else {
@@ -121,7 +121,7 @@ class NextClassesWidget : GlanceAppWidget() {
     private fun DayHeader(label: String) {
         Text(
             label,
-            style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontWeight = FontWeight.Medium, fontSize = 12.sp),
+            style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontWeight = FontWeight.Medium, fontSize = 12.sp),
             modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
         )
     }
@@ -152,14 +152,14 @@ class NextClassesWidget : GlanceAppWidget() {
                 modifier = GlanceModifier
                     // Fondo propio (tinte del color de la materia) en vez del gris genérico si la
                     // clase está pasando AHORA mismo — mismo criterio que en Inicio (#143).
-                    .background(ColorProvider(if (isOngoing) Color(occurrence.colorArgb).copy(alpha = 0.28f) else WakeUpSurfaceContainerHighDark))
+                    .background(ColorProvider(if (isOngoing) Color(occurrence.colorArgb).copy(alpha = 0.28f) else WakeUpSurfaceAltNight))
                     .cornerRadius(12.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 Text(
                     if (isOngoing) "${occurrence.subjectName} · Ahora" else occurrence.subjectName,
-                    style = TextStyle(color = ColorProvider(WakeUpOnPrimary), fontWeight = FontWeight.Medium, fontSize = 13.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextPrimaryNight), fontWeight = FontWeight.Medium, fontSize = 13.sp),
                 )
                 Text(
                     "%s%s–%s%s · %s".format(
@@ -169,7 +169,7 @@ class NextClassesWidget : GlanceAppWidget() {
                         amPmSuffix(occurrence.end.hour, use24Hour)?.let { " $it" } ?: "",
                         occurrence.room,
                     ),
-                    style = TextStyle(color = ColorProvider(WakeUpOutlineDark), fontSize = 12.sp),
+                    style = TextStyle(color = ColorProvider(WakeUpTextSecondaryNight), fontSize = 12.sp),
                 )
             }
         }
@@ -177,7 +177,7 @@ class NextClassesWidget : GlanceAppWidget() {
 
     companion object {
         private val DIA_LARGO = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
-        private val WakeUpAccent = com.fritangui.wakeup.ui.theme.WakeUpPrimaryDark
+        private val WakeUpAccent = com.fritangui.wakeup.ui.theme.WakeUpIndigoNight
     }
 }
 
