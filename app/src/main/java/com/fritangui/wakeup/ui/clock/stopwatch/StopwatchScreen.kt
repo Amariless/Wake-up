@@ -1,7 +1,7 @@
 package com.fritangui.wakeup.ui.clock.stopwatch
 
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -81,12 +81,18 @@ fun StopwatchScreen(viewModel: StopwatchViewModel = hiltViewModel()) {
         if (state.laps.isNotEmpty()) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
             LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(state.laps.reversed()) { lapMillis ->
+                // indexOf(lapMillis) numeraba mal si dos vueltas caían en el mismo milisegundo (el
+                // tick del cronómetro es cada 31ms, así que dos toques rápidos de "Vuelta" alcanzan
+                // a caer en el mismo valor): indexOf siempre devuelve la PRIMERA coincidencia, así
+                // que la vuelta repetida se numeraba igual que la original en vez de con su propio
+                // número. La posición en la lista ya da el número correcto sin ese riesgo.
+                itemsIndexed(state.laps.reversed()) { displayIndex, lapMillis ->
+                    val lapNumber = state.laps.size - displayIndex
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("Vuelta ${state.laps.indexOf(lapMillis) + 1}", modifier = Modifier.weight(1f))
+                        Text("Vuelta $lapNumber", modifier = Modifier.weight(1f))
                         Text(formatElapsed(lapMillis))
                     }
                 }
