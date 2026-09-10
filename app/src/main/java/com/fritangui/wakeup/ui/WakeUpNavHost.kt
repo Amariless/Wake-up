@@ -8,7 +8,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
@@ -45,6 +46,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -202,6 +204,9 @@ private fun WakeUpNavHostContent(
                     .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(26.dp))
                     .height(68.dp)
+                    // Agrupa los tabs para TalkBack, igual que ya hace el NavigationBarItem de
+                    // Material internamente (mismo Role.Tab que se le da a cada ítem más abajo).
+                    .selectableGroup()
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -439,16 +444,24 @@ private fun BottomNavItem(dest: BottomDestination, isSelected: Boolean, modifier
                     Modifier
                 },
             )
-            .clickable(onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onClick()
-            })
+            // selectable (no un simple clickable) para que TalkBack anuncie "pestaña, seleccionada/no
+            // seleccionada" solo — antes con clickable no había forma de que lo supiera.
+            .selectable(
+                selected = isSelected,
+                role = Role.Tab,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                },
+            )
             .padding(vertical = 8.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             if (isSelected) dest.iconSelected else dest.icon,
-            contentDescription = dest.label,
+            // null, no dest.label: el Text de abajo ya lo dice, un contentDescription acá lo
+            // duplicaría (TalkBack leería la etiqueta dos veces).
+            contentDescription = null,
             tint = contentColor,
             modifier = Modifier.size(22.dp),
         )

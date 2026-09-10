@@ -3,7 +3,6 @@
 package com.fritangui.wakeup.ui.clock
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -35,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -141,6 +143,8 @@ private fun SegmentedTabRow(tabs: List<String>, selectedIndex: Int, onSelected: 
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            // Agrupa las 3 pestañas para TalkBack ("pestaña 2 de 3", no solo "seleccionada" suelto).
+            .selectableGroup()
             .padding(4.dp),
     ) {
         tabs.forEachIndexed { index, title ->
@@ -158,10 +162,16 @@ private fun SegmentedTabRow(tabs: List<String>, selectedIndex: Int, onSelected: 
                             Modifier
                         },
                     )
-                    .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onSelected(index)
-                    }
+                    // selectable (no clickable): así TalkBack anuncia "pestaña, seleccionada/no
+                    // seleccionada" solo, igual que ya hacía el TabRow de Material que reemplaza.
+                    .selectable(
+                        selected = isSelected,
+                        role = Role.Tab,
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSelected(index)
+                        },
+                    )
                     .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {
