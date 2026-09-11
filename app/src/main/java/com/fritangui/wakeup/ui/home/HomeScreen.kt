@@ -41,7 +41,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +55,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.domain.AlarmTiming
+import com.fritangui.wakeup.domain.UpcomingClassOccurrence
 import com.fritangui.wakeup.domain.WeeklyClassEntry
 import com.fritangui.wakeup.domain.nextClassDayOfWeek
 import com.fritangui.wakeup.permissions.AlarmVolumeStatus
@@ -60,9 +64,11 @@ import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
 private val DIA_LARGO = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
@@ -97,6 +103,7 @@ fun HomeScreen(
     val subjectColorsById by viewModel.subjectColorsById.collectAsState()
     val subjectNamesById by viewModel.subjectNamesById.collectAsState()
     val todayScreenTimeMinutes by viewModel.todayScreenTimeMinutes.collectAsState()
+    val nextClassOccurrence by viewModel.nextClassOccurrence.collectAsState()
 
     // Chequeo en vivo (no cacheado en el ViewModel) cada vez que se abre/vuelve a Inicio: si el
     // volumen de alarma está por debajo de la mitad, un aviso bien visible en vez de descubrirlo
@@ -165,6 +172,17 @@ fun HomeScreen(
                     onFix = {
                         PermissionIntents.safeStart(context, android.content.Intent(android.provider.Settings.ACTION_SOUND_SETTINGS))
                     },
+                )
+            }
+            // Tarjeta destacada del mockup del rediseño: la clase en curso o la próxima, con cuenta
+            // regresiva — fija arriba (no dentro del LazyColumn de abajo) para no tener que tocar el
+            // cálculo de scrollTargetIndex de esa lista, que ya tiene varios casos límite resueltos
+            // (#142, #143).
+            nextClassOccurrence?.let { occurrence ->
+                NextClassHeroCard(
+                    occurrence = occurrence,
+                    onClick = { onOpenSubject(occurrence.folderId, occurrence.subjectId) },
+                    modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 0.dp),
                 )
             }
             if (weeklyClassDays.isEmpty() && upcomingTasks.isEmpty()) {
@@ -241,6 +259,72 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+/** Tarjeta destacada de la clase en curso/próxima (mockup del rediseño): píldora de estado y cuenta
+ *  regresiva que se refresca sola cada 30s mientras esta pantalla está en pantalla — igual que
+ *  "Faltan Xh Ym" en la lista de alarmas (mismo intervalo, mismo motivo: no hace falta cada segundo
+ *  para una cuenta en minutos). */
+@Composable
+private fun NextClassHeroCard(occurrence: UpcomingClassOccurrence, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val use24Hour = LocalUse24HourFormat.current
+    var now by remember { mutableStateOf(Clock.System.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            now = Clock.System.now()
+        }
+    }
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val startInstant = remember(occurrence) { occurrence.start.toInstant(zone) }
+    val endInstant = remember(occurrence) { occurrence.end.toInstant(zone) }
+    val isOngoing = now >= startInstant && now < endInstant
+    val countdownLabel = if (isOngoing) "Termina en" else "Empieza en"
+    val countdown = AlarmTiming.formatRemaining(if (isOngoing) endInstant - now else startInstant - now)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(20.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    if (isOngoing) "EN CURSO" else "PRÓXIMA CLASE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            val startText = formatMinuteOfDay(occurrence.start.hour * 60 + occurrence.start.minute, use24Hour)
+            val endText = formatMinuteOfDay(occurrence.end.hour * 60 + occurrence.end.minute, use24Hour)
+            Text("$startText – $endText", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outline)
+        }
+        Text(
+            occurrence.subjectName,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        if (occurrence.room.isNotBlank()) {
+            Text(
+                occurrence.room,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Text(countdown, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
+        Text(countdownLabel.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
     }
 }
 

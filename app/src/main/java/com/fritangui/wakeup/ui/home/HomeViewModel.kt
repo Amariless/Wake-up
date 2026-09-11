@@ -6,7 +6,9 @@ import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.data.repository.SubjectRepository
 import com.fritangui.wakeup.data.repository.TaskRepository
 import com.fritangui.wakeup.data.repository.UsageRepository
+import com.fritangui.wakeup.domain.UpcomingClassOccurrence
 import com.fritangui.wakeup.domain.WeeklyClassDay
+import com.fritangui.wakeup.domain.computeNextClassOccurrences
 import com.fritangui.wakeup.domain.computeWeeklyClassSchedule
 import com.fritangui.wakeup.domain.todayEpochDay
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +39,19 @@ class HomeViewModel @Inject constructor(
     val weeklyClassDays: StateFlow<List<WeeklyClassDay>> = subjectsWithSessions
         .map { computeWeeklyClassSchedule(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** La clase que está pasando ahora mismo, o si no hay ninguna, la próxima — para la tarjeta
+     *  destacada de Inicio (rediseño). null si no hay ninguna materia con horario.
+     *
+     *  Se recalcula cuando cambian las materias/horarios (BD), no en vivo con el reloj — igual que
+     *  el resto de Inicio (ver [weeklyClassDays]). La cuenta regresiva SÍ tiene que verse viva
+     *  mientras se mira la pantalla, pero eso lo resuelve HomeScreen con su propio tick local: si
+     *  se hiciera acá combinando con un Flow que emite cada 30s, StateFlow no volvería a notificar
+     *  a los que escuchan cuando el resultado da exactamente la misma ocurrencia (que es el caso
+     *  normal entre un tick y el siguiente) — conflation por igualdad, no por tiempo transcurrido. */
+    val nextClassOccurrence: StateFlow<UpcomingClassOccurrence?> = subjectsWithSessions
+        .map { computeNextClassOccurrences(it, limit = 1).firstOrNull() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val upcomingTasks: StateFlow<List<TaskEntity>> = taskRepository.observeUpcoming(limit = 6)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
