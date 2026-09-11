@@ -56,9 +56,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.domain.AlarmTiming
+import com.fritangui.wakeup.domain.TaskUrgencyBucket
 import com.fritangui.wakeup.domain.UpcomingClassOccurrence
 import com.fritangui.wakeup.domain.WeeklyClassEntry
 import com.fritangui.wakeup.domain.nextClassDayOfWeek
+import com.fritangui.wakeup.domain.taskUrgencyBucket
 import com.fritangui.wakeup.permissions.AlarmVolumeStatus
 import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
@@ -80,6 +82,14 @@ private sealed interface ClassCardRow {
     data class DayHeaderRow(val dayOfWeek: Int, val isToday: Boolean, val isNextClassDay: Boolean) : ClassCardRow
     data class ClassEntryRow(val entry: WeeklyClassEntry, val isOngoing: Boolean) : ClassCardRow
     data object EmptyRow : ClassCardRow
+}
+
+/** Filas planas de la tarjeta de "Próximas tareas", agrupadas por qué tan cerca está el
+ *  vencimiento (#161) en vez de una sola lista plana — mismo patrón que [ClassCardRow]. */
+private sealed interface TaskCardRow {
+    data class BucketHeaderRow(val bucket: TaskUrgencyBucket) : TaskCardRow
+    data class TaskEntryRow(val task: TaskEntity) : TaskCardRow
+    data object EmptyRow : TaskCardRow
 }
 
 @Composable
@@ -132,6 +142,20 @@ fun HomeScreen(
                         ClassCardRow.ClassEntryRow(entry, isOngoing)
                     }
             }
+        }
+    }
+    // Igual que classCardRows: se agrupa en base al mismo "now" fijo de arriba, no hace falta que
+    // se reclasifiquen en vivo mientras se mira la pantalla. Como upcomingTasks ya viene ordenada
+    // por dueAtEpochMillis ascendente (con nulas al final), agrupar por bucket produce grupos ya
+    // contiguos en ese mismo orden (vencidas → próximos días → esta semana → más adelante → sin fecha).
+    val taskCardRows = remember(upcomingTasks, now) {
+        if (upcomingTasks.isEmpty()) {
+            listOf(TaskCardRow.EmptyRow)
+        } else {
+            val nowEpochMillis = now.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
+            upcomingTasks
+                .groupBy { taskUrgencyBucket(it.dueAtEpochMillis, nowEpochMillis) }
+                .flatMap { (bucket, tasks) -> listOf(TaskCardRow.BucketHeaderRow(bucket)) + tasks.map { TaskCardRow.TaskEntryRow(it) } }
         }
     }
     val listState = rememberLazyListState()
@@ -221,19 +245,35 @@ fun HomeScreen(
                         }
                     }
                     item(key = "tasks_title") {
-                        CardTitleRow("Próximas tareas", MaterialTheme.colorScheme.secondary, roundedBottom = upcomingTasks.isEmpty(), topPadding = 16.dp)
+                        CardTitleRow(
+                            "Próximas tareas",
+                            MaterialTheme.colorScheme.secondary,
+                            roundedBottom = taskCardRows.size <= 1 && taskCardRows.firstOrNull() == TaskCardRow.EmptyRow,
+                            topPadding = 16.dp,
+                        )
                     }
-                    if (upcomingTasks.isEmpty()) {
-                        item(key = "tasks_empty") { CardEmptyText("No hay tareas próximas", roundedBottom = true) }
-                    } else {
-                        itemsIndexed(upcomingTasks, key = { _, task -> "task_row_${task.id}" }) { index, task ->
-                            val isLast = index == upcomingTasks.lastIndex
-                            CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
+                    itemsIndexed(
+                        taskCardRows,
+                        key = { index, row ->
+                            when (row) {
+                                is TaskCardRow.EmptyRow -> "tasks_empty"
+                                is TaskCardRow.BucketHeaderRow -> "task_bucket_${row.bucket}"
+                                is TaskCardRow.TaskEntryRow -> "task_row_${row.task.id}"
+                            }
+                        },
+                    ) { index, row ->
+                        val isLast = index == taskCardRows.lastIndex
+                        when (row) {
+                            is TaskCardRow.EmptyRow -> CardEmptyText("No hay tareas próximas", roundedBottom = true)
+                            is TaskCardRow.BucketHeaderRow -> CardRowBackground(roundedBottom = false) {
+                                TaskBucketHeader(row.bucket)
+                            }
+                            is TaskCardRow.TaskEntryRow -> CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
                                 TaskRow(
-                                    task,
-                                    subjectColorsById[task.subjectId],
-                                    task.subjectId?.let { subjectNamesById[it] },
-                                    onClick = { onOpenTask(task.folderId, task.id) },
+                                    row.task,
+                                    subjectColorsById[row.task.subjectId],
+                                    row.task.subjectId?.let { subjectNamesById[it] },
+                                    onClick = { onOpenTask(row.task.folderId, row.task.id) },
                                 )
                             }
                         }
@@ -532,6 +572,28 @@ private fun DayHeader(label: String, isToday: Boolean, isNextClassDay: Boolean) 
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
         )
     }
+}
+
+/** Encabezado de grupo dentro de "Próximas tareas" (#161) — mismo estilo discreto que la etiqueta
+ *  de día "normal" de [DayHeader], salvo "Atrasadas", que se resalta en rojo porque de verdad
+ *  necesita atención. */
+@Composable
+private fun TaskBucketHeader(bucket: TaskUrgencyBucket) {
+    val label = when (bucket) {
+        TaskUrgencyBucket.OVERDUE -> "Atrasadas"
+        TaskUrgencyBucket.WITHIN_3_DAYS -> "Próximos días"
+        TaskUrgencyBucket.WITHIN_1_WEEK -> "Esta semana"
+        TaskUrgencyBucket.LATER -> "Más adelante"
+        TaskUrgencyBucket.NO_DUE_DATE -> "Sin fecha"
+    }
+    val isOverdue = bucket == TaskUrgencyBucket.OVERDUE
+    Text(
+        label,
+        style = MaterialTheme.typography.labelLarge,
+        color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+        fontWeight = if (isOverdue) FontWeight.Bold else FontWeight.Normal,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
+    )
 }
 
 @Composable

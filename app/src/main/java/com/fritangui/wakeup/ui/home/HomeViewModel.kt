@@ -53,7 +53,9 @@ class HomeViewModel @Inject constructor(
         .map { computeNextClassOccurrences(it, limit = 1).firstOrNull() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val upcomingTasks: StateFlow<List<TaskEntity>> = taskRepository.observeUpcoming(limit = 6)
+    // Antes 6: con "Próximas tareas" ahora separada por vencimiento (#161), 6 se quedaba corto
+    // para llenar más de un grupo — mismo límite que ya usaba el widget de tareas.
+    val upcomingTasks: StateFlow<List<TaskEntity>> = taskRepository.observeUpcoming(limit = 12)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Color/nombre de materia por id, para decorar cada tarea igual que ya hacen los widgets. */

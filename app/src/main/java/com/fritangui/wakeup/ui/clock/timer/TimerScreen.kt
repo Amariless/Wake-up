@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -27,6 +29,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
@@ -40,9 +43,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
@@ -118,7 +123,26 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
                     onResume = viewModel::resume,
                     onStop = viewModel::cancel,
                 )
-                TimerPhase.RINGING -> Text("¡Sonando! Ábrelo desde la notificación", style = MaterialTheme.typography.titleMedium)
+                TimerPhase.RINGING -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.HourglassEmpty,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(48.dp),
+                    )
+                    Text(
+                        "¡Sonando!",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    Text(
+                        "Ábrelo desde la notificación",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         }
     }
@@ -139,13 +163,23 @@ private fun TimerIdleContent(
     onStart: () -> Unit,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es cuál.
-        // Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier dirección (arriba
-        // de la hora 0 aparece la 23, arriba del segundo 0 el 59...) en vez de topar con un final.
-        // Sin los ":" entre ruedas (el espaciado ya deja claro que son 3 valores separados, ver
-        // #151) y con la rueda en general más grande: más alto por ítem, más ancha, letra más
-        // grande y con un poco más de énfasis extra en el número central.
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Las ruedas viven dentro de una tarjeta surfaceContainer redondeada (#161) — mismo
+        // lenguaje que el resto del rediseño, en vez de flotar sueltas sobre el fondo.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(horizontal = 12.dp, vertical = 16.dp),
+        ) {
+            // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es
+            // cuál. Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier
+            // dirección (arriba de la hora 0 aparece la 23, arriba del segundo 0 el 59...) en vez
+            // de topar con un final. Sin los ":" entre ruedas (el espaciado ya deja claro que son
+            // 3 valores separados, ver #151) y con la rueda en general más grande: más alto por
+            // ítem, más ancha, letra más grande y con un poco más de énfasis extra en el número
+            // central.
             WheelPicker(
                 value = hoursInput,
                 range = 0..23,
@@ -201,13 +235,18 @@ private fun TimerIdleContent(
             }
         }
 
-        // Mismo botón circular relleno que usa el cronómetro para "Iniciar", en vez de un botón de
-        // ancho completo con texto — para que ambas pantallas del reloj se sientan consistentes.
+        // Mismo botón circular relleno que usa el cronómetro para "Iniciar" (mismo acento salvia
+        // también), en vez de un botón de ancho completo con texto — para que ambas pantallas del
+        // reloj se sientan consistentes.
         FilledIconButton(
             onClick = onStart,
             enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0,
             modifier = Modifier.padding(top = 24.dp).size(72.dp),
             shape = CircleShape,
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+            ),
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = "Iniciar", modifier = Modifier.size(32.dp))
         }
@@ -235,6 +274,7 @@ private fun TimerRunningContent(
             CircularProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.tertiary,
                 strokeWidth = 10.dp,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 strokeCap = StrokeCap.Round,
@@ -261,6 +301,10 @@ private fun TimerRunningContent(
                     if (isRunning) onPause() else onResume()
                 },
                 modifier = Modifier.size(68.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                ),
             ) {
                 Icon(
                     if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
