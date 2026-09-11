@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,7 +29,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
@@ -85,13 +86,21 @@ fun FoldersScreen(
                 Text("Crea tu primera carpeta (semestre, curso, lo que quieras)")
             }
         } else {
-            // Al LazyColumn le faltaba aplicar `padding` (el que da Scaffold para no quedar
-            // tapado por la barra superior/inferior) — con una sola carpeta, esa carpeta quedaba
-            // renderizada justo detrás de la TopAppBar, invisible del todo (#5, encontrado con
-            // captura del usuario).
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp, 8.dp)) {
+            // Al LazyColumn/LazyVerticalGrid le faltaba aplicar `padding` (el que da Scaffold para
+            // no quedar tapado por la barra superior/inferior) — con una sola carpeta, esa carpeta
+            // quedaba renderizada justo detrás de la TopAppBar, invisible del todo (#5, encontrado
+            // con captura del usuario).
+            // Grid de 2 columnas (rediseño, antes lista de 1) para el resto de las carpetas — la
+            // fijada sigue siendo su propia tarjeta de ancho completo arriba, vía span = maxLineSpan.
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp, 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 if (pinnedFolder != null) {
-                    item(key = "pinned_hero") {
+                    item(key = "pinned_hero", span = { GridItemSpan(maxLineSpan) }) {
                         PinnedFolderHeroCard(
                             folder = pinnedFolder,
                             summary = pinnedFolderSummary,
@@ -101,9 +110,8 @@ fun FoldersScreen(
                     }
                 }
                 items(restFolders, key = { it.id }) { folder ->
-                    FolderRow(
+                    FolderGridCard(
                         folder = folder,
-                        isPinned = folder.id == pinnedFolderId,
                         onClick = { onOpenFolder(folder.id) },
                         onTerminate = { viewModel.terminateFolder(folder.id) },
                         onReactivate = { viewModel.reactivateFolder(folder.id) },
@@ -177,10 +185,12 @@ private fun PinnedFolderHeroCard(folder: FolderEntity, summary: PinnedFolderSumm
     }
 }
 
+/** Tarjeta de grid de 2 columnas (rediseño, antes fila de ancho completo): swatch, nombre, estado
+ *  (terminada) y el mismo menú de siempre (terminar/reactivar/eliminar), reacomodados en vertical
+ *  para el espacio angosto de la columna. */
 @Composable
-private fun FolderRow(
+private fun FolderGridCard(
     folder: FolderEntity,
-    isPinned: Boolean,
     onClick: () -> Unit,
     onTerminate: () -> Unit,
     onReactivate: () -> Unit,
@@ -191,59 +201,24 @@ private fun FolderRow(
     var confirmTerminate by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
-    Card(modifier = modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(30.dp)
                     .background(Color(folder.colorArgb), RoundedCornerShape(9.dp)),
             )
-            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                Text(
-                    text = folder.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    textDecoration = if (!folder.isActive) TextDecoration.LineThrough else null,
-                )
-                // Marca clara de cuál es tu carpeta principal: si no, una carpeta vieja marcada como
-                // principal puede quedar enterrada bajo carpetas más nuevas en la lista y dar la
-                // sensación de que "desapareció" al volver acá desde su propio detalle.
-                if (isPinned) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            " Principal",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                if (!folder.isActive) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.outline,
-                        )
-                        Text(
-                            " Terminada · solo lectura",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
-                    }
-                }
-            }
+            Box(modifier = Modifier.weight(1f))
             Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Más opciones", modifier = Modifier.size(20.dp))
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     if (folder.isActive) {
@@ -262,6 +237,29 @@ private fun FolderRow(
                         onClick = { menuExpanded = false; confirmDelete = true },
                     )
                 }
+            }
+        }
+        Text(
+            text = folder.name,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            textDecoration = if (!folder.isActive) TextDecoration.LineThrough else null,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+        if (!folder.isActive) {
+            Row(modifier = Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp),
+                    tint = MaterialTheme.colorScheme.outline,
+                )
+                Text(
+                    " Terminada",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                )
             }
         }
     }
