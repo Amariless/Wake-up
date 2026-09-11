@@ -123,10 +123,11 @@ class RingingForegroundService : LifecycleService() {
                 alarmScheduler.cancelAlarm(alarm.id)
                 alarmRepository.delete(alarm)
             } else {
+                // Antes, sin días marcados (bitmask 0) se apagaba sola tras sonar una vez — eso era
+                // cuando esa combinación significaba "una sola vez". Ahora bitmask 0 sin
+                // deleteAfterRing significa "todos los días" (ver AlarmTiming.nextTrigger), así que
+                // se reprograma igual que cualquier alarma repetitiva, sin desactivarse.
                 alarmScheduler.scheduleAlarm(alarm)
-                if (alarm.repeatDaysBitmask == 0) {
-                    alarmRepository.setEnabled(alarm.id, false)
-                }
                 alarmRepository.setLastTriggered(alarm.id)
             }
 

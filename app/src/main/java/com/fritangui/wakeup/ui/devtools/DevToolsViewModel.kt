@@ -65,7 +65,8 @@ class DevToolsViewModel @Inject constructor(
                 AlarmEntity(folderId = null, label = "Prueba T-60 (dev tools)", hour = 7, minute = 0),
             )
             val alarm = alarmRepository.getById(id) ?: return@launch
-            notificationHelper.notifyPreAlarm(alarm)
+            val mainTriggerEpochMillis = com.fritangui.wakeup.domain.AlarmTiming.nextTrigger(alarm)?.toEpochMilliseconds()
+            notificationHelper.notifyPreAlarm(alarm, mainTriggerEpochMillis)
         }
     }
 

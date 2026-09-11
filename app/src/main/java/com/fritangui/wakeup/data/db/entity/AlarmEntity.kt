@@ -30,8 +30,9 @@ enum class DismissChallengeType {
  * (fuera de cualquier carpeta/semestre); si tiene folderId, se cancela
  * automáticamente cuando esa carpeta se marca como terminada.
  *
- * [repeatDaysBitmask] usa bit0=lunes … bit6=domingo; 0 = alarma de una sola vez
- * (para ese caso se usa [oneShotDateEpochDay], la fecha en días desde epoch).
+ * [repeatDaysBitmask] usa bit0=lunes … bit6=domingo; 0 = sin ningún día marcado, lo que suena
+ * todos los días — salvo que [deleteAfterRing] esté activo, en cuyo caso es una alarma de una
+ * sola vez (para ese caso se puede usar [oneShotDateEpochDay], la fecha en días desde epoch).
  */
 @Entity(
     tableName = "alarms",

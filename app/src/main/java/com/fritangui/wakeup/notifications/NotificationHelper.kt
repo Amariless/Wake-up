@@ -73,8 +73,14 @@ class NotificationHelper @Inject constructor(
     /**
      * `suspend` porque necesita leer la preferencia de formato de hora (12h/24h) antes de armar el
      * texto — ambos llamadores (PreAlarmReceiver, DevToolsViewModel) ya corren en una corrutina.
+     *
+     * @param mainTriggerEpochMillis instante real (epoch millis) en que sonará la alarma, o null si
+     * no se pudo calcular. Se usa como chronometer en cuenta regresiva (#161): antes el texto decía
+     * siempre "En 60 min", un valor fijo que no cambiaba aunque pasara el tiempo y la notificación
+     * siguiera en la barra. Con `setUsesChronometer` Android la actualiza solo, sin que la app tenga
+     * que reprogramar nada.
      */
-    suspend fun notifyPreAlarm(alarm: AlarmEntity) {
+    suspend fun notifyPreAlarm(alarm: AlarmEntity, mainTriggerEpochMillis: Long?) {
         val openIntent = PendingIntent.getActivity(
             context,
             AlarmConstants.showIntentRequestCode(alarm.id),
@@ -100,7 +106,16 @@ class NotificationHelper @Inject constructor(
         val notification = NotificationCompat.Builder(context, WakeUpApp.CHANNEL_PRE_ALARM)
             .setSmallIcon(R.drawable.ic_notification_alarm)
             .setContentTitle("${alarm.label.ifBlank { "Alarma" }} suena a las $timeText")
-            .setContentText("En ${alarm.preAlarmNotificationMinutesBefore} min")
+            .setContentText("Toca para abrir la app")
+            .apply {
+                if (mainTriggerEpochMillis != null) {
+                    // Cuenta regresiva en vivo (p.ej. "-42:17") que Android actualiza solo, sin
+                    // depender de que la app reprograme nada mientras la notificación esté visible.
+                    setWhen(mainTriggerEpochMillis)
+                    setUsesChronometer(true)
+                    setChronometerCountDown(true)
+                }
+            }
             .setColor(0xFF7C9CFF.toInt())
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
