@@ -296,13 +296,6 @@ fun AlarmEditorScreen(
                     Text("Vibrar", style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = vibrate, onCheckedChange = { vibrate = it })
                 }
-
-                Text(
-                    "Te avisaremos 1 hora antes con una notificación silenciosa (puedes apagar solo esa vez desde ahí).",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
             }
 
             // Su propio divisor SIEMPRE (antes solo aparecía cuando era Alarma): en Recordatorio se
@@ -317,14 +310,7 @@ fun AlarmEditorScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Eliminar después de sonar", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Útil para algo de una sola vez: no se vuelve a guardar tras sonar.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                }
+                Text("Eliminar después de sonar", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 Switch(checked = deleteAfterRing, onCheckedChange = { deleteAfterRing = it })
             }
 

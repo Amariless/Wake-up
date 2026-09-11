@@ -105,6 +105,7 @@ class AlarmScheduler @Inject constructor(
             Intent(context, PreAlarmReceiver::class.java).apply {
                 action = ACTION_PRE_ALARM_FIRE
                 putExtra(EXTRA_ALARM_ID, alarm.id)
+                putExtra(AlarmConstants.EXTRA_MAIN_TRIGGER_EPOCH_MILLIS, mainTrigger.toEpochMilliseconds())
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

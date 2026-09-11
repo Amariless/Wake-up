@@ -33,12 +33,23 @@ object AlarmTiming {
         if (!alarm.isEnabled) return null
         val nowLocal = now.toLocalDateTime(zone)
 
+        // Sin ningún día marcado: antes se entendía como "una sola vez" siempre. Ahora solo se
+        // trata como una sola vez cuando además se pidió "eliminar después de sonar" (no tendría
+        // sentido volver a sonar si la fila ya no va a existir) — si no, suena TODOS los días,
+        // como si se hubieran marcado los 7 (#161).
         return if (alarm.repeatDaysBitmask == 0) {
-            nextOneShotTrigger(alarm, nowLocal, zone)
+            if (alarm.deleteAfterRing) {
+                nextOneShotTrigger(alarm, nowLocal, zone)
+            } else {
+                nextRepeatingTrigger(alarm.copy(repeatDaysBitmask = ALL_DAYS_BITMASK), nowLocal, zone)
+            }
         } else {
             nextRepeatingTrigger(alarm, nowLocal, zone)
         }
     }
+
+    /** Los 7 bits (lunes a domingo) marcados. */
+    const val ALL_DAYS_BITMASK = 0b1111111
 
     private fun nextOneShotTrigger(alarm: AlarmEntity, nowLocal: LocalDateTime, zone: TimeZone): Instant? {
         val nowInstant = nowLocal.toInstant(zone)

@@ -38,7 +38,13 @@ class PreAlarmReceiver : BroadcastReceiver() {
                     ACTION_PRE_ALARM_FIRE -> {
                         val alarm = alarmRepository.getById(alarmId) ?: return@launch
                         if (alarm.isEnabled && !alarm.skipNextOccurrence) {
-                            notificationHelper.notifyPreAlarm(alarm)
+                            // Si por lo que sea no viene el extra (p.ej. una alarma disparada desde DevTools),
+                            // se recalcula: es una función pura, y a esta hora (justo el aviso previo) el
+                            // resultado coincide con el trigger real para el que se programó este aviso.
+                            val mainTriggerEpochMillis = intent.getLongExtra(AlarmConstants.EXTRA_MAIN_TRIGGER_EPOCH_MILLIS, -1L)
+                                .takeIf { it > 0 }
+                                ?: com.fritangui.wakeup.domain.AlarmTiming.nextTrigger(alarm)?.toEpochMilliseconds()
+                            notificationHelper.notifyPreAlarm(alarm, mainTriggerEpochMillis)
                         }
                     }
                     ACTION_SKIP_NEXT_OCCURRENCE -> {

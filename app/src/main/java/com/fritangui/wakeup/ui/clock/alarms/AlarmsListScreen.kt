@@ -159,7 +159,7 @@ private fun AlarmRow(
                         alarm.label.ifBlank { if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma" },
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Text(repeatSummary(alarm.repeatDaysBitmask), style = MaterialTheme.typography.bodyMedium)
+                    Text(repeatSummary(alarm.repeatDaysBitmask, alarm.deleteAfterRing), style = MaterialTheme.typography.bodyMedium)
                     val trigger = AlarmTiming.nextTrigger(alarm, now = now)
                     if (trigger != null) {
                         Text(
@@ -194,8 +194,10 @@ private fun AlarmRow(
     }
 }
 
-private fun repeatSummary(bitmask: Int): String {
-    if (bitmask == 0) return "Una vez"
+// Sin ningún día marcado, ahora suena todos los días salvo que se vaya a borrar tras sonar (ver
+// AlarmTiming.nextTrigger) — el resumen tiene que reflejar ese mismo criterio.
+private fun repeatSummary(bitmask: Int, deleteAfterRing: Boolean): String {
+    if (bitmask == 0) return if (deleteAfterRing) "Una vez" else "Todos los días"
     if (bitmask == 0b1111111) return "Todos los días"
     if (bitmask == 0b0011111) return "Lunes a viernes"
     return (1..7).filter { (bitmask and AlarmEntity.dayBit(it)) != 0 }.joinToString(" ") { DIA_LETRAS[it - 1] }

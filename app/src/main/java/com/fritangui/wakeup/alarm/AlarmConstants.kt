@@ -7,6 +7,7 @@ object AlarmConstants {
     const val EXTRA_REMINDER_INDEX = "extra_reminder_index"
     const val EXTRA_FROM_NOTIFICATION_ACTION = "extra_from_notification_action"
     const val EXTRA_SESSION_ID = "extra_session_id"
+    const val EXTRA_MAIN_TRIGGER_EPOCH_MILLIS = "extra_main_trigger_epoch_millis"
 
     const val ACTION_ALARM_FIRE = "com.fritangui.wakeup.action.ALARM_FIRE"
     const val ACTION_PRE_ALARM_FIRE = "com.fritangui.wakeup.action.PRE_ALARM_FIRE"

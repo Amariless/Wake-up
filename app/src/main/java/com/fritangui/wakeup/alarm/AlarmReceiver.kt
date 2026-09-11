@@ -55,10 +55,9 @@ class AlarmReceiver : BroadcastReceiver() {
                             alarmScheduler.cancelAlarm(alarm.id)
                             alarmRepository.delete(alarm)
                         } else {
+                            // Ídem RingingForegroundService: bitmask 0 sin deleteAfterRing ahora
+                            // significa "todos los días", así que ya no se desactiva sola tras sonar.
                             alarmScheduler.scheduleAlarm(alarm)
-                            if (alarm.repeatDaysBitmask == 0) {
-                                alarmRepository.setEnabled(alarm.id, false)
-                            }
                             alarmRepository.setLastTriggered(alarm.id)
                         }
                     }
