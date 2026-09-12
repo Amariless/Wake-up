@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
@@ -68,6 +67,7 @@ import com.fritangui.wakeup.data.db.entity.SubjectEntity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
 import com.fritangui.wakeup.domain.AlarmTiming
 import com.fritangui.wakeup.ui.components.ClockTimeText
+import com.fritangui.wakeup.ui.components.SubjectIndicator
 import com.fritangui.wakeup.ui.tasks.taskListItems
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -94,6 +94,7 @@ fun FolderDetailScreen(
     val tasks by viewModel.tasks.collectAsState()
     val subjectNamesById by viewModel.subjectNamesById.collectAsState()
     val subjectColorsById by viewModel.subjectColorsById.collectAsState()
+    val subjectIconsById by viewModel.subjectIconsById.collectAsState()
     val alarms by viewModel.alarms.collectAsState()
     val isPinned by viewModel.isPinned.collectAsState()
     // pagerState guarda la página seleccionada con rememberSaveable por dentro (igual que el
@@ -169,6 +170,7 @@ fun FolderDetailScreen(
                         tasks = tasks,
                         subjectNamesById = subjectNamesById,
                         subjectColorsById = subjectColorsById,
+                        subjectIconsById = subjectIconsById,
                         onToggle = viewModel::setTaskCompleted,
                         onClick = { onOpenTask(viewModel.folderId, it) },
                         onDelete = viewModel::deleteTask,
@@ -205,7 +207,7 @@ private fun SubjectsTab(subjects: List<SubjectWithSessions>, onClick: (Long) -> 
                     ),
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SubjectIndicator(entry.subject.colorArgb, entry.subject.iconKey)
+                    SubjectIndicator(Color(entry.subject.colorArgb), entry.subject.iconKey)
                     Column(modifier = Modifier.padding(start = 12.dp)) {
                         Text(entry.subject.name, style = MaterialTheme.typography.titleMedium)
                         if (entry.sessions.isEmpty()) {
@@ -254,6 +256,7 @@ private fun TasksTab(
     tasks: List<TaskEntity>,
     subjectNamesById: Map<Long, String>,
     subjectColorsById: Map<Long, Int>,
+    subjectIconsById: Map<Long, String?>,
     onToggle: (Long, Boolean) -> Unit,
     onClick: (Long) -> Unit,
     onDelete: (TaskEntity) -> Unit,
@@ -270,6 +273,7 @@ private fun TasksTab(
         taskListItems(
             tasks = tasks,
             subjectColorsById = subjectColorsById,
+            subjectIconsById = subjectIconsById,
             subjectNamesById = subjectNamesById,
             onCompleteWithGrade = onCompleteWithGrade,
             showSubjectName = true,
@@ -343,26 +347,6 @@ private fun AlarmsTab(alarms: List<AlarmEntity>, readOnly: Boolean, onToggle: (L
                     )
                 }
             }
-        }
-    }
-}
-
-/** Punto de color de siempre si la materia no tiene ícono elegido; si tiene, un avatar circular
- *  con ese ícono sobre un fondo tintado del color de la materia (reconocerla más fácil, ver #159). */
-@Composable
-private fun SubjectIndicator(colorArgb: Int, iconKey: String?) {
-    val icon = com.fritangui.wakeup.ui.subjects.SubjectIcons.iconFor(iconKey)
-    if (icon == null) {
-        // Mismo tamaño (32dp) que la rama con ícono de abajo — antes esta era un punto de 14dp
-        // nomás, y las materias con/sin ícono quedaban con pesos visuales muy distintos en la
-        // misma lista.
-        Box(modifier = Modifier.size(32.dp).background(Color(colorArgb), CircleShape))
-    } else {
-        Box(
-            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(colorArgb).copy(alpha = 0.22f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = Color(colorArgb), modifier = Modifier.size(18.dp))
         }
     }
 }

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.ui.components.SubjectIndicator
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -67,6 +68,7 @@ private fun formatDueDate(epochMillis: Long): String {
 fun LazyListScope.taskListItems(
     tasks: List<TaskEntity>,
     subjectColorsById: Map<Long, Int> = emptyMap(),
+    subjectIconsById: Map<Long, String?> = emptyMap(),
     subjectNamesById: Map<Long, String> = emptyMap(),
     showSubjectName: Boolean = false,
     onToggle: (Long, Boolean) -> Unit,
@@ -87,6 +89,7 @@ fun LazyListScope.taskListItems(
             TaskListRow(
                 task = task,
                 subjectColorArgb = subjectColorsById[task.subjectId],
+                subjectIconKey = subjectIconsById[task.subjectId],
                 subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                 onToggle = onToggle,
                 onClick = onClick,
@@ -103,6 +106,7 @@ fun LazyListScope.taskListItems(
                 TaskListRow(
                     task = task,
                     subjectColorArgb = subjectColorsById[task.subjectId],
+                    subjectIconKey = subjectIconsById[task.subjectId],
                     subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                     onToggle = onToggle,
                     onClick = onClick,
@@ -123,6 +127,7 @@ fun LazyListScope.taskListItems(
 fun TaskListColumn(
     tasks: List<TaskEntity>,
     subjectColorsById: Map<Long, Int> = emptyMap(),
+    subjectIconsById: Map<Long, String?> = emptyMap(),
     subjectNamesById: Map<Long, String> = emptyMap(),
     showSubjectName: Boolean = false,
     onToggle: (Long, Boolean) -> Unit,
@@ -142,6 +147,7 @@ fun TaskListColumn(
             TaskListRow(
                 task = task,
                 subjectColorArgb = subjectColorsById[task.subjectId],
+                subjectIconKey = subjectIconsById[task.subjectId],
                 subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                 onToggle = onToggle,
                 onClick = onClick,
@@ -155,6 +161,7 @@ fun TaskListColumn(
                 TaskListRow(
                     task = task,
                     subjectColorArgb = subjectColorsById[task.subjectId],
+                    subjectIconKey = subjectIconsById[task.subjectId],
                     subjectName = if (showSubjectName) subjectNamesById[task.subjectId] else null,
                     onToggle = onToggle,
                     onClick = onClick,
@@ -181,6 +188,7 @@ private fun TaskGroupHeader(label: String) {
 private fun TaskListRow(
     task: TaskEntity,
     subjectColorArgb: Int?,
+    subjectIconKey: String?,
     subjectName: String?,
     onToggle: (Long, Boolean) -> Unit,
     onClick: (Long) -> Unit,
@@ -188,8 +196,10 @@ private fun TaskListRow(
     onCompleteWithGrade: ((TaskEntity, Double?, Double?) -> Unit)? = null,
 ) {
     val outline = MaterialTheme.colorScheme.outline
-    // Completada: todo en gris (barra incluida) para que de verdad se sienta "apagada", no solo el texto tachado.
+    // Completada: todo en gris (barra/ícono incluido) para que de verdad se sienta "apagada", no
+    // solo el texto tachado — por eso tampoco se muestra el ícono de materia en ese caso.
     val barColor = if (task.isCompleted) outline else subjectColorArgb?.let { Color(it) } ?: outline
+    val iconKey = if (task.isCompleted) null else subjectIconKey
     val textColor = if (task.isCompleted) outline else MaterialTheme.colorScheme.onSurface
     var showMenu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -206,7 +216,13 @@ private fun TaskListRow(
             },
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ColorBar(barColor)
+                // Punto de color de siempre sin ícono elegido; con ícono, el mismo avatar circular
+                // que ya usa la lista de materias de una carpeta (#161) — reemplaza a la barra fina.
+                if (com.fritangui.wakeup.ui.subjects.SubjectIcons.iconFor(iconKey) != null) {
+                    SubjectIndicator(barColor, iconKey, modifier = Modifier.padding(start = 12.dp), size = 36.dp)
+                } else {
+                    ColorBar(barColor)
+                }
                 Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
                         checked = task.isCompleted,

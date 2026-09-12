@@ -66,4 +66,9 @@ class HomeViewModel @Inject constructor(
     val subjectNamesById: StateFlow<Map<Long, String>> = subjectsWithSessions
         .map { list -> list.associate { it.subject.id to it.subject.name } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** Ícono de materia por id (si eligió uno), para mostrarlo junto a cada tarea de Inicio (#161). */
+    val subjectIconsById: StateFlow<Map<Long, String?>> = subjectsWithSessions
+        .map { list -> list.associate { it.subject.id to it.subject.iconKey } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 }
