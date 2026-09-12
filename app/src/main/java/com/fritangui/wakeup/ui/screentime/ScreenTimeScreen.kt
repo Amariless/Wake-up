@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,18 +22,26 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,19 +55,51 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.permissions.PermissionStatus
+import kotlinx.datetime.LocalDate
+
+/** Las dos formas de mirar el historial de uso, ver #161. */
+private enum class ScreenTimeRangeMode { WEEK, MONTH }
+
+private val MESES_CORTOS = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
+private val MESES_LARGOS = listOf(
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+)
+
+/** "Esta semana" si es la actual; si no, el rango de fechas ("1 sep – 7 sep"). */
+private fun weekRangeLabel(weekOffset: Int, days: List<DayUsage>): String {
+    if (weekOffset == 0) return "Esta semana"
+    val first = days.firstOrNull() ?: return ""
+    val last = days.lastOrNull() ?: return ""
+    val firstDate = LocalDate.fromEpochDays(first.epochDay.toInt())
+    val lastDate = LocalDate.fromEpochDays(last.epochDay.toInt())
+    return "${firstDate.dayOfMonth} ${MESES_CORTOS[firstDate.monthNumber - 1]} – ${lastDate.dayOfMonth} ${MESES_CORTOS[lastDate.monthNumber - 1]}"
+}
+
+/** "Septiembre 2026" — el mes se deduce del primer día del rango recibido. */
+private fun monthRangeLabel(days: List<DayUsage>): String {
+    val first = days.firstOrNull() ?: return ""
+    val date = LocalDate.fromEpochDays(first.epochDay.toInt())
+    return "${MESES_LARGOS[date.monthNumber - 1]} ${date.year}"
+}
 
 @Composable
 fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val usage by viewModel.todayUsage.collectAsState()
+    val yesterdayTotal by viewModel.yesterdayTotalMinutes.collectAsState()
     val weekly by viewModel.weeklyUsage.collectAsState()
+    val monthly by viewModel.monthlyUsage.collectAsState()
+    val weekOffset by viewModel.weekOffset.collectAsState()
+    val monthOffset by viewModel.monthOffset.collectAsState()
     val rules by viewModel.alertRules.collectAsState()
     val hasUsageAccess = remember { PermissionStatus.hasUsageAccess(context) }
 
+    // "Hoy" arriba de todo siempre es HOY, sin que le afecte navegar semanas/meses más abajo (#161).
+    var rangeMode by remember { mutableStateOf(ScreenTimeRangeMode.WEEK) }
     val todayTotal = usage.sumOf { it.minutes }
-    // El día de ayer siempre es el penúltimo de los 7 (el último es hoy) — ver ScreenTimeViewModel.weeklyUsage.
-    val yesterdayTotal = weekly.getOrNull(weekly.size - 2)?.totalMinutes
-    val weeklyAverage = if (weekly.isNotEmpty()) weekly.sumOf { it.totalMinutes } / weekly.size else 0L
+    val activeDays = if (rangeMode == ScreenTimeRangeMode.WEEK) weekly else monthly
+    val activeAverage = if (activeDays.isNotEmpty()) activeDays.sumOf { it.totalMinutes } / activeDays.size else 0L
 
     Scaffold(topBar = { TopAppBar(title = { Text("Tiempo de pantalla") }) }) { padding ->
         // Sin scroll el contenido (permiso, hoy, semana+gráfico, hasta 10 apps, avisos, y el botón
@@ -84,7 +125,7 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
             // Resumen del día arriba de todo: es el número que más importa de un vistazo.
             Text("Hoy", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.outline)
             Text(formatDuration(todayTotal), style = MaterialTheme.typography.displaySmall)
-            if (yesterdayTotal != null) {
+            run {
                 val diff = todayTotal - yesterdayTotal
                 Text(
                     when {
@@ -97,15 +138,61 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
                 )
             }
 
-            if (weekly.any { it.totalMinutes > 0 }) {
-                Text("Últimos 7 días", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 24.dp, bottom = 4.dp))
+            // Antes esto era fijo ("Últimos 7 días", siempre los mismos): ahora se puede navegar a
+            // semanas pasadas o cambiar a una vista mes a mes (#161) — sin límite de cuánto atrás
+            // (los datos existen desde que se instaló la app), pero sin poder ir al futuro.
+            Text("Historial", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = rangeMode == ScreenTimeRangeMode.WEEK,
+                    onClick = { rangeMode = ScreenTimeRangeMode.WEEK },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) { Text("Semana") }
+                SegmentedButton(
+                    selected = rangeMode == ScreenTimeRangeMode.MONTH,
+                    onClick = { rangeMode = ScreenTimeRangeMode.MONTH },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) { Text("Mes") }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { if (rangeMode == ScreenTimeRangeMode.WEEK) viewModel.previousWeek() else viewModel.previousMonth() }) {
+                    Icon(Icons.Default.ChevronLeft, contentDescription = if (rangeMode == ScreenTimeRangeMode.WEEK) "Semana anterior" else "Mes anterior")
+                }
                 Text(
-                    "Promedio diario: ${formatDuration(weeklyAverage)}",
+                    if (rangeMode == ScreenTimeRangeMode.WEEK) weekRangeLabel(weekOffset, weekly) else monthRangeLabel(monthly),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                val atPresent = if (rangeMode == ScreenTimeRangeMode.WEEK) weekOffset == 0 else monthOffset == 0
+                // Sin tint manual: IconButton ya atenúa su ícono solo cuando enabled = false.
+                IconButton(
+                    onClick = { if (rangeMode == ScreenTimeRangeMode.WEEK) viewModel.nextWeek() else viewModel.nextMonth() },
+                    enabled = !atPresent,
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = if (rangeMode == ScreenTimeRangeMode.WEEK) "Semana siguiente" else "Mes siguiente",
+                    )
+                }
+            }
+            if (activeDays.any { it.totalMinutes > 0 }) {
+                Text(
+                    "Promedio diario: ${formatDuration(activeAverage)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(bottom = 12.dp),
+                    modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
                 )
-                WeeklyBarChart(weekly)
+                if (rangeMode == ScreenTimeRangeMode.WEEK) WeeklyBarChart(weekly) else MonthlyBarChart(monthly)
+            } else {
+                Text(
+                    "Sin datos de uso en este período",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
+                )
             }
 
             Text("Por app hoy", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
@@ -176,6 +263,51 @@ private fun WeeklyBarChart(days: List<DayUsage>) {
                     color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+        }
+    }
+}
+
+/** Mismo gráfico que [WeeklyBarChart] pero para hasta 31 barras (#161): sin nombre de día bajo
+ *  cada una (no entrarían), solo el número de día en el 1°, el último y cada 5 — la fecha completa
+ *  de cada barra sigue disponible para TalkBack vía sus semantics. */
+@Composable
+private fun MonthlyBarChart(days: List<DayUsage>) {
+    val maxMinutes = (days.maxOfOrNull { it.totalMinutes } ?: 1L).coerceAtLeast(1L)
+    val lastDayOfMonth = days.size
+    Row(
+        modifier = Modifier.fillMaxWidth().height(120.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        days.forEach { day ->
+            val dayOfMonth = LocalDate.fromEpochDays(day.epochDay.toInt()).dayOfMonth
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(1f)
+                    .semantics(mergeDescendants = true) { contentDescription = "${day.dayLabelFull} $dayOfMonth: ${formatDuration(day.totalMinutes)}" },
+            ) {
+                val barColor = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                Canvas(modifier = Modifier.weight(1f).width(6.dp)) {
+                    val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)
+                    val barHeight = size.height * fraction
+                    drawRect(
+                        color = barColor,
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
+                        size = Size(size.width, barHeight),
+                    )
+                }
+                if (dayOfMonth == 1 || dayOfMonth == lastDayOfMonth || dayOfMonth % 5 == 0) {
+                    Text(
+                        "$dayOfMonth",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                } else {
+                    // Mismo alto que la rama con número, para que todas las barras midan igual sin
+                    // que las que no tienen etiqueta abajo "salten" un poco más alto que las que sí.
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
