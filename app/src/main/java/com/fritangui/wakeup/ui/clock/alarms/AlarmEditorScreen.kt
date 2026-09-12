@@ -4,6 +4,7 @@ package com.fritangui.wakeup.ui.clock.alarms
 
 import android.media.RingtoneManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +39,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -156,7 +157,7 @@ fun AlarmEditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            WakeUpTopBar(
                 title = { Text(if (viewModel.isNew) "Nueva alarma" else "Editar alarma") },
                 navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = {
@@ -251,40 +252,44 @@ fun AlarmEditorScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
                 Text("Reto para apagarla", style = MaterialTheme.typography.titleMedium)
-                ExposedDropdownMenuBox(
-                    expanded = challengeMenuExpanded,
-                    onExpandedChange = { challengeMenuExpanded = it },
-                    modifier = Modifier.padding(top = 8.dp),
-                ) {
-                    OutlinedTextField(
-                        value = CHALLENGE_LABELS.getValue(challenge),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Reto para apagarla") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
-                    )
-                    ExposedDropdownMenu(expanded = challengeMenuExpanded, onDismissRequest = { challengeMenuExpanded = false }) {
-                        CHALLENGE_LABELS.forEach { (type, text) ->
-                            DropdownMenuItem(text = { Text(text) }, onClick = { challenge = type; challengeMenuExpanded = false })
+                // animateContentSize: la sección de dificultad aparece/desaparece según el reto
+                // elegido — antes ese cambio de alto era un salto seco, ahora se acomoda solo.
+                Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
+                    ExposedDropdownMenuBox(
+                        expanded = challengeMenuExpanded,
+                        onExpandedChange = { challengeMenuExpanded = it },
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = CHALLENGE_LABELS.getValue(challenge),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Reto para apagarla") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        )
+                        ExposedDropdownMenu(expanded = challengeMenuExpanded, onDismissRequest = { challengeMenuExpanded = false }) {
+                            CHALLENGE_LABELS.forEach { (type, text) ->
+                                DropdownMenuItem(text = { Text(text) }, onClick = { challenge = type; challengeMenuExpanded = false })
+                            }
                         }
                     }
-                }
 
-                if (challenge != DismissChallengeType.NONE) {
-                    Text("Dificultad", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DIFFICULTY_LABELS.forEach { (value, text) ->
-                            FilterChip(
-                                selected = difficulty == value,
-                                onClick = { difficulty = value },
-                                label = { Text(text) },
-                                modifier = Modifier.weight(1f),
-                            )
+                    if (challenge != DismissChallengeType.NONE) {
+                        Text("Dificultad", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DIFFICULTY_LABELS.forEach { (value, text) ->
+                                FilterChip(
+                                    selected = difficulty == value,
+                                    onClick = { difficulty = value },
+                                    label = { Text(text) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                         }
-                    }
-                    TextButton(onClick = { showChallengePreview = true }, modifier = Modifier.padding(top = 4.dp)) {
-                        Text("Probar reto")
+                        TextButton(onClick = { showChallengePreview = true }, modifier = Modifier.padding(top = 4.dp)) {
+                            Text("Probar reto")
+                        }
                     }
                 }
 

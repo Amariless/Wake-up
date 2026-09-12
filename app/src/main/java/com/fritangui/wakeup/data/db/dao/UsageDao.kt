@@ -28,6 +28,11 @@ interface UsageDao {
     @Query("SELECT * FROM app_usage_daily WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
     fun observeForRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<AppUsageDailyEntity>>
 
+    /** Día más antiguo con algún registro de uso — para no dejar navegar el historial de Bienestar
+     *  a semanas/meses de antes de que la app empezara a medir (#161). Null si todavía no hay nada. */
+    @Query("SELECT MIN(dateEpochDay) FROM app_usage_daily")
+    fun observeEarliestEpochDay(): Flow<Long?>
+
     @Query("SELECT COALESCE(SUM(minutesUsed), 0) FROM app_usage_daily WHERE dateEpochDay = :dateEpochDay AND packageName IN (:packageNames)")
     suspend fun sumMinutesForPackagesToday(dateEpochDay: Long, packageNames: List<String>): Long
 

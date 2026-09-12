@@ -3,6 +3,8 @@
 package com.fritangui.wakeup.ui.screentime
 
 import android.content.Context
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,7 +33,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -92,6 +94,8 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
     val monthly by viewModel.monthlyUsage.collectAsState()
     val weekOffset by viewModel.weekOffset.collectAsState()
     val monthOffset by viewModel.monthOffset.collectAsState()
+    val canGoToPreviousWeek by viewModel.canGoToPreviousWeek.collectAsState()
+    val canGoToPreviousMonth by viewModel.canGoToPreviousMonth.collectAsState()
     val rules by viewModel.alertRules.collectAsState()
     val hasUsageAccess = remember { PermissionStatus.hasUsageAccess(context) }
 
@@ -101,7 +105,7 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
     val activeDays = if (rangeMode == ScreenTimeRangeMode.WEEK) weekly else monthly
     val activeAverage = if (activeDays.isNotEmpty()) activeDays.sumOf { it.totalMinutes } / activeDays.size else 0L
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Tiempo de pantalla") }) }) { padding ->
+    Scaffold(topBar = { WakeUpTopBar(title = { Text("Tiempo de pantalla") }) }) { padding ->
         // Sin scroll el contenido (permiso, hoy, semana+gráfico, hasta 10 apps, avisos, y el botón
         // de bloqueo) podía no caber en pantallas más chicas — el botón de abajo quedaba cortado o
         // pegado sin aire, dando la sensación de que "no pertenecía a nada".
@@ -159,7 +163,14 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { if (rangeMode == ScreenTimeRangeMode.WEEK) viewModel.previousWeek() else viewModel.previousMonth() }) {
+                // No deja ir a un período de antes de que hubiera cualquier dato registrado (#161):
+                // sin esto, se podía navegar indefinidamente hacia atrás a semanas/meses siempre
+                // vacíos, sin ninguna señal de que ahí ya no hay nada más que ver.
+                val canGoPrevious = if (rangeMode == ScreenTimeRangeMode.WEEK) canGoToPreviousWeek else canGoToPreviousMonth
+                IconButton(
+                    onClick = { if (rangeMode == ScreenTimeRangeMode.WEEK) viewModel.previousWeek() else viewModel.previousMonth() },
+                    enabled = canGoPrevious,
+                ) {
                     Icon(Icons.Default.ChevronLeft, contentDescription = if (rangeMode == ScreenTimeRangeMode.WEEK) "Semana anterior" else "Mes anterior")
                 }
                 Text(
@@ -178,21 +189,39 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
                     )
                 }
             }
-            if (activeDays.any { it.totalMinutes > 0 }) {
-                Text(
-                    "Promedio diario: ${formatDuration(activeAverage)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
-                )
-                if (rangeMode == ScreenTimeRangeMode.WEEK) WeeklyBarChart(weekly) else MonthlyBarChart(monthly)
-            } else {
-                Text(
-                    "Sin datos de uso en este período",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
-                )
+            // Crossfade + animateContentSize (en vez de un if/else liso): cambiar de semana/mes, o
+            // de vista Semana↔Mes, ya no es un salto seco — la sección se desvanece y el alto se
+            // acomoda solo entre "hay datos" (gráfico) y "sin datos" (#161).
+            Box(modifier = Modifier.fillMaxWidth().animateContentSize()) {
+                Crossfade(targetState = rangeMode to activeDays.any { it.totalMinutes > 0 }, label = "screen_time_history") { (mode, hasData) ->
+                    if (hasData) {
+                        Column {
+                            Text(
+                                "Promedio diario: ${formatDuration(activeAverage)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
+                            )
+                            if (mode == ScreenTimeRangeMode.WEEK) WeeklyBarChart(weekly) else MonthlyBarChart(monthly)
+                        }
+                    } else {
+                        // El período ACTUAL sin nada más que hoy (uso recién empezando a medirse,
+                        // o recién instalada la app) es distinto de navegar a un período pasado que
+                        // de verdad no tiene nada — en ese caso el mensaje genérico no aporta, mejor
+                        // decir derecho que por ahora solo hay datos de hoy (#161).
+                        val isCurrentPeriod = if (mode == ScreenTimeRangeMode.WEEK) weekOffset == 0 else monthOffset == 0
+                        Text(
+                            if (isCurrentPeriod && todayTotal > 0) {
+                                "Todavía no hay suficiente historial — por ahora solo hay datos de hoy"
+                            } else {
+                                "Sin datos de uso en este período"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
+                        )
+                    }
+                }
             }
 
             Text("Por app hoy", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))

@@ -26,7 +26,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Apps
@@ -58,7 +58,7 @@ fun BlockingScreen(onBack: () -> Unit, viewModel: BlockingViewModel = hiltViewMo
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            WakeUpTopBar(
                 title = { Text("Bloqueo de contenido") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") } },
             )

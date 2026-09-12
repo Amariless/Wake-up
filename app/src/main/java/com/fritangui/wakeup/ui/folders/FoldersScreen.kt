@@ -2,6 +2,7 @@
 
 package com.fritangui.wakeup.ui.folders
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -40,7 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +56,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -74,50 +77,74 @@ fun FoldersScreen(
     val restFolders = if (pinnedFolder != null) folders.filterNot { it.id == pinnedFolderId } else folders
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Carpetas") }) },
+        topBar = { WakeUpTopBar(title = { Text("Carpetas") }) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Nueva carpeta")
             }
         },
     ) { padding ->
-        if (folders.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("Crea tu primera carpeta (semestre, curso, lo que quieras)")
-            }
-        } else {
-            // Al LazyColumn/LazyVerticalGrid le faltaba aplicar `padding` (el que da Scaffold para
-            // no quedar tapado por la barra superior/inferior) — con una sola carpeta, esa carpeta
-            // quedaba renderizada justo detrás de la TopAppBar, invisible del todo (#5, encontrado
-            // con captura del usuario).
-            // Grid de 2 columnas (rediseño, antes lista de 1) para el resto de las carpetas — la
-            // fijada sigue siendo su propia tarjeta de ancho completo arriba, vía span = maxLineSpan.
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp, 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (pinnedFolder != null) {
-                    item(key = "pinned_hero", span = { GridItemSpan(maxLineSpan) }) {
-                        PinnedFolderHeroCard(
-                            folder = pinnedFolder,
-                            summary = pinnedFolderSummary,
-                            onClick = { onOpenFolder(pinnedFolder.id) },
-                            modifier = Modifier.padding(bottom = 6.dp),
+        // Crossfade entre el estado vacío y la grilla (#161): antes era un if/else liso, un salto
+        // seco justo al crear la primera carpeta (el momento en que más se nota, por ser la
+        // primera impresión real de la pantalla).
+        Crossfade(targetState = folders.isEmpty(), label = "folders_empty_state") { isEmpty ->
+            if (isEmpty) {
+                // Mismo patrón que el estado vacío de Inicio (ícono + texto centrado) — antes era
+                // solo texto sin ícono, y sin textAlign se veía descentrado apenas ocupaba más de
+                // una línea (el Box lo centraba a él, pero el texto quedaba alineado a la izquierda
+                // adentro).
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        Icons.Default.CreateNewFolder,
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp),
+                        tint = MaterialTheme.colorScheme.outline,
+                    )
+                    Text(
+                        "Crea tu primera carpeta",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+            } else {
+                // Al LazyColumn/LazyVerticalGrid le faltaba aplicar `padding` (el que da Scaffold
+                // para no quedar tapado por la barra superior/inferior) — con una sola carpeta, esa
+                // carpeta quedaba renderizada justo detrás de la barra superior, invisible del todo
+                // (#5, encontrado con captura del usuario).
+                // Grid de 2 columnas (rediseño, antes lista de 1) para el resto de las carpetas — la
+                // fijada sigue siendo su propia tarjeta de ancho completo arriba, vía span = maxLineSpan.
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(16.dp, 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (pinnedFolder != null) {
+                        item(key = "pinned_hero", span = { GridItemSpan(maxLineSpan) }) {
+                            PinnedFolderHeroCard(
+                                folder = pinnedFolder,
+                                summary = pinnedFolderSummary,
+                                onClick = { onOpenFolder(pinnedFolder.id) },
+                                modifier = Modifier.padding(bottom = 6.dp),
+                            )
+                        }
+                    }
+                    items(restFolders, key = { it.id }) { folder ->
+                        FolderGridCard(
+                            folder = folder,
+                            onClick = { onOpenFolder(folder.id) },
+                            onTerminate = { viewModel.terminateFolder(folder.id) },
+                            onReactivate = { viewModel.reactivateFolder(folder.id) },
+                            onDelete = { viewModel.deleteFolder(folder) },
+                            modifier = Modifier.animateItem(),
                         )
                     }
-                }
-                items(restFolders, key = { it.id }) { folder ->
-                    FolderGridCard(
-                        folder = folder,
-                        onClick = { onOpenFolder(folder.id) },
-                        onTerminate = { viewModel.terminateFolder(folder.id) },
-                        onReactivate = { viewModel.reactivateFolder(folder.id) },
-                        onDelete = { viewModel.deleteFolder(folder) },
-                        modifier = Modifier.animateItem(),
-                    )
                 }
             }
         }

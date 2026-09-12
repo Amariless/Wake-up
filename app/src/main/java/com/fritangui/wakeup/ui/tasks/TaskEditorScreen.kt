@@ -29,7 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -171,7 +171,7 @@ fun TaskEditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            WakeUpTopBar(
                 title = { Text(if (viewModel.isNew) "Nueva tarea" else "Editar tarea") },
                 navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = {

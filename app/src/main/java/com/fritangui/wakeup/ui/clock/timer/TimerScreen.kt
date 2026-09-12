@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Pause
@@ -89,7 +91,11 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        // verticalScroll de respaldo: sin él, en pantallas más chicas o con letra grande del
+        // sistema, la tarjeta de ruedas + selector de reto + botón de Iniciar podían no entrar
+        // completos en alto, y el botón (lo último en el Column) quedaba cortado fuera de la
+        // pantalla en vez de solo apretado — nada indicaba que hubiera más contenido debajo.
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -171,7 +177,7 @@ private fun TimerIdleContent(
             modifier = Modifier
                 .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(horizontal = 12.dp, vertical = 16.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         ) {
             // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es
             // cuál. Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier
@@ -218,7 +224,7 @@ private fun TimerIdleContent(
         ExposedDropdownMenuBox(
             expanded = challengeMenuExpanded,
             onExpandedChange = onChallengeMenuExpandedChange,
-            modifier = Modifier.padding(top = 24.dp),
+            modifier = Modifier.padding(top = 20.dp),
         ) {
             OutlinedTextField(
                 value = challengeLabel,
@@ -241,7 +247,7 @@ private fun TimerIdleContent(
         FilledIconButton(
             onClick = onStart,
             enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0,
-            modifier = Modifier.padding(top = 24.dp).size(72.dp),
+            modifier = Modifier.padding(top = 20.dp).size(72.dp),
             shape = CircleShape,
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = MaterialTheme.colorScheme.tertiary,

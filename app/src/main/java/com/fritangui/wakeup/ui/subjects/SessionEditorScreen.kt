@@ -22,7 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -141,7 +141,7 @@ fun SessionEditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            WakeUpTopBar(
                 title = { Text(if (initial == null) "Nuevo horario" else "Editar horario") },
                 navigationIcon = { IconButton(onClick = ::tryExit) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
                 actions = {

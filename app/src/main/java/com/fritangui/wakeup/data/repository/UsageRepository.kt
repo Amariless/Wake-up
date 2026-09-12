@@ -17,6 +17,7 @@ class UsageRepository @Inject constructor(
     fun observeForDay(dateEpochDay: Long): Flow<List<AppUsageDailyEntity>> = usageDao.observeForDay(dateEpochDay)
     fun observeForRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<AppUsageDailyEntity>> =
         usageDao.observeForRange(fromEpochDay, toEpochDay)
+    fun observeEarliestEpochDay(): Flow<Long?> = usageDao.observeEarliestEpochDay()
 
     suspend fun saveDailySnapshot(entries: List<AppUsageDailyEntity>) = usageDao.upsertDailyAll(entries)
 
