@@ -14,6 +14,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -107,10 +108,30 @@ class ScreenTimeViewModel @Inject constructor(
     val alertRules: StateFlow<List<UsageAlertRuleEntity>> = usageRepository.observeAlertRules()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun previousWeek() { _weekOffset.value -= 1 }
+    /** Día más antiguo con algún registro de uso, o null si todavía no hay ninguno — para no dejar
+     *  navegar el historial a un período de antes de que hubiera datos que mostrar (#161). */
+    private val earliestEpochDay: StateFlow<Long?> = usageRepository.observeEarliestEpochDay()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val canGoToPreviousWeek: StateFlow<Boolean> = combine(_weekOffset, earliestEpochDay) { offset, earliest ->
+        earliest != null && mondayEpochDayForWeekOffset(offset - 1) + 6 >= earliest
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val canGoToPreviousMonth: StateFlow<Boolean> = combine(_monthOffset, earliestEpochDay) { offset, earliest ->
+        earliest != null && lastEpochDayOfMonthOffset(offset - 1) >= earliest
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun previousWeek() { if (canGoToPreviousWeek.value) _weekOffset.value -= 1 }
     fun nextWeek() { if (_weekOffset.value < 0) _weekOffset.value += 1 }
-    fun previousMonth() { _monthOffset.value -= 1 }
+    fun previousMonth() { if (canGoToPreviousMonth.value) _monthOffset.value -= 1 }
     fun nextMonth() { if (_monthOffset.value < 0) _monthOffset.value += 1 }
+
+    /** Último epoch day del mes [offsetMonths] respecto al actual (puede ser negativo). */
+    private fun lastEpochDayOfMonthOffset(offsetMonths: Int): Long {
+        val today = LocalDate.fromEpochDays(todayEpochDay().toInt())
+        val firstOfNext = monthStart(today.year, today.monthNumber, offsetMonths + 1)
+        return firstOfNext.toEpochDays().toLong() - 1
+    }
 
     private fun dayUsageRange(entries: List<AppUsageDailyEntity>, fromDay: Long, toDay: Long): List<DayUsage> {
         val totalsByDay = entries.groupBy { it.dateEpochDay }.mapValues { (_, rows) -> rows.sumOf { it.minutesUsed } }

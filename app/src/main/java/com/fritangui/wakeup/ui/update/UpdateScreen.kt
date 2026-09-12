@@ -18,7 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,7 +53,7 @@ fun UpdateScreen(onBack: () -> Unit, viewModel: UpdateViewModel = hiltViewModel(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            WakeUpTopBar(
                 title = { Text("Buscar actualizaciones") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Volver") } },
             )

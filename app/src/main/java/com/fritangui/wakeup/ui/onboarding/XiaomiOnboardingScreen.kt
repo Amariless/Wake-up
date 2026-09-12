@@ -19,7 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -145,7 +145,7 @@ fun XiaomiOnboardingScreen(onDone: () -> Unit, viewModel: XiaomiOnboardingViewMo
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Permisos") }) }) { padding ->
+    Scaffold(topBar = { WakeUpTopBar(title = { Text("Permisos") }) }) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             Text(
                 if (isXiaomi) {

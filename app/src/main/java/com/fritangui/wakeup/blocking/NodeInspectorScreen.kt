@@ -10,7 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,7 +29,7 @@ fun NodeInspectorScreen() {
     val detection by ReelsBlockAccessibilityService.lastDetection.collectAsState()
     val isRunning by ReelsBlockAccessibilityService.isRunning.collectAsState()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Inspector de nodos") }) }) { padding ->
+    Scaffold(topBar = { WakeUpTopBar(title = { Text("Inspector de nodos") }) }) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             Text(if (isRunning) "Servicio de accesibilidad: activo" else "Servicio de accesibilidad: inactivo")
             Text("Última app inspeccionada: ${detection?.packageName ?: "—"}")

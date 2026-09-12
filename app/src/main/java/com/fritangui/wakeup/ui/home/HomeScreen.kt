@@ -36,7 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.fritangui.wakeup.ui.components.WakeUpTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -182,7 +182,7 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            WakeUpTopBar(
                 title = { Text("Wake up") },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
@@ -237,11 +237,11 @@ fun HomeScreen(
                     itemsIndexed(classCardRows, key = { index, _ -> "class_row_$index" }) { index, row ->
                         val isLast = index == classCardRows.lastIndex
                         when (row) {
-                            is ClassCardRow.EmptyRow -> CardEmptyText("No hay clases esta semana", roundedBottom = true)
-                            is ClassCardRow.DayHeaderRow -> CardRowBackground(roundedBottom = false) {
+                            is ClassCardRow.EmptyRow -> CardEmptyText("No hay clases esta semana", roundedBottom = true, modifier = Modifier.animateItem())
+                            is ClassCardRow.DayHeaderRow -> CardRowBackground(roundedBottom = false, modifier = Modifier.animateItem()) {
                                 DayHeader(DIA_LARGO[row.dayOfWeek - 1], row.isToday, row.isNextClassDay)
                             }
-                            is ClassCardRow.ClassEntryRow -> CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
+                            is ClassCardRow.ClassEntryRow -> CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast, modifier = Modifier.animateItem()) {
                                 ClassRow(row.entry, row.isOngoing, onClick = { onOpenSubject(row.entry.folderId, row.entry.subjectId) })
                             }
                         }
@@ -266,11 +266,11 @@ fun HomeScreen(
                     ) { index, row ->
                         val isLast = index == taskCardRows.lastIndex
                         when (row) {
-                            is TaskCardRow.EmptyRow -> CardEmptyText("No hay tareas próximas", roundedBottom = true)
-                            is TaskCardRow.BucketHeaderRow -> CardRowBackground(roundedBottom = false) {
+                            is TaskCardRow.EmptyRow -> CardEmptyText("No hay tareas próximas", roundedBottom = true, modifier = Modifier.animateItem())
+                            is TaskCardRow.BucketHeaderRow -> CardRowBackground(roundedBottom = false, modifier = Modifier.animateItem()) {
                                 TaskBucketHeader(row.bucket)
                             }
-                            is TaskCardRow.TaskEntryRow -> CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast) {
+                            is TaskCardRow.TaskEntryRow -> CardRowBackground(roundedBottom = isLast, bottomExtraPadding = isLast, modifier = Modifier.animateItem()) {
                                 TaskRow(
                                     row.task,
                                     subjectColorsById[row.task.subjectId],
@@ -504,9 +504,9 @@ private fun CardTitleRow(title: String, dotColor: Color, roundedBottom: Boolean,
 }
 
 @Composable
-private fun CardEmptyText(text: String, roundedBottom: Boolean) {
+private fun CardEmptyText(text: String, roundedBottom: Boolean, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(cardShape(roundedTop = false, roundedBottom = roundedBottom))
             .background(MaterialTheme.colorScheme.surfaceContainer)
@@ -519,9 +519,9 @@ private fun CardEmptyText(text: String, roundedBottom: Boolean) {
 /** Fondo continuo de "tarjeta tipo widget" compartido fila a fila (ver [ClassCardRow]): mismo color
  *  en todas, esquinas redondeadas solo en la última fila de cada tarjeta. */
 @Composable
-private fun CardRowBackground(roundedBottom: Boolean, bottomExtraPadding: Boolean = false, content: @Composable () -> Unit) {
+private fun CardRowBackground(roundedBottom: Boolean, bottomExtraPadding: Boolean = false, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(cardShape(roundedTop = false, roundedBottom = roundedBottom))
             .background(MaterialTheme.colorScheme.surfaceContainer)
