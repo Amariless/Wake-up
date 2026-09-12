@@ -8,6 +8,8 @@ data class WeeklyClassEntry(
     val folderId: Long,
     val subjectName: String,
     val colorArgb: Int,
+    /** Clave del ícono elegido para la materia (ver [com.fritangui.wakeup.ui.subjects.SubjectIcons]), o null. */
+    val iconKey: String?,
     val room: String,
     val startMinuteOfDay: Int,
     val endMinuteOfDay: Int,
@@ -35,6 +37,7 @@ fun computeWeeklyClassSchedule(subjects: List<SubjectWithSessions>): List<Weekly
                     folderId = entry.subject.folderId,
                     subjectName = entry.subject.name,
                     colorArgb = entry.subject.colorArgb,
+                    iconKey = entry.subject.iconKey,
                     room = session.room,
                     startMinuteOfDay = session.startMinuteOfDay,
                     endMinuteOfDay = session.endMinuteOfDay,

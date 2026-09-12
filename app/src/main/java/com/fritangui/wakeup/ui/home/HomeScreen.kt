@@ -64,6 +64,7 @@ import com.fritangui.wakeup.domain.taskUrgencyBucket
 import com.fritangui.wakeup.permissions.AlarmVolumeStatus
 import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
+import com.fritangui.wakeup.ui.components.SubjectIndicator
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
 import kotlinx.coroutines.delay
@@ -112,6 +113,7 @@ fun HomeScreen(
     val upcomingTasks by viewModel.upcomingTasks.collectAsState()
     val subjectColorsById by viewModel.subjectColorsById.collectAsState()
     val subjectNamesById by viewModel.subjectNamesById.collectAsState()
+    val subjectIconsById by viewModel.subjectIconsById.collectAsState()
     val todayScreenTimeMinutes by viewModel.todayScreenTimeMinutes.collectAsState()
     val nextClassOccurrence by viewModel.nextClassOccurrence.collectAsState()
 
@@ -272,6 +274,7 @@ fun HomeScreen(
                                 TaskRow(
                                     row.task,
                                     subjectColorsById[row.task.subjectId],
+                                    row.task.subjectId?.let { subjectIconsById[it] },
                                     row.task.subjectId?.let { subjectNamesById[it] },
                                     onClick = { onOpenTask(row.task.folderId, row.task.id) },
                                 )
@@ -349,19 +352,16 @@ private fun NextClassHeroCard(occurrence: UpcomingClassOccurrence, onClick: () -
             val endText = formatMinuteOfDay(occurrence.end.hour * 60 + occurrence.end.minute, use24Hour)
             Text("$startText – $endText", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outline)
         }
-        Text(
-            occurrence.subjectName,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        if (occurrence.room.isNotBlank()) {
-            Text(
-                occurrence.room,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+            // Mismo avatar circular (ícono o punto de color) que el resto de la app (#161) — antes
+            // esta tarjeta no mostraba ninguna referencia visual a la materia, solo su nombre.
+            SubjectIndicator(Color(occurrence.colorArgb), occurrence.iconKey, size = 36.dp)
+            Column(modifier = Modifier.padding(start = 12.dp)) {
+                Text(occurrence.subjectName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                if (occurrence.room.isNotBlank()) {
+                    Text(occurrence.room, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                }
+            }
         }
         Text(countdown, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
         Text(countdownLabel.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
@@ -596,19 +596,25 @@ private fun TaskBucketHeader(bucket: TaskUrgencyBucket) {
     )
 }
 
+/** [iconKey] no nulo (materia con ícono elegido) reemplaza la barra fina de color por el mismo
+ *  avatar circular con ícono que ya usa la lista de materias de una carpeta (#161). */
 @Composable
-private fun ItemRow(accentColor: Color, highlighted: Boolean = false, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+private fun ItemRow(accentColor: Color, iconKey: String? = null, highlighted: Boolean = false, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(40.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(accentColor),
-        )
+        if (com.fritangui.wakeup.ui.subjects.SubjectIcons.iconFor(iconKey) != null) {
+            SubjectIndicator(accentColor, iconKey, size = 40.dp)
+        } else {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(accentColor),
+            )
+        }
         Column(
             modifier = Modifier
                 .padding(start = 10.dp)
@@ -627,7 +633,7 @@ private fun ItemRow(accentColor: Color, highlighted: Boolean = false, onClick: (
 @Composable
 private fun ClassRow(entry: WeeklyClassEntry, isOngoing: Boolean, onClick: () -> Unit) {
     val use24Hour = LocalUse24HourFormat.current
-    ItemRow(accentColor = Color(entry.colorArgb), highlighted = isOngoing, onClick = onClick) {
+    ItemRow(accentColor = Color(entry.colorArgb), iconKey = entry.iconKey, highlighted = isOngoing, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(entry.subjectName, style = MaterialTheme.typography.titleMedium)
             if (isOngoing) {
@@ -654,9 +660,13 @@ private fun formatMinuteOfDay(minuteOfDay: Int, use24Hour: Boolean): String {
 }
 
 @Composable
-private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?, subjectName: String?, onClick: () -> Unit) {
+private fun TaskRow(task: TaskEntity, subjectColorArgb: Int?, subjectIconKey: String?, subjectName: String?, onClick: () -> Unit) {
     val use24Hour = LocalUse24HourFormat.current
-    ItemRow(accentColor = subjectColorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.secondary, onClick = onClick) {
+    ItemRow(
+        accentColor = subjectColorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.secondary,
+        iconKey = subjectIconKey,
+        onClick = onClick,
+    ) {
         Text(task.title, style = MaterialTheme.typography.titleMedium)
         val dueText = task.dueAtEpochMillis?.let {
             val dt = Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.currentSystemDefault())
