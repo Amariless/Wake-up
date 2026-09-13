@@ -83,6 +83,12 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     var minutesInput by remember { mutableIntStateOf(5) }
     var secondsInput by remember { mutableIntStateOf(0) }
     var challengeMenuExpanded by remember { mutableStateOf(false) }
+    // Qué ruedas están mid-gesto ahora mismo (arrastrando o todavía asentándose tras soltar) —
+    // mientras cualquiera lo esté, "Iniciar" queda deshabilitado (#161): antes, cambiar una rueda y
+    // tocar Iniciar de inmediato podía arrancar con el valor VIEJO, porque WheelPicker recién
+    // reporta el valor nuevo cuando el scroll se asienta (evita spamear onValueChange en cada
+    // píxel), y hoursInput/minutesInput/secondsInput todavía no se habían actualizado a tiempo.
+    var settlingWheels by remember { mutableStateOf(emptySet<String>()) }
 
     // Recuerda el último hh:mm:ss usado en vez de arrancar siempre en "5 min" fijo.
     androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -112,7 +118,11 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        // Antes 32dp: seguía sintiéndose con mucho aire arriba y el botón de Iniciar todavía
+        // quedaba tapado en pantallas más chicas (#161) — con las ruedas también más compactas
+        // (ver más abajo) esto ya alcanza para separarlo un poco de la pestaña de arriba sin robarle
+        // tanto espacio al resto.
+        Spacer(modifier = Modifier.height(4.dp))
         AnimatedContent(
             targetState = phase,
             transitionSpec = { (fadeIn(tween(220)) togetherWith fadeOut(tween(160))) },
@@ -135,6 +145,8 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
                         val totalMillis = (hoursInput * 3600L + minutesInput * 60L + secondsInput) * 1000L
                         if (totalMillis > 0) viewModel.start(totalMillis, challengePref.type, challengePref.difficulty)
                     },
+                    onWheelsSettlingChange = { key, settling -> settlingWheels = if (settling) settlingWheels + key else settlingWheels - key },
+                    allWheelsSettled = settlingWheels.isEmpty(),
                 )
                 TimerPhase.RUNNING -> TimerRunningContent(
                     remainingMillis = state.remainingMillis,
@@ -184,57 +196,67 @@ private fun TimerIdleContent(
     onChallengeSelected: (DismissChallengeType) -> Unit,
     onSelectPreset: (totalMinutes: Int) -> Unit,
     onStart: () -> Unit,
+    onWheelsSettlingChange: (key: String, settling: Boolean) -> Unit,
+    allWheelsSettled: Boolean,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // Sin tarjeta/fondo detrás (#161, mockup de referencia): las ruedas flotan directo sobre
         // el resplandor de la pantalla, como el reloj nativo — antes vivían dentro de una tarjeta
         // surfaceContainer que el usuario pidió sacar ("la caja... está muy fea").
+        //
+        // itemHeight/visibleCount más chicos que antes (52dp×3 = 156dp, antes 64dp×5 = 320dp): el
+        // botón de Iniciar seguía quedando tapado en pantallas más chicas (#161) — las ruedas eran,
+        // de lejos, lo que más alto ocupaba.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es
             // cuál. Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier
             // dirección (arriba de la hora 0 aparece la 23, arriba del segundo 0 el 59...) en vez
             // de topar con un final. Sin los ":" entre ruedas (el espaciado ya deja claro que son
-            // 3 valores separados, ver #151) y con la rueda en general más grande: más alto por
-            // ítem, más ancha, letra más grande y con un poco más de énfasis extra en el número
-            // central.
+            // 3 valores separados, ver #151).
             WheelPicker(
                 value = hoursInput,
                 range = 0..23,
                 onValueChange = onHoursChange,
                 loop = true,
-                itemHeight = 64.dp,
+                itemHeight = 52.dp,
+                visibleCount = 3,
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
                 centerEmphasis = 1.1f,
                 contentDescriptionLabel = "Horas",
+                onSettling = { settling -> onWheelsSettlingChange("h", settling) },
             )
             WheelPicker(
                 value = minutesInput,
                 range = 0..59,
                 onValueChange = onMinutesChange,
                 loop = true,
-                itemHeight = 64.dp,
+                itemHeight = 52.dp,
+                visibleCount = 3,
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
                 centerEmphasis = 1.1f,
                 contentDescriptionLabel = "Minutos",
+                onSettling = { settling -> onWheelsSettlingChange("m", settling) },
             )
             WheelPicker(
                 value = secondsInput,
                 range = 0..59,
                 onValueChange = onSecondsChange,
                 loop = true,
-                itemHeight = 64.dp,
+                itemHeight = 52.dp,
+                visibleCount = 3,
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
                 centerEmphasis = 1.1f,
                 contentDescriptionLabel = "Segundos",
+                onSettling = { settling -> onWheelsSettlingChange("s", settling) },
             )
         }
 
         // Atajos rápidos (#161): tocar uno pone las ruedas directo en esa duración, sin tener que
         // deslizarlas a mano para los valores más comunes.
-        Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(modifier = Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TIMER_PRESETS_MINUTES.forEach { totalMinutes ->
                 val selected = hoursInput == 0 && minutesInput == totalMinutes && secondsInput == 0
                 TimerPresetChip(
@@ -250,12 +272,18 @@ private fun TimerIdleContent(
             expanded = challengeMenuExpanded,
             onExpandedChange = onChallengeMenuExpandedChange,
             onSelected = onChallengeSelected,
-            modifier = Modifier.padding(top = 20.dp),
+            modifier = Modifier.padding(top = 14.dp),
         )
 
         // Botón circular relleno con acento índigo (antes salvia) para calzar con el resplandor
-        // púrpura del mockup de referencia — mismo acento que usa "Enfoque" en Inicio.
-        GlowingStartButton(onClick = onStart, enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0)
+        // púrpura del mockup de referencia — mismo acento que usa "Enfoque" en Inicio. Deshabilitado
+        // mientras alguna rueda todavía se está asentando (ver el comentario de settlingWheels más
+        // arriba) — evita arrancar con un valor que ya cambiaste en pantalla pero que WheelPicker
+        // todavía no terminó de reportar.
+        GlowingStartButton(
+            onClick = onStart,
+            enabled = allWheelsSettled && (hoursInput > 0 || minutesInput > 0 || secondsInput > 0),
+        )
     }
 }
 

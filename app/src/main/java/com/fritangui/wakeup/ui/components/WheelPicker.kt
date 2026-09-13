@@ -75,6 +75,11 @@ fun WheelPicker(
     centerEmphasis: Float = 1f,
     /** Qué representa esta rueda para lectores de pantalla (p.ej. "Hora", "Minuto"). */
     contentDescriptionLabel: String = "Valor",
+    /** true mientras se está arrastrando/deslizando (o todavía asentándose tras soltar el dedo).
+     *  [onValueChange] recién se dispara cuando esto vuelve a false — así una pantalla que lea
+     *  [value] justo al tocar un botón (p.ej. "Iniciar" del temporizador) puede esperar a que
+     *  termine de asentarse en vez de leer un valor todavía viejo a mitad de un gesto (#161). */
+    onSettling: (Boolean) -> Unit = {},
 ) {
     val items = remember(range) { range.toList() }
     val itemCount = items.size
@@ -110,6 +115,7 @@ fun WheelPicker(
         snapshotFlow { listState.isScrollInProgress to centerIndex }
             .distinctUntilChanged()
             .collect { (scrolling, index) ->
+                onSettling(scrolling)
                 if (!scrolling) {
                     val newValue = valueAt(index)
                     if (newValue != value) onValueChange(newValue)
