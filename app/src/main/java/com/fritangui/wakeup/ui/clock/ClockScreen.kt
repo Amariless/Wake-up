@@ -131,7 +131,9 @@ fun ClockScreen(
                 tabs = TABS,
                 selectedIndex = tabIndex,
                 onSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                // Antes 12dp verticales: sumado al aire que ya deja la barra superior sin caja,
+                // dejaba una franja vacía notoria arriba de las pestañas (#161).
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
             )
             // weight(1f), NO fillMaxSize(): ver el mismo arreglo en FolderDetailScreen (bug de
             // "espacio vacío" que empujaba las alarmas/recordatorios hacia abajo).
