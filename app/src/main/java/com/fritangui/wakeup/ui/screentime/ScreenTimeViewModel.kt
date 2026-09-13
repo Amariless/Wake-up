@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -107,6 +108,28 @@ class ScreenTimeViewModel @Inject constructor(
 
     val alertRules: StateFlow<List<UsageAlertRuleEntity>> = usageRepository.observeAlertRules()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // Día tocado en el gráfico de historial, para el detalle por app de ESE día (#161) — no solo
+    // "hoy". null = ningún diálogo de detalle abierto.
+    private val _selectedDayEpochDay = MutableStateFlow<Long?>(null)
+    val selectedDayEpochDay: StateFlow<Long?> = _selectedDayEpochDay
+
+    val selectedDayUsage: StateFlow<List<AppUsageRow>> = _selectedDayEpochDay
+        .flatMapLatest { day ->
+            if (day == null) {
+                flowOf(emptyList())
+            } else {
+                usageRepository.observeForDay(day).map { list ->
+                    list.sortedByDescending { it.minutesUsed }.map { entry ->
+                        AppUsageRow(entry.packageName, resolveLabel(entry.packageName), entry.minutesUsed)
+                    }
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun selectDay(epochDay: Long) { _selectedDayEpochDay.value = epochDay }
+    fun clearSelectedDay() { _selectedDayEpochDay.value = null }
 
     /** Día más antiguo con algún registro de uso, o null si todavía no hay ninguno — para no dejar
      *  navegar el historial a un período de antes de que hubiera datos que mostrar (#161). */
