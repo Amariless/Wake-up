@@ -393,7 +393,7 @@ private fun WakeUpNavHostContent(
                 val jumpToTimerTabSignal by jumpToTimerTabTrigger
                 ClockScreen(
                     onOpenAlarm = { navController.navigate(Routes.alarmEditor(alarmId = it)) },
-                    onNewAlarm = { navController.navigate(Routes.alarmEditor()) },
+                    onNewAlarm = { folderId -> navController.navigate(Routes.alarmEditor(folderId = folderId)) },
                     jumpToTimerTabSignal = jumpToTimerTabSignal,
                 )
             }

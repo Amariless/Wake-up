@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.domain.AlarmTiming
 import com.fritangui.wakeup.ui.clock.alarms.AlarmsListScreen
+import com.fritangui.wakeup.ui.clock.alarms.AlarmsScope
 import com.fritangui.wakeup.ui.clock.alarms.AlarmsViewModel
 import com.fritangui.wakeup.ui.clock.stopwatch.StopwatchScreen
 import com.fritangui.wakeup.ui.clock.timer.TimerScreen
@@ -54,7 +55,9 @@ private val TABS = listOf("Alarmas", "Temporizador", "Cronómetro")
 @Composable
 fun ClockScreen(
     onOpenAlarm: (Long) -> Unit,
-    onNewAlarm: () -> Unit,
+    /** [folderId] es 0L para una alarma general, o el id de la carpeta activa si el toggle de
+     *  Alarmas está en esa posición cuando se toca "+" (#161). */
+    onNewAlarm: (folderId: Long) -> Unit,
     /** Se incrementa desde la acción rápida "Enfoque" de Inicio: salta a la sub-pestaña
      *  Temporizador, igual que scrollToNextClassSignal salta el scroll de Inicio (ver WakeUpNavHost). */
     jumpToTimerTabSignal: Int = 0,
@@ -72,7 +75,11 @@ fun ClockScreen(
     // La misma instancia que usa AlarmsListScreen (comparten NavBackStackEntry): se pasa
     // explícitamente para no depender de que Hilt la resuelva igual en los dos sitios.
     val alarmsViewModel: AlarmsViewModel = hiltViewModel()
-    val alarms by alarmsViewModel.alarms.collectAsState()
+    val alarmsScope by alarmsViewModel.scope.collectAsState()
+    val activeFolder by alarmsViewModel.activeFolder.collectAsState()
+    // Generales + de la carpeta activa juntas (#161): antes este resumen solo miraba las generales,
+    // así que una alarma de la carpeta principal que sonara antes no aparecía acá arriba.
+    val allConsideredAlarms by alarmsViewModel.allConsideredAlarms.collectAsState()
 
     var now by remember { mutableStateOf(Clock.System.now()) }
     LaunchedEffect(Unit) {
@@ -84,8 +91,8 @@ fun ClockScreen(
     // #139: además del "Faltan X" de cada fila, un resumen a nivel de pantalla de cuándo suena la
     // PRÓXIMA alarma en general (la más próxima entre todas las habilitadas), visible sin importar
     // en qué sub-pestaña (Alarmas/Temporizador/Cronómetro) esté el usuario.
-    val nextAlarmSubtitle = remember(alarms, now) {
-        alarms.filter { it.isEnabled }
+    val nextAlarmSubtitle = remember(allConsideredAlarms, now) {
+        allConsideredAlarms.filter { it.isEnabled }
             .mapNotNull { AlarmTiming.nextTrigger(it, now = now) }
             .minOrNull()
             ?.let { trigger -> "Próxima alarma en ${AlarmTiming.formatRemaining(trigger - now)}" }
@@ -110,7 +117,12 @@ fun ClockScreen(
         },
         floatingActionButton = {
             if (tabIndex == 0) {
-                FloatingActionButton(onClick = onNewAlarm) { Icon(Icons.Default.Add, contentDescription = "Nueva alarma") }
+                // Respeta el toggle de arriba: si se está mirando la carpeta activa, "+" crea una
+                // alarma de esa carpeta en vez de una general (#161).
+                val newAlarmFolderId = if (alarmsScope == AlarmsScope.ACTIVE_FOLDER) activeFolder?.id ?: 0L else 0L
+                FloatingActionButton(onClick = { onNewAlarm(newAlarmFolderId) }) {
+                    Icon(Icons.Default.Add, contentDescription = "Nueva alarma")
+                }
             }
         },
     ) { padding ->

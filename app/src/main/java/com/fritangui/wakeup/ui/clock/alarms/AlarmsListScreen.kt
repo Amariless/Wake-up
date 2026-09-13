@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.fritangui.wakeup.ui.clock.alarms
 
 import androidx.compose.animation.core.tween
@@ -21,6 +23,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.alarm.sound.AlarmSounds
@@ -53,6 +59,8 @@ fun AlarmsListScreen(
     viewModel: AlarmsViewModel = hiltViewModel(),
 ) {
     val alarms by viewModel.alarms.collectAsState()
+    val scope by viewModel.scope.collectAsState()
+    val activeFolder by viewModel.activeFolder.collectAsState()
     val playingUri by viewModel.previewPlayer.playingUri.collectAsState()
     val context = LocalContext.current
 
@@ -67,52 +75,80 @@ fun AlarmsListScreen(
         }
     }
 
-    if (alarms.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text("Toca + para crear tu primera alarma del reloj general")
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Toggle "Generales" / carpeta principal (#161): antes esta pestaña solo mostraba las
+        // alarmas del reloj general, sin ninguna forma de ver las de la carpeta activa desde acá
+        // (había que entrar a esa carpeta y su propia pestaña de Alarmas).
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            SegmentedButton(
+                selected = scope == AlarmsScope.GENERAL,
+                onClick = { viewModel.setScope(AlarmsScope.GENERAL) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+            ) { Text("Generales") }
+            SegmentedButton(
+                selected = scope == AlarmsScope.ACTIVE_FOLDER,
+                onClick = { viewModel.setScope(AlarmsScope.ACTIVE_FOLDER) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                enabled = activeFolder != null,
+            ) { Text(activeFolder?.name ?: "Carpeta principal") }
         }
-        return
-    }
 
-    // Secciones separadas (no solo una etiqueta chica) para que quede clarísimo que un Recordatorio
-    // es distinto de una Alarma: es solo una notificación normal, no algo que "suena" y haya que
-    // apagar completando un reto.
-    val realAlarms = alarms.filter { it.kind == AlarmKind.ALARM }
-    val reminders = alarms.filter { it.kind == AlarmKind.REMINDER }
-
-    // Modifier.fillMaxSize() explícito: sin él, el LazyColumn se queda "envuelto" al tamaño de su
-    // contenido en vez de ocupar todo el alto que le da el HorizontalPager de ClockScreen — dentro
-    // de un Box (como arma cada página del pager) eso lo deja centrado verticalmente en vez de
-    // pegado arriba, con espacio vacío arriba Y abajo (el bug reportado del "espacio vacío").
-    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp)) {
-        if (realAlarms.isNotEmpty()) {
-            item(key = "header_alarms") { SectionHeader("Alarmas") }
-            items(realAlarms, key = { it.id }) { alarm ->
-                val soundUri = alarm.soundUri ?: AlarmSounds.defaultSoundUriFor(context)
-                AlarmRow(
-                    alarm = alarm,
-                    now = now,
-                    isPreviewing = playingUri == soundUri,
-                    onClick = { onOpenAlarm(alarm.id) },
-                    onToggle = { viewModel.setEnabled(alarm.id, it) },
-                    onPreview = { viewModel.previewPlayer.toggle(soundUri) },
-                    modifier = Modifier.animateItem(placementSpec = tween(220)),
+        if (alarms.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    when {
+                        scope == AlarmsScope.ACTIVE_FOLDER && activeFolder == null ->
+                            "Marcá una carpeta como principal (⭐ desde su pantalla) para ver sus alarmas acá"
+                        scope == AlarmsScope.ACTIVE_FOLDER ->
+                            "Toca + para crear la primera alarma de \"${activeFolder?.name}\""
+                        else -> "Toca + para crear tu primera alarma del reloj general"
+                    },
+                    textAlign = TextAlign.Center,
                 )
             }
+            return@Column
         }
-        if (reminders.isNotEmpty()) {
-            item(key = "header_reminders") { SectionHeader("Recordatorios", topPadding = if (realAlarms.isNotEmpty()) 20.dp else 0.dp) }
-            items(reminders, key = { it.id }) { alarm ->
-                val soundUri = alarm.soundUri ?: NotificationSounds.defaultSoundUriFor(context)
-                AlarmRow(
-                    alarm = alarm,
-                    now = now,
-                    isPreviewing = playingUri == soundUri,
-                    onClick = { onOpenAlarm(alarm.id) },
-                    onToggle = { viewModel.setEnabled(alarm.id, it) },
-                    onPreview = { viewModel.previewPlayer.toggle(soundUri) },
-                    modifier = Modifier.animateItem(placementSpec = tween(220)),
-                )
+
+        // Secciones separadas (no solo una etiqueta chica) para que quede clarísimo que un
+        // Recordatorio es distinto de una Alarma: es solo una notificación normal, no algo que
+        // "suena" y haya que apagar completando un reto.
+        val realAlarms = alarms.filter { it.kind == AlarmKind.ALARM }
+        val reminders = alarms.filter { it.kind == AlarmKind.REMINDER }
+
+        // Modifier.fillMaxSize() explícito: sin él, el LazyColumn se queda "envuelto" al tamaño de
+        // su contenido en vez de ocupar todo el alto que le da el HorizontalPager de ClockScreen —
+        // dentro de un Box (como arma cada página del pager) eso lo deja centrado verticalmente en
+        // vez de pegado arriba, con espacio vacío arriba Y abajo (el bug reportado del "espacio vacío").
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp)) {
+            if (realAlarms.isNotEmpty()) {
+                item(key = "header_alarms") { SectionHeader("Alarmas") }
+                items(realAlarms, key = { it.id }) { alarm ->
+                    val soundUri = alarm.soundUri ?: AlarmSounds.defaultSoundUriFor(context)
+                    AlarmRow(
+                        alarm = alarm,
+                        now = now,
+                        isPreviewing = playingUri == soundUri,
+                        onClick = { onOpenAlarm(alarm.id) },
+                        onToggle = { viewModel.setEnabled(alarm.id, it) },
+                        onPreview = { viewModel.previewPlayer.toggle(soundUri) },
+                        modifier = Modifier.animateItem(placementSpec = tween(220)),
+                    )
+                }
+            }
+            if (reminders.isNotEmpty()) {
+                item(key = "header_reminders") { SectionHeader("Recordatorios", topPadding = if (realAlarms.isNotEmpty()) 20.dp else 0.dp) }
+                items(reminders, key = { it.id }) { alarm ->
+                    val soundUri = alarm.soundUri ?: NotificationSounds.defaultSoundUriFor(context)
+                    AlarmRow(
+                        alarm = alarm,
+                        now = now,
+                        isPreviewing = playingUri == soundUri,
+                        onClick = { onOpenAlarm(alarm.id) },
+                        onToggle = { viewModel.setEnabled(alarm.id, it) },
+                        onPreview = { viewModel.previewPlayer.toggle(soundUri) },
+                        modifier = Modifier.animateItem(placementSpec = tween(220)),
+                    )
+                }
             }
         }
     }
