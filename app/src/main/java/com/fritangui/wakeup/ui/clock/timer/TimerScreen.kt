@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HourglassEmpty
@@ -54,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fritangui.wakeup.data.db.entity.DismissChallengeType
 import com.fritangui.wakeup.ui.components.WheelPicker
+import com.fritangui.wakeup.ui.components.glowBackground
 
 private val CHALLENGE_LABELS = mapOf(
     DismissChallengeType.NONE to "Ninguno",
@@ -63,6 +67,10 @@ private val CHALLENGE_LABELS = mapOf(
     DismissChallengeType.TRACE_PATH to "Seguir línea curva",
     DismissChallengeType.TYPE_PHRASE to "Escribir una frase",
 )
+
+/** Minutos de los 3 atajos rápidos (#161, copiados del mockup de referencia: "00:10:00",
+ *  "00:15:00", "00:30:00" como pastillas arriba del botón de Iniciar). */
+private val TIMER_PRESETS_MINUTES = listOf(10, 15, 30)
 
 private enum class TimerPhase { IDLE, RUNNING, RINGING }
 
@@ -91,11 +99,11 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     }
 
     Column(
-        // verticalScroll de respaldo: sin él, en pantallas más chicas o con letra grande del
-        // sistema, la tarjeta de ruedas + selector de reto + botón de Iniciar podían no entrar
-        // completos en alto, y el botón (lo último en el Column) quedaba cortado fuera de la
-        // pantalla en vez de solo apretado — nada indicaba que hubiera más contenido debajo.
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        // Resplandor radial + verticalScroll de respaldo: sin el scroll, en pantallas más chicas o
+        // con letra grande del sistema, las ruedas + selector de reto + botón de Iniciar podían no
+        // entrar completos en alto, y el botón (lo último en el Column) quedaba cortado fuera de la
+        // pantalla en vez de solo apretado.
+        modifier = Modifier.fillMaxSize().glowBackground().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -116,6 +124,7 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
                     challengeMenuExpanded = challengeMenuExpanded,
                     onChallengeMenuExpandedChange = { challengeMenuExpanded = it },
                     onChallengeSelected = { type -> viewModel.setChallengePref(type, challengePref.difficulty); challengeMenuExpanded = false },
+                    onSelectPreset = { totalMinutes -> hoursInput = 0; minutesInput = totalMinutes; secondsInput = 0 },
                     onStart = {
                         val totalMillis = (hoursInput * 3600L + minutesInput * 60L + secondsInput) * 1000L
                         if (totalMillis > 0) viewModel.start(totalMillis, challengePref.type, challengePref.difficulty)
@@ -133,7 +142,7 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
                     Icon(
                         Icons.Default.HourglassEmpty,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(48.dp),
                     )
                     Text(
@@ -166,19 +175,14 @@ private fun TimerIdleContent(
     challengeMenuExpanded: Boolean,
     onChallengeMenuExpandedChange: (Boolean) -> Unit,
     onChallengeSelected: (DismissChallengeType) -> Unit,
+    onSelectPreset: (totalMinutes: Int) -> Unit,
     onStart: () -> Unit,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Las ruedas viven dentro de una tarjeta surfaceContainer redondeada (#161) — mismo
-        // lenguaje que el resto del rediseño, en vez de flotar sueltas sobre el fondo.
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-        ) {
+        // Sin tarjeta/fondo detrás (#161, mockup de referencia): las ruedas flotan directo sobre
+        // el resplandor de la pantalla, como el reloj nativo — antes vivían dentro de una tarjeta
+        // surfaceContainer que el usuario pidió sacar ("la caja... está muy fea").
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es
             // cuál. Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier
             // dirección (arriba de la hora 0 aparece la 23, arriba del segundo 0 el 59...) en vez
@@ -221,6 +225,19 @@ private fun TimerIdleContent(
             )
         }
 
+        // Atajos rápidos (#161): tocar uno pone las ruedas directo en esa duración, sin tener que
+        // deslizarlas a mano para los valores más comunes.
+        Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TIMER_PRESETS_MINUTES.forEach { totalMinutes ->
+                val selected = hoursInput == 0 && minutesInput == totalMinutes && secondsInput == 0
+                TimerPresetChip(
+                    label = "00:%02d:00".format(totalMinutes),
+                    selected = selected,
+                    onClick = { onSelectPreset(totalMinutes) },
+                )
+            }
+        }
+
         ExposedDropdownMenuBox(
             expanded = challengeMenuExpanded,
             onExpandedChange = onChallengeMenuExpandedChange,
@@ -241,17 +258,59 @@ private fun TimerIdleContent(
             }
         }
 
-        // Mismo botón circular relleno que usa el cronómetro para "Iniciar" (mismo acento salvia
-        // también), en vez de un botón de ancho completo con texto — para que ambas pantallas del
-        // reloj se sientan consistentes.
+        // Botón circular relleno con acento índigo (antes salvia) para calzar con el resplandor
+        // púrpura del mockup de referencia — mismo acento que usa "Enfoque" en Inicio.
+        GlowingStartButton(onClick = onStart, enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0)
+    }
+}
+
+/** Pastilla de atajo de duración: sin relleno + borde índigo cuando está seleccionada, superficie
+ *  plana cuando no — mismo lenguaje que el mockup de referencia (no el FilterChip con check de
+ *  Material, que se ve distinto). */
+@Composable
+private fun TimerPresetChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainer)
+            .then(
+                if (selected) {
+                    Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(999.dp))
+                } else {
+                    Modifier
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/** Botón circular con un halo propio detrás (círculo más grande, mismo color, muy tenue) — el
+ *  "glow" del botón de Iniciar/Play del mockup de referencia, además del resplandor de fondo de
+ *  toda la pantalla. */
+@Composable
+private fun GlowingStartButton(onClick: () -> Unit, enabled: Boolean) {
+    Box(modifier = Modifier.padding(top = 20.dp).size(112.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .size(112.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+        )
         FilledIconButton(
-            onClick = onStart,
-            enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0,
-            modifier = Modifier.padding(top = 20.dp).size(72.dp),
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.size(72.dp),
             shape = CircleShape,
             colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.tertiary,
-                contentColor = MaterialTheme.colorScheme.onTertiary,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = "Iniciar", modifier = Modifier.size(32.dp))
@@ -280,7 +339,7 @@ private fun TimerRunningContent(
             CircularProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.tertiary,
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 10.dp,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 strokeCap = StrokeCap.Round,
@@ -308,8 +367,8 @@ private fun TimerRunningContent(
                 },
                 modifier = Modifier.size(68.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
                 Icon(
