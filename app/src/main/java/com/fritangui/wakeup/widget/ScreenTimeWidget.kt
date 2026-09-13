@@ -64,9 +64,11 @@ class ScreenTimeWidget : GlanceAppWidget() {
         val hasAccess = PermissionStatus.hasUsageAccess(context)
         val usage = if (hasAccess) entryPoint.usageRepository().observeForDay(todayEpochDay()).first() else emptyList()
         val totalMinutes = usage.sumOf { it.minutesUsed }
-        // Se trae hasta 5 (el máximo que se podría llegar a mostrar); cuántas de esas se pintan de
-        // verdad se decide adentro del composable según el alto real del widget.
-        val topApps = usage.sortedByDescending { it.minutesUsed }.take(5)
+        // Se trae hasta 10 (antes 5 — #161: con el widget agrandado a varias celdas de alto, ese
+        // tope de 5 se quedaba corto para el espacio real disponible y dejaba una franja vacía
+        // abajo aunque hubiera más apps con uso ese día). Cuántas de esas se pintan de verdad se
+        // decide adentro del composable según el alto real del widget.
+        val topApps = usage.sortedByDescending { it.minutesUsed }.take(10)
             .map { entry -> TopAppUsage(entry.packageName, resolveLabel(context, entry.packageName), entry.minutesUsed) }
         val openIntent = WidgetDeepLink.screenTimeIntent(context)
 
@@ -85,7 +87,7 @@ class ScreenTimeWidget : GlanceAppWidget() {
         val heightDp = LocalSize.current.height.value
         val fixedOverheadDp = 28f + 20f + 38f + 10f // padding(14+14) + encabezado + total + espaciador
         val rowHeightDp = CIRCLE_MAX.value + ROW_VERTICAL_PADDING.value * 2
-        val maxRowsThatFit = ((heightDp - fixedOverheadDp) / rowHeightDp).toInt().coerceIn(0, 5)
+        val maxRowsThatFit = ((heightDp - fixedOverheadDp) / rowHeightDp).toInt().coerceIn(0, 10)
         val visibleApps = topApps.take(maxRowsThatFit)
 
         Column(

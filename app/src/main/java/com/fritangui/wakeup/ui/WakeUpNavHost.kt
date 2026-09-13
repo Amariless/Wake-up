@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -210,9 +211,16 @@ private fun WakeUpNavHostContent(
         bottomBar = {
             // Barra flotante (pastilla redondeada con sombra, separada de los bordes) en vez de la
             // NavigationBar de ancho completo de Material — así queda el look del rediseño 2026.
+            // navigationBarsPadding() ANTES que el padding/sombra visuales: sin esto, Scaffold no
+            // sabía que esta barra ya se ocupaba del inset de la barra de navegación del sistema (la
+            // pastilla no lo consumía ella misma) y lo sumaba OTRA VEZ al padding inferior que le da
+            // a cada pantalla — una franja invisible de más, del tamaño de esa barra del sistema, que
+            // recortaba el contenido de abajo en TODAS las pantallas y empujaba de más al FAB de "+"
+            // de Alarmas (#161: "hay una caja invisible abajo").
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 20.dp)
                     .shadow(elevation = 10.dp, shape = RoundedCornerShape(26.dp), clip = false)
                     .clip(RoundedCornerShape(26.dp))

@@ -68,7 +68,10 @@ fun SessionEditorScreen(
     // Todo queda con `initial` como key: cuando se está editando, la primera composición llega
     // antes de que el Flow de Room traiga el horario real (arranca en null), así que si no se
     // vuelve a inicializar apenas llega el valor real, se quedarían los campos vacíos por defecto.
-    val initialSelectedDays = remember(initial) { setOf(initial?.dayOfWeek ?: 1) }
+    // Al crear uno nuevo, arranca SIN ningún día marcado (#161: antes quedaba el lunes marcado de
+    // entrada, algo elegido a ciegas que nadie pidió) — canSave ya exige selectedDays.isNotEmpty()
+    // más abajo, así que no deja guardar hasta elegir al menos uno.
+    val initialSelectedDays = remember(initial) { initial?.let { setOf(it.dayOfWeek) } ?: emptySet() }
     val initialStartHour = remember(initial) { (initial?.startMinuteOfDay ?: 7 * 60) / 60 }
     val initialStartMinute = remember(initial) { (initial?.startMinuteOfDay ?: 7 * 60) % 60 }
     val initialEndHour = remember(initial) { (initial?.endMinuteOfDay ?: 9 * 60) / 60 }
@@ -181,7 +184,11 @@ fun SessionEditorScreen(
                                 selectedDays = if (initial != null) {
                                     setOf(iso)
                                 } else if (iso in selectedDays) {
-                                    (selectedDays - iso).ifEmpty { setOf(iso) }
+                                    // Sin el .ifEmpty de antes: al crear, se puede destildar el
+                                    // último día que quedaba marcado y quedarse sin ninguno — Guardar
+                                    // ya queda deshabilitado en ese caso (ver canSave), no hace falta
+                                    // forzar que siempre quede uno puesto.
+                                    selectedDays - iso
                                 } else {
                                     selectedDays + iso
                                 }
@@ -190,6 +197,16 @@ fun SessionEditorScreen(
                             .padding(12.dp),
                     )
                 }
+            }
+
+            if (initial == null && selectedDays.isEmpty()) {
+                Text(
+                    "Elegí al menos un día para poder guardar",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    textAlign = TextAlign.Center,
+                )
             }
 
             if (clashingDays.isNotEmpty()) {

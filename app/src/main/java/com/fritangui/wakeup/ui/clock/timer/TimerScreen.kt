@@ -15,9 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -110,19 +108,15 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
         // entrar completos en alto, y el botón (lo último en el Column) quedaba cortado fuera de la
         // pantalla en vez de solo apretado.
         //
-        // Arrangement.Top + un padding fijo arriba (en vez de Arrangement.Center): centrado
-        // repartía el espacio libre por igual arriba y abajo, así que el botón de Iniciar quedaba
-        // pegado casi al borde inferior en pantallas más altas. Empezando más arriba, todo ese
-        // espacio de sobra le queda a favor al botón, no repartido.
+        // De vuelta a Arrangement.Center (#161): con Arrangement.Top se sacaba el corte del botón,
+        // pero quedaba pegado arriba del todo, incómodo — con las ruedas ahora bastante más chicas
+        // (52dp×3 en vez de 64dp×5, ver más abajo) todo el contenido junto ya entra cómodo centrado
+        // en pantallas normales, sin volver a tapar el botón; verticalScroll sigue de respaldo para
+        // el caso de letra grande del sistema o pantallas chicas.
         modifier = Modifier.fillMaxSize().glowBackground().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top,
+        verticalArrangement = Arrangement.Center,
     ) {
-        // Antes 32dp: seguía sintiéndose con mucho aire arriba y el botón de Iniciar todavía
-        // quedaba tapado en pantallas más chicas (#161) — con las ruedas también más compactas
-        // (ver más abajo) esto ya alcanza para separarlo un poco de la pestaña de arriba sin robarle
-        // tanto espacio al resto.
-        Spacer(modifier = Modifier.height(4.dp))
         AnimatedContent(
             targetState = phase,
             transitionSpec = { (fadeIn(tween(220)) togetherWith fadeOut(tween(160))) },
@@ -178,7 +172,6 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
                 }
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

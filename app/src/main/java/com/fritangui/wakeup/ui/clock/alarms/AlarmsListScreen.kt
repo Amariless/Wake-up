@@ -191,13 +191,16 @@ private fun AlarmRow(
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             .clip(MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            // Semi-transparente (#161, mockup de referencia: "que se vea el degradado del fondo")
+            // en vez de una superficie opaca — así se nota el resplandor de la pantalla por detrás,
+            // y de paso la tarjeta pesa menos visualmente (antes se sentía con demasiado aire).
+            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f))
             .clickable(onClick = onClick)
-            .padding(20.dp),
+            .padding(16.dp),
     ) {
         Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(accent.copy(alpha = 0.16f)),
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(accent.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center,
             ) {
                 // Ícono distinto (campana vs. despertador) además de la sección separada: un
@@ -206,21 +209,22 @@ private fun AlarmRow(
                     if (alarm.kind == AlarmKind.REMINDER) Icons.Default.Notifications else Icons.Default.Alarm,
                     contentDescription = null,
                     tint = accent,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
-            IconButton(onClick = onPreview) {
+            IconButton(onClick = onPreview, modifier = Modifier.size(36.dp)) {
                 Icon(
                     if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
                     contentDescription = "Previsualizar sonido",
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
-        ClockTimeText(alarm.hour, alarm.minute, style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(top = 8.dp))
+        ClockTimeText(alarm.hour, alarm.minute, style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(top = 4.dp))
         if (alarm.label.isNotBlank()) {
             Text(alarm.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         }
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column {
                 Text(repeatSummary(alarm.repeatDaysBitmask, alarm.deleteAfterRing), fontWeight = FontWeight.Medium)
