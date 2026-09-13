@@ -8,11 +8,13 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -97,6 +100,8 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
     val canGoToPreviousWeek by viewModel.canGoToPreviousWeek.collectAsState()
     val canGoToPreviousMonth by viewModel.canGoToPreviousMonth.collectAsState()
     val rules by viewModel.alertRules.collectAsState()
+    val selectedDayEpochDay by viewModel.selectedDayEpochDay.collectAsState()
+    val selectedDayUsage by viewModel.selectedDayUsage.collectAsState()
     val hasUsageAccess = remember { PermissionStatus.hasUsageAccess(context) }
 
     // "Hoy" arriba de todo siempre es HOY, sin que le afecte navegar semanas/meses más abajo (#161).
@@ -202,7 +207,11 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
                                 color = MaterialTheme.colorScheme.outline,
                                 modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
                             )
-                            if (mode == ScreenTimeRangeMode.WEEK) WeeklyBarChart(weekly) else MonthlyBarChart(monthly)
+                            if (mode == ScreenTimeRangeMode.WEEK) {
+                                WeeklyBarChart(weekly, onDayClick = viewModel::selectDay)
+                            } else {
+                                MonthlyBarChart(monthly, onDayClick = viewModel::selectDay)
+                            }
                         }
                     } else {
                         // El período ACTUAL sin nada más que hoy (uso recién empezando a medirse,
@@ -258,84 +267,145 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
             }
         }
     }
+
+    // Detalle por app de un día concreto del gráfico (#161) — antes solo "Por app hoy" existía,
+    // sin forma de ver el desglose de un día pasado.
+    if (selectedDayEpochDay != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::clearSelectedDay,
+            title = { Text(dayDetailTitle(selectedDayEpochDay!!)) },
+            text = {
+                if (selectedDayUsage.isEmpty()) {
+                    Text("Sin datos de uso ese día", color = MaterialTheme.colorScheme.outline)
+                } else {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        val maxMinutes = (selectedDayUsage.maxOfOrNull { it.minutes } ?: 1L).coerceAtLeast(1L)
+                        selectedDayUsage.take(10).forEach { row ->
+                            UsageBarRow(packageName = row.packageName, label = row.label, minutes = row.minutes, maxMinutes = maxMinutes)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = viewModel::clearSelectedDay) { Text("Cerrar") } },
+        )
+    }
+}
+
+/** "12 de septiembre" — título del diálogo de detalle de un día. */
+private fun dayDetailTitle(epochDay: Long): String {
+    val date = LocalDate.fromEpochDays(epochDay.toInt())
+    return "${date.dayOfMonth} de ${MESES_LARGOS[date.monthNumber - 1].lowercase()}"
 }
 
 @Composable
-private fun WeeklyBarChart(days: List<DayUsage>) {
+private fun WeeklyBarChart(days: List<DayUsage>, onDayClick: (Long) -> Unit) {
     val maxMinutes = (days.maxOfOrNull { it.totalMinutes } ?: 1L).coerceAtLeast(1L)
-    Row(
-        modifier = Modifier.fillMaxWidth().height(120.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-    ) {
-        days.forEach { day ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                // El Canvas de la barra no expone nada a servicios de accesibilidad por sí solo, y
-                // antes solo el nombre corto del día ("Lu") era legible por TalkBack, sin el dato de
-                // minutos que es la información central del gráfico.
-                modifier = Modifier.weight(1f)
-                    .semantics(mergeDescendants = true) { contentDescription = "${day.dayLabelFull}: ${formatDuration(day.totalMinutes)}" },
-            ) {
-                val barColor = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                Canvas(modifier = Modifier.weight(1f).width(20.dp)) {
-                    val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)
-                    val barHeight = size.height * fraction
-                    drawRect(
-                        color = barColor,
-                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
-                        size = Size(size.width, barHeight),
+    Row(modifier = Modifier.fillMaxWidth().height(120.dp)) {
+        HourAxisLabels(maxMinutes)
+        Row(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            days.forEach { day ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    // El Canvas de la barra no expone nada a servicios de accesibilidad por sí
+                    // solo, y antes solo el nombre corto del día ("Lu") era legible por TalkBack,
+                    // sin el dato de minutos que es la información central del gráfico.
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                        // Tocar un día abre su detalle por app (#161) — antes el gráfico era solo
+                        // para mirar, sin forma de profundizar en un día concreto.
+                        .clickable(onClickLabel = "Ver detalle de ${day.dayLabelFull}") { onDayClick(day.epochDay) }
+                        .semantics(mergeDescendants = true) { contentDescription = "${day.dayLabelFull}: ${formatDuration(day.totalMinutes)}" },
+                ) {
+                    val barColor = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                    Canvas(modifier = Modifier.weight(1f).width(20.dp)) {
+                        val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)
+                        val barHeight = size.height * fraction
+                        drawRect(
+                            color = barColor,
+                            topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
+                            size = Size(size.width, barHeight),
+                        )
+                    }
+                    Text(
+                        day.dayLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
-                Text(
-                    day.dayLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
             }
         }
     }
+}
+
+/** Columna de referencia a la izquierda del gráfico (#161: "pon a la izquierda el valor en horas
+ *  para saber a cuánto se refiere cada uno") — 3 marcas (arriba/medio/abajo) alcanzan para leer la
+ *  escala de un vistazo sin abarrotar de números un gráfico chico. */
+@Composable
+private fun HourAxisLabels(maxMinutes: Long) {
+    val maxHours = maxMinutes / 60f
+    Column(
+        modifier = Modifier.fillMaxHeight().padding(end = 6.dp),
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(formatAxisHours(maxHours), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+        Text(formatAxisHours(maxHours / 2), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+        Text("0h", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+    }
+}
+
+/** "3h" si es un número entero de horas, "1,5h" si no. */
+private fun formatAxisHours(hours: Float): String {
+    val rounded = (hours * 10).let { kotlin.math.round(it) } / 10
+    return if (rounded == rounded.toInt().toFloat()) "${rounded.toInt()}h" else "${"%.1f".format(rounded).replace('.', ',')}h"
 }
 
 /** Mismo gráfico que [WeeklyBarChart] pero para hasta 31 barras (#161): sin nombre de día bajo
  *  cada una (no entrarían), solo el número de día en el 1°, el último y cada 5 — la fecha completa
  *  de cada barra sigue disponible para TalkBack vía sus semantics. */
 @Composable
-private fun MonthlyBarChart(days: List<DayUsage>) {
+private fun MonthlyBarChart(days: List<DayUsage>, onDayClick: (Long) -> Unit) {
     val maxMinutes = (days.maxOfOrNull { it.totalMinutes } ?: 1L).coerceAtLeast(1L)
     val lastDayOfMonth = days.size
-    Row(
-        modifier = Modifier.fillMaxWidth().height(120.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-    ) {
-        days.forEach { day ->
-            val dayOfMonth = LocalDate.fromEpochDays(day.epochDay.toInt()).dayOfMonth
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f)
-                    .semantics(mergeDescendants = true) { contentDescription = "${day.dayLabelFull} $dayOfMonth: ${formatDuration(day.totalMinutes)}" },
-            ) {
-                val barColor = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                Canvas(modifier = Modifier.weight(1f).width(6.dp)) {
-                    val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)
-                    val barHeight = size.height * fraction
-                    drawRect(
-                        color = barColor,
-                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
-                        size = Size(size.width, barHeight),
-                    )
-                }
-                if (dayOfMonth == 1 || dayOfMonth == lastDayOfMonth || dayOfMonth % 5 == 0) {
-                    Text(
-                        "$dayOfMonth",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                } else {
-                    // Mismo alto que la rama con número, para que todas las barras midan igual sin
-                    // que las que no tienen etiqueta abajo "salten" un poco más alto que las que sí.
-                    Spacer(modifier = Modifier.height(16.dp))
+    Row(modifier = Modifier.fillMaxWidth().height(120.dp)) {
+        HourAxisLabels(maxMinutes)
+        Row(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            days.forEach { day ->
+                val dayOfMonth = LocalDate.fromEpochDays(day.epochDay.toInt()).dayOfMonth
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                        .clickable(onClickLabel = "Ver detalle de ${day.dayLabelFull} $dayOfMonth") { onDayClick(day.epochDay) }
+                        .semantics(mergeDescendants = true) { contentDescription = "${day.dayLabelFull} $dayOfMonth: ${formatDuration(day.totalMinutes)}" },
+                ) {
+                    val barColor = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                    Canvas(modifier = Modifier.weight(1f).width(6.dp)) {
+                        val fraction = (day.totalMinutes.toFloat() / maxMinutes).coerceIn(if (day.totalMinutes > 0) 0.04f else 0f, 1f)
+                        val barHeight = size.height * fraction
+                        drawRect(
+                            color = barColor,
+                            topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
+                            size = Size(size.width, barHeight),
+                        )
+                    }
+                    if (dayOfMonth == 1 || dayOfMonth == lastDayOfMonth || dayOfMonth % 5 == 0) {
+                        Text(
+                            "$dayOfMonth",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    } else {
+                        // Mismo alto que la rama con número, para que todas las barras midan igual
+                        // sin que las que no tienen etiqueta abajo "salten" más alto que las que sí.
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
         }

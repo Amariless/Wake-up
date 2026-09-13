@@ -15,8 +15,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -24,20 +25,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -103,10 +103,16 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
         // con letra grande del sistema, las ruedas + selector de reto + botón de Iniciar podían no
         // entrar completos en alto, y el botón (lo último en el Column) quedaba cortado fuera de la
         // pantalla en vez de solo apretado.
-        modifier = Modifier.fillMaxSize().glowBackground().verticalScroll(rememberScrollState()).padding(24.dp),
+        //
+        // Arrangement.Top + un padding fijo arriba (en vez de Arrangement.Center): centrado
+        // repartía el espacio libre por igual arriba y abajo, así que el botón de Iniciar quedaba
+        // pegado casi al borde inferior en pantallas más altas. Empezando más arriba, todo ese
+        // espacio de sobra le queda a favor al botón, no repartido.
+        modifier = Modifier.fillMaxSize().glowBackground().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Top,
     ) {
+        Spacer(modifier = Modifier.height(32.dp))
         AnimatedContent(
             targetState = phase,
             transitionSpec = { (fadeIn(tween(220)) togetherWith fadeOut(tween(160))) },
@@ -160,6 +166,7 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
                 }
             }
         }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -238,29 +245,55 @@ private fun TimerIdleContent(
             }
         }
 
-        ExposedDropdownMenuBox(
+        ChallengeSelector(
+            challengeLabel = challengeLabel,
             expanded = challengeMenuExpanded,
             onExpandedChange = onChallengeMenuExpandedChange,
+            onSelected = onChallengeSelected,
             modifier = Modifier.padding(top = 20.dp),
-        ) {
-            OutlinedTextField(
-                value = challengeLabel,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Reto para apagarlo") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = challengeMenuExpanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor(),
-            )
-            ExposedDropdownMenu(expanded = challengeMenuExpanded, onDismissRequest = { onChallengeMenuExpandedChange(false) }) {
-                CHALLENGE_LABELS.forEach { (type, text) ->
-                    DropdownMenuItem(text = { Text(text) }, onClick = { onChallengeSelected(type) })
-                }
-            }
-        }
+        )
 
         // Botón circular relleno con acento índigo (antes salvia) para calzar con el resplandor
         // púrpura del mockup de referencia — mismo acento que usa "Enfoque" en Inicio.
         GlowingStartButton(onClick = onStart, enabled = hoursInput > 0 || minutesInput > 0 || secondsInput > 0)
+    }
+}
+
+/** Selector de reto compacto: una pastilla con el nombre del reto elegido + una flechita, en vez
+ *  del ExposedDropdownMenuBox/OutlinedTextField de Material (#161: "cambia la caja... a algo más
+ *  compacto y que se adapte al tema" — el campo con label flotante y borde se veía fuera de lugar
+ *  sobre el resplandor de fondo). El reto elegido ya se guardaba entre sesiones (DataStore, ver
+ *  TimerViewModel.setChallengePref) — eso no cambió, solo cómo se elige. */
+@Composable
+private fun ChallengeSelector(
+    challengeLabel: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onSelected: (DismissChallengeType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .clickable { onExpandedChange(!expanded) }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Reto: $challengeLabel", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            Icon(
+                Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(start = 2.dp).size(20.dp),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+            CHALLENGE_LABELS.forEach { (type, text) ->
+                DropdownMenuItem(text = { Text(text) }, onClick = { onSelected(type) })
+            }
+        }
     }
 }
 
