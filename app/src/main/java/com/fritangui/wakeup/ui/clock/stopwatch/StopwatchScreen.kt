@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -62,13 +60,14 @@ fun StopwatchScreen(viewModel: StopwatchViewModel = hiltViewModel()) {
         // ADEMÁS scrolleaba por su cuenta ahí adentro, mostrando una vuelta a la vez. Con todo en
         // un solo Column con scroll (y la tabla como Column normal, no Lazy) se ve y se scrollea
         // como una sola pantalla continua.
+        // Arrangement.Center (#161, "centra el cronómetro también" — mismo criterio que el
+        // Temporizador): sin vueltas todavía, centra la carátula+botones en la pantalla en vez de
+        // dejarlos pegados arriba; en cuanto hay vueltas, el contenido crece y el scroll de respaldo
+        // hace el resto.
         modifier = Modifier.fillMaxSize().glowBackground().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        // Antes la carátula arrancaba con ~48dp de padding arriba (24 del Column + 24 propios):
-        // ahora bastante menos, para dejarle más aire a la tabla de vueltas de abajo.
-        Spacer(modifier = Modifier.height(12.dp))
-
         AnalogStopwatchFace(
             elapsedMillis = state.elapsedMillis,
             timeSinceLastLap = timeSinceLastLap,

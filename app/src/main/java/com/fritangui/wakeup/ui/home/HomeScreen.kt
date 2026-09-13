@@ -161,9 +161,11 @@ fun HomeScreen(
         }
     }
     val listState = rememberLazyListState()
-    // +1 fila por el título "Próximas clases" (índice 0), que también es un item plano de la lista.
-    val scrollTargetIndex = remember(classCardRows, todayDayOfWeek, nowMinuteOfDay) {
-        findScrollTargetIndex(classCardRows, todayDayOfWeek, nowMinuteOfDay)?.plus(1)
+    // Cuántas filas van ANTES de "Próximas clases" en la lista (#161: ahora la clase destacada +
+    // acciones rápidas + bienestar van primero, así que ya no es un solo título fijo en el índice 0).
+    val rowsBeforeClasses = (if (nextClassOccurrence != null) 1 else 0) + 3
+    val scrollTargetIndex = remember(classCardRows, todayDayOfWeek, nowMinuteOfDay, rowsBeforeClasses) {
+        findScrollTargetIndex(classCardRows, todayDayOfWeek, nowMinuteOfDay)?.plus(rowsBeforeClasses)
     }
     // Al entrar a Inicio de CUALQUIER forma (abrir la app, tocar el tab, volver de otra pantalla),
     // arranca ya scrolleado al momento actual de la semana — sin animación (scrollToItem, no
@@ -200,17 +202,6 @@ fun HomeScreen(
                     },
                 )
             }
-            // Tarjeta destacada del mockup del rediseño: la clase en curso o la próxima, con cuenta
-            // regresiva — fija arriba (no dentro del LazyColumn de abajo) para no tener que tocar el
-            // cálculo de scrollTargetIndex de esa lista, que ya tiene varios casos límite resueltos
-            // (#142, #143).
-            nextClassOccurrence?.let { occurrence ->
-                NextClassHeroCard(
-                    occurrence = occurrence,
-                    onClick = { onOpenSubject(occurrence.folderId, occurrence.subjectId) },
-                    modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 0.dp),
-                )
-            }
             if (weeklyClassDays.isEmpty() && upcomingTasks.isEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -231,6 +222,37 @@ fun HomeScreen(
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), state = listState) {
+                    // Clase destacada + acciones rápidas + bienestar van primero (#161): antes la
+                    // clase destacada quedaba FIJA arriba de la lista (no scrolleaba) y acciones
+                    // rápidas/bienestar quedaban hasta el final, después de clases y tareas — ahora
+                    // todo entra al mismo scroll, en el orden que se pidió.
+                    nextClassOccurrence?.let { occurrence ->
+                        item(key = "next_class") {
+                            NextClassHeroCard(
+                                occurrence = occurrence,
+                                onClick = { onOpenSubject(occurrence.folderId, occurrence.subjectId) },
+                                modifier = Modifier.padding(bottom = 16.dp),
+                            )
+                        }
+                    }
+                    item(key = "quick_actions_title") {
+                        Text(
+                            "Acciones rápidas",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 10.dp),
+                        )
+                    }
+                    item(key = "quick_actions") {
+                        QuickActionsRow(onNewAlarm = onNewAlarm, onOpenFocus = onOpenFocus, onOpenNewTask = onOpenNewTask)
+                    }
+                    item(key = "wellbeing") {
+                        WellbeingCard(
+                            screenTimeMinutesToday = todayScreenTimeMinutes,
+                            onClick = onOpenWellbeing,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 20.dp),
+                        )
+                    }
                     item(key = "classes_title") {
                         CardTitleRow("Próximas clases", MaterialTheme.colorScheme.primary, roundedBottom = classCardRows.size <= 1 && classCardRows.firstOrNull() == ClassCardRow.EmptyRow)
                     }
@@ -280,24 +302,6 @@ fun HomeScreen(
                                 )
                             }
                         }
-                    }
-                    item(key = "quick_actions_title") {
-                        Text(
-                            "Acciones rápidas",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 20.dp, bottom = 10.dp),
-                        )
-                    }
-                    item(key = "quick_actions") {
-                        QuickActionsRow(onNewAlarm = onNewAlarm, onOpenFocus = onOpenFocus, onOpenNewTask = onOpenNewTask)
-                    }
-                    item(key = "wellbeing") {
-                        WellbeingCard(
-                            screenTimeMinutesToday = todayScreenTimeMinutes,
-                            onClick = onOpenWellbeing,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
                     }
                 }
             }

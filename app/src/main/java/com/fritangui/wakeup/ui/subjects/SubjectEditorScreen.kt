@@ -69,6 +69,11 @@ fun SubjectEditorScreen(
     var professor by rememberSaveable(subject?.id) { mutableStateOf(subject?.professor ?: "") }
     var selectedColor by rememberSaveable(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
     var selectedIcon by rememberSaveable(subject?.id) { mutableStateOf(subject?.iconKey) }
+    // Colapsado por defecto (#161): con los ~40 íconos del catálogo desplegados, "Horarios"/"Tareas"
+    // quedaban fuera de la vista apenas se creaba la materia — nada indicaba que de verdad se hubiera
+    // creado. Mostrando solo el elegido (toca para volver a desplegar la lista) queda espacio de
+    // sobra para ver esas dos secciones nuevas sin tener que scrollear a ciegas.
+    var iconPickerExpanded by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
     var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
@@ -168,14 +173,26 @@ fun SubjectEditorScreen(
 
             // Ícono opcional para reconocer la materia más fácil de un vistazo (además del color).
             Text("Ícono (opcional)", modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
-            androidx.compose.foundation.layout.FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // "Sin ícono": vuelve a mostrar solo el punto de color, como antes de esta función.
-                IconPickerCell(icon = null, isSelected = selectedIcon == null, tint = selectedColor) { selectedIcon = null }
-                SubjectIcons.catalog.forEach { (key, icon) ->
-                    IconPickerCell(icon = icon, isSelected = selectedIcon == key, tint = selectedColor) { selectedIcon = key }
+            if (iconPickerExpanded) {
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // "Sin ícono": vuelve a mostrar solo el punto de color, como antes de esta función.
+                    IconPickerCell(icon = null, isSelected = selectedIcon == null, tint = selectedColor) {
+                        selectedIcon = null
+                        iconPickerExpanded = false
+                    }
+                    SubjectIcons.catalog.forEach { (key, icon) ->
+                        IconPickerCell(icon = icon, isSelected = selectedIcon == key, tint = selectedColor) {
+                            selectedIcon = key
+                            iconPickerExpanded = false
+                        }
+                    }
+                }
+            } else {
+                IconPickerCell(icon = SubjectIcons.iconFor(selectedIcon), isSelected = true, tint = selectedColor) {
+                    iconPickerExpanded = true
                 }
             }
 
