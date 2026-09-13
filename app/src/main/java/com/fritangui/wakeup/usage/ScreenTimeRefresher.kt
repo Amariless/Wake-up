@@ -6,6 +6,8 @@ import com.fritangui.wakeup.domain.todayEpochDay
 import com.fritangui.wakeup.permissions.PermissionStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,8 +30,12 @@ class ScreenTimeRefresher @Inject constructor(
     private val usageStatsSource: SystemUsageStatsSource,
     private val usageRepository: UsageRepository,
 ) {
-    suspend fun refreshNow() {
-        if (!PermissionStatus.hasUsageAccess(context)) return
+    // withContext(IO): queryTodayUsageMinutesByPackage() recorre a mano TODOS los eventos crudos de
+    // uso desde la medianoche (puede ser un día entero de eventos) — sin esto corría en el hilo de
+    // UI cada vez que se abría Bienestar (viewModelScope.launch usa Main por defecto), y ESE era el
+    // trabazo real al entrar a la pantalla, más que cualquier ícono (#161).
+    suspend fun refreshNow() = withContext(Dispatchers.IO) {
+        if (!PermissionStatus.hasUsageAccess(context)) return@withContext
 
         val today = todayEpochDay()
         val minutesByPackage = usageStatsSource.queryTodayUsageMinutesByPackage()

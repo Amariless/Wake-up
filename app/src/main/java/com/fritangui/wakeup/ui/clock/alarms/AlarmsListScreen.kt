@@ -3,6 +3,7 @@
 package com.fritangui.wakeup.ui.clock.alarms
 
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,14 +13,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,9 +40,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,6 +54,7 @@ import com.fritangui.wakeup.data.db.entity.AlarmEntity
 import com.fritangui.wakeup.data.db.entity.AlarmKind
 import com.fritangui.wakeup.domain.AlarmTiming
 import com.fritangui.wakeup.ui.components.ClockTimeText
+import com.fritangui.wakeup.ui.components.glowBackground
 import kotlinx.datetime.Clock
 
 private val DIA_LETRAS = listOf("L", "M", "X", "J", "V", "S", "D")
@@ -75,7 +81,9 @@ fun AlarmsListScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // Mismo resplandor de fondo que Temporizador/Cronómetro (#161: "usá la misma línea estética
+    // para mejorar la UI de toda la app en general") — empieza a extender ese lenguaje visual acá.
+    Column(modifier = Modifier.fillMaxSize().glowBackground()) {
         // Toggle "Generales" / carpeta principal (#161): antes esta pestaña solo mostraba las
         // alarmas del reloj general, sin ninguna forma de ver las de la carpeta activa desde acá
         // (había que entrar a esa carpeta y su propia pestaña de Alarmas).
@@ -164,6 +172,9 @@ private fun SectionHeader(text: String, topPadding: androidx.compose.ui.unit.Dp 
     )
 }
 
+/** Tarjeta grande (#161, mockup de referencia): la hora es lo más grande de la fila, con un
+ *  divisor propio separando el repetir/cuenta regresiva del interruptor — en vez de una fila
+ *  compacta de ícono+hora+switch todo en una sola línea. */
 @Composable
 private fun AlarmRow(
     alarm: AlarmEntity,
@@ -174,58 +185,66 @@ private fun AlarmRow(
     onPreview: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+    val accent = if (alarm.kind == AlarmKind.REMINDER) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .clip(MaterialTheme.shapes.large)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(20.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(accent.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
+            ) {
                 // Ícono distinto (campana vs. despertador) además de la sección separada: un
                 // Recordatorio es solo una notificación normal, no algo que suene y haya que apagar.
                 Icon(
                     if (alarm.kind == AlarmKind.REMINDER) Icons.Default.Notifications else Icons.Default.Alarm,
                     contentDescription = null,
-                    tint = if (alarm.kind == AlarmKind.REMINDER) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(end = 12.dp),
+                    tint = accent,
+                    modifier = Modifier.size(18.dp),
                 )
-                Column {
-                    ClockTimeText(alarm.hour, alarm.minute, style = MaterialTheme.typography.headlineMedium)
+            }
+            IconButton(onClick = onPreview) {
+                Icon(
+                    if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = "Previsualizar sonido",
+                )
+            }
+        }
+        ClockTimeText(alarm.hour, alarm.minute, style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(top = 8.dp))
+        if (alarm.label.isNotBlank()) {
+            Text(alarm.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        }
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+        Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                Text(repeatSummary(alarm.repeatDaysBitmask, alarm.deleteAfterRing), fontWeight = FontWeight.Medium)
+                val trigger = AlarmTiming.nextTrigger(alarm, now = now)
+                if (trigger != null) {
                     Text(
-                        alarm.label.ifBlank { if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma" },
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(repeatSummary(alarm.repeatDaysBitmask, alarm.deleteAfterRing), style = MaterialTheme.typography.bodyMedium)
-                    val trigger = AlarmTiming.nextTrigger(alarm, now = now)
-                    if (trigger != null) {
-                        Text(
-                            "Faltan ${AlarmTiming.formatRemaining(trigger - now)}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
-                    }
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPreview) {
-                    Icon(
-                        if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
-                        contentDescription = "Previsualizar sonido",
+                        "Faltan ${AlarmTiming.formatRemaining(trigger - now)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.outline,
                     )
                 }
-                Switch(
-                    checked = alarm.isEnabled,
-                    onCheckedChange = onToggle,
-                    // Sin esto, un usuario de TalkBack que llega a este switch en una lista con
-                    // varias alarmas solo escucha "interruptor, activado/desactivado", sin saber a
-                    // cuál de las filas corresponde.
-                    modifier = Modifier.semantics {
-                        contentDescription = "${if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma"} " +
-                            "%02d:%02d".format(alarm.hour, alarm.minute) +
-                            (alarm.label.takeIf { it.isNotBlank() }?.let { ", $it" } ?: "")
-                    },
-                )
             }
+            Switch(
+                checked = alarm.isEnabled,
+                onCheckedChange = onToggle,
+                // Sin esto, un usuario de TalkBack que llega a este switch en una lista con
+                // varias alarmas solo escucha "interruptor, activado/desactivado", sin saber a
+                // cuál de las filas corresponde.
+                modifier = Modifier.semantics {
+                    contentDescription = "${if (alarm.kind == AlarmKind.REMINDER) "Recordatorio" else "Alarma"} " +
+                        "%02d:%02d".format(alarm.hour, alarm.minute) +
+                        (alarm.label.takeIf { it.isNotBlank() }?.let { ", $it" } ?: "")
+                },
+            )
         }
     }
 }

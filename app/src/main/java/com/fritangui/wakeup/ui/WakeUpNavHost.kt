@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -150,22 +151,36 @@ private fun WakeUpNavHostContent(
         // Mismo guard que la barra de navegación inferior (#147): sin esto, tocar un widget con un
         // editor abierto y cambios sin guardar los descartaba de golpe, sin el diálogo de confirmación.
         UnsavedChangesGuard.navigateOrConfirm {
-            navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+            // Antes esto hacía navigate(HOME){popUpTo(HOME){inclusive=true}} y LUEGO un navigate()
+            // aparte por cada paso — una reconstrucción manual de la pila en varios pasos que, tras
+            // que Navigation-Compose restaura su propio estado guardado (p.ej. si el proceso murió
+            // estando en Bienestar y se recreó), podía dejar una pila rara y explicaría por qué
+            // "Inicio" seguía sin sacar de Bienestar (#161: "busca otra causa"). Ahora es un único
+            // navigate() con popUpTo(graph.findStartDestination()) — el mismo patrón oficial que ya
+            // usa cada tab de la barra inferior más abajo — que siempre vuelve a un estado conocido
+            // sin importar cómo haya quedado la pila antes.
+            val resetToHome: androidx.navigation.NavOptionsBuilder.() -> Unit = {
+                popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+                launchSingleTop = true
+            }
             when (target) {
                 is WidgetDeepLink.Subject -> {
+                    navController.navigate(Routes.HOME, resetToHome)
                     navController.navigate(Routes.FOLDERS)
                     navController.navigate(Routes.folderDetail(target.folderId))
                     navController.navigate(Routes.subjectEditor(target.folderId, target.subjectId))
                 }
                 is WidgetDeepLink.Task -> {
+                    navController.navigate(Routes.HOME, resetToHome)
                     navController.navigate(Routes.FOLDERS)
                     navController.navigate(Routes.folderDetail(target.folderId))
                     navController.navigate(Routes.taskEditor(target.folderId, target.taskId))
                 }
                 WidgetDeepLink.ScreenTime -> {
-                    navController.navigate(Routes.SCREEN_TIME)
+                    navController.navigate(Routes.SCREEN_TIME, resetToHome)
                 }
                 WidgetDeepLink.NextClass -> {
+                    navController.navigate(Routes.HOME, resetToHome)
                     scrollToNextClassTrigger.value += 1
                 }
             }
@@ -258,7 +273,7 @@ private fun WakeUpNavHostContent(
                                 // onBackToFolderList más abajo), en vez de depender de la FORMA exacta de
                                 // la pila armada acá.
                                 navController.navigate(dest.navRoute) {
-                                    popUpTo(Routes.HOME) { inclusive = false; saveState = true }
+                                    popUpTo(navController.graph.findStartDestination().id) { inclusive = false; saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -293,7 +308,7 @@ private fun WakeUpNavHostContent(
                     onNewAlarm = { navController.navigate(Routes.alarmEditor()) },
                     onOpenFocus = {
                         navController.navigate(Routes.CLOCK) {
-                            popUpTo(Routes.HOME) { inclusive = false; saveState = true }
+                            popUpTo(navController.graph.findStartDestination().id) { inclusive = false; saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }
@@ -302,7 +317,7 @@ private fun WakeUpNavHostContent(
                     onOpenNewTask = { navController.navigate(Routes.FOLDERS) },
                     onOpenWellbeing = {
                         navController.navigate(Routes.SCREEN_TIME) {
-                            popUpTo(Routes.HOME) { inclusive = false; saveState = true }
+                            popUpTo(navController.graph.findStartDestination().id) { inclusive = false; saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }
@@ -331,7 +346,7 @@ private fun WakeUpNavHostContent(
                         val popped = navController.popBackStack(Routes.FOLDERS, false)
                         if (!popped) {
                             navController.navigate(Routes.FOLDERS) {
-                                popUpTo(Routes.HOME) { inclusive = false }
+                                popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
                                 launchSingleTop = true
                             }
                         }
