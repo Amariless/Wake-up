@@ -52,6 +52,12 @@ class MainActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition { !AppReadyState.isReady.value }
         enableEdgeToEdge()
         pendingDeepLink.value = WidgetDeepLink.from(intent)
+        // Se limpian los extras del deep link ya leído (ver mismo comentario en onNewIntent):
+        // si esto no se hiciera, un proceso matado y recreado por el sistema más tarde volvería a
+        // leer el MISMO Intent guardado (con los extras del widget todavía puestos) en este mismo
+        // onCreate, y repetiría la navegación de golpe — así es como alguien podía quedar "atrapado"
+        // en Bienestar cada vez que reabría la app después de haber tocado ese widget una sola vez.
+        intent.replaceExtras(Bundle())
         setContent {
             WakeUpRoot(pendingDeepLink = pendingDeepLink)
         }
@@ -59,8 +65,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent)
         pendingDeepLink.value = WidgetDeepLink.from(intent)
+        // Limpia los extras ya consumidos antes de guardar este Intent como el "actual" de la
+        // activity: sin esto, si Android mata el proceso más tarde (para liberar memoria, algo
+        // normal en apps en segundo plano) y lo recrea reusando este mismo Intent, onCreate volvería
+        // a encontrar el deep link del widget y repetiría su navegación — quedando "atrapado" ahí
+        // cada vez que se reabre la app, aunque haya pasado mucho tiempo desde que se tocó el widget.
+        intent.replaceExtras(Bundle())
+        setIntent(intent)
     }
 }
 
