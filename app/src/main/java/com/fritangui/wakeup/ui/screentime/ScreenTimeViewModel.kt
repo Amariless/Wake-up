@@ -128,8 +128,30 @@ class ScreenTimeViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Total del día ANTERIOR al seleccionado, para el "+X más/menos que el día anterior" del
+     *  diálogo de detalle (#161) — null si no hay ningún día seleccionado. */
+    val selectedDayPreviousTotalMinutes: StateFlow<Long?> = _selectedDayEpochDay
+        .flatMapLatest { day ->
+            if (day == null) flowOf(null) else usageRepository.observeForDay(day - 1).map { list -> list.sumOf { it.minutesUsed } }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun selectDay(epochDay: Long) { _selectedDayEpochDay.value = epochDay }
     fun clearSelectedDay() { _selectedDayEpochDay.value = null }
+
+    /** Navegan el diálogo de detalle al día anterior/siguiente (#161: "poder swipear o hacer clic
+     *  en flechas para ver el mismo panel de los días antes/después") — mismos límites que el
+     *  historial de abajo: no antes del primer día con datos, no después de hoy. */
+    fun selectedDayPrevious() {
+        val current = _selectedDayEpochDay.value ?: return
+        val earliest = earliestEpochDay.value
+        if (earliest == null || current - 1 >= earliest) _selectedDayEpochDay.value = current - 1
+    }
+
+    fun selectedDayNext() {
+        val current = _selectedDayEpochDay.value ?: return
+        if (current < todayEpochDay()) _selectedDayEpochDay.value = current + 1
+    }
 
     /** Día más antiguo con algún registro de uso, o null si todavía no hay ninguno — para no dejar
      *  navegar el historial a un período de antes de que hubiera datos que mostrar (#161). */

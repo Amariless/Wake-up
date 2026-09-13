@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,9 +53,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -102,6 +105,7 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
     val rules by viewModel.alertRules.collectAsState()
     val selectedDayEpochDay by viewModel.selectedDayEpochDay.collectAsState()
     val selectedDayUsage by viewModel.selectedDayUsage.collectAsState()
+    val selectedDayPreviousTotal by viewModel.selectedDayPreviousTotalMinutes.collectAsState()
     val hasUsageAccess = remember { PermissionStatus.hasUsageAccess(context) }
 
     // "Hoy" arriba de todo siempre es HOY, sin que le afecte navegar semanas/meses más abajo (#161).
@@ -269,16 +273,59 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
     }
 
     // Detalle por app de un día concreto del gráfico (#161) — antes solo "Por app hoy" existía,
-    // sin forma de ver el desglose de un día pasado.
+    // sin forma de ver el desglose de un día pasado. Con el total + comparación contra el día
+    // anterior, y flechas/swipe para pasar de día sin tener que cerrar y volver a tocar el gráfico.
     if (selectedDayEpochDay != null) {
+        val dayTotal = selectedDayUsage.sumOf { it.minutes }
         AlertDialog(
             onDismissRequest = viewModel::clearSelectedDay,
-            title = { Text(dayDetailTitle(selectedDayEpochDay!!)) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    IconButton(onClick = viewModel::selectedDayPrevious) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Día anterior")
+                    }
+                    Text(dayDetailTitle(selectedDayEpochDay!!), style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = viewModel::selectedDayNext) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Día siguiente")
+                    }
+                }
+            },
             text = {
-                if (selectedDayUsage.isEmpty()) {
-                    Text("Sin datos de uso ese día", color = MaterialTheme.colorScheme.outline)
-                } else {
-                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                // detectHorizontalDragGestures (no swipeable/anchoredDraggable): no hace falta
+                // arrastrar nada visualmente, solo reconocer el gesto y pasar de día — un umbral
+                // simple alcanza, sin animación de por medio.
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .pointerInput(Unit) {
+                            var dragged = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { dragged = 0f },
+                                onHorizontalDrag = { _, delta -> dragged += delta },
+                                onDragEnd = {
+                                    if (dragged > 80f) viewModel.selectedDayPrevious() else if (dragged < -80f) viewModel.selectedDayNext()
+                                },
+                            )
+                        },
+                ) {
+                    Text(formatDuration(dayTotal), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    val previousTotal = selectedDayPreviousTotal
+                    if (previousTotal != null) {
+                        val diff = dayTotal - previousTotal
+                        Text(
+                            when {
+                                diff == 0L -> "Igual que el día anterior"
+                                diff > 0 -> "+${formatDuration(diff)} más que el día anterior"
+                                else -> "-${formatDuration(-diff)} menos que el día anterior"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(bottom = 12.dp),
+                        )
+                    }
+                    if (selectedDayUsage.isEmpty()) {
+                        Text("Sin datos de uso ese día", color = MaterialTheme.colorScheme.outline)
+                    } else {
                         val maxMinutes = (selectedDayUsage.maxOfOrNull { it.minutes } ?: 1L).coerceAtLeast(1L)
                         selectedDayUsage.take(10).forEach { row ->
                             UsageBarRow(packageName = row.packageName, label = row.label, minutes = row.minutes, maxMinutes = maxMinutes)
@@ -434,18 +481,42 @@ private fun UsageBarRow(packageName: String, label: String, minutes: Long, maxMi
     }
 }
 
-/** Ícono real de la app (#152) — cae a un ícono genérico si no se puede leer (p.ej. se desinstaló). */
+/** Caché en memoria de ícono ya resuelto por paquete (#161): sin esto, volver a abrir el detalle
+ *  de un día distinto (o "Por app hoy" de nuevo) releía el ícono real del disco cada vez — con
+ *  esto, la SEGUNDA vez que aparece cualquier fila de esa app ya sale directo, sin placeholder. */
+private val appIconCache = mutableMapOf<String, android.graphics.Bitmap?>()
+
+/**
+ * Ícono real de la app (#152) — cae a un ícono genérico si no se puede leer (p.ej. se desinstaló).
+ * Antes se leía de forma SÍNCRONA (PackageManager + decodificar el bitmap) directo en la
+ * composición: con varias filas visibles a la vez (10 de "Por app hoy" + hasta 10 del detalle de
+ * un día) esto bloqueaba el hilo de UI el tiempo suficiente para sentirse como que la pantalla
+ * "trababa" al abrirla (#161). Ahora se resuelve en Dispatchers.IO, mostrando el ícono genérico
+ * como placeholder mientras tanto — se nota más en el detalle de un día (packageNames que quizás
+ * nunca se resolvieron en esta sesión) que en "Por app hoy", que casi siempre ya está en caché.
+ */
 @Composable
 private fun AppIconSmall(context: Context, packageName: String, label: String) {
-    val bitmap = remember(packageName) {
-        runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap().asImageBitmap() }.getOrNull()
+    val bitmapState = androidx.compose.runtime.produceState<android.graphics.Bitmap?>(
+        initialValue = appIconCache[packageName],
+        key1 = packageName,
+    ) {
+        if (appIconCache.containsKey(packageName)) {
+            value = appIconCache[packageName]
+            return@produceState
+        }
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap() }.getOrNull()
+        }
+        appIconCache[packageName] = value
     }
     Box(
         modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
+        val bitmap = bitmapState.value
         if (bitmap != null) {
-            Image(bitmap = bitmap, contentDescription = label, modifier = Modifier.size(18.dp))
+            Image(bitmap = bitmap.asImageBitmap(), contentDescription = label, modifier = Modifier.size(18.dp))
         } else {
             Icon(Icons.Default.Apps, contentDescription = label, modifier = Modifier.size(14.dp))
         }
