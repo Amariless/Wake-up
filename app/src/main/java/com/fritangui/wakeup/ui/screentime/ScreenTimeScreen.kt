@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -114,7 +115,11 @@ fun ScreenTimeScreen(onOpenBlocking: () -> Unit, viewModel: ScreenTimeViewModel 
     val activeDays = if (rangeMode == ScreenTimeRangeMode.WEEK) weekly else monthly
     val activeAverage = if (activeDays.isNotEmpty()) activeDays.sumOf { it.totalMinutes } / activeDays.size else 0L
 
-    Scaffold(topBar = { WakeUpTopBar(title = { Text("Tiempo de pantalla") }) }) { padding ->
+    // contentWindowInsets en cero: ver comentario en BlockingScreen.kt (#161, "caja invisible").
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = { WakeUpTopBar(title = { Text("Tiempo de pantalla") }) },
+    ) { padding ->
         // Sin scroll el contenido (permiso, hoy, semana+gráfico, hasta 10 apps, avisos, y el botón
         // de bloqueo) podía no caber en pantallas más chicas — el botón de abajo quedaba cortado o
         // pegado sin aire, dando la sensación de que "no pertenecía a nada".

@@ -4,6 +4,7 @@ package com.fritangui.wakeup.ui.onboarding
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -145,7 +146,11 @@ fun XiaomiOnboardingScreen(onDone: () -> Unit, viewModel: XiaomiOnboardingViewMo
         }
     }
 
-    Scaffold(topBar = { WakeUpTopBar(title = { Text("Permisos") }) }) { padding ->
+    // contentWindowInsets en cero: ver comentario en BlockingScreen.kt (#161, "caja invisible").
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = { WakeUpTopBar(title = { Text("Permisos") }) },
+    ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             Text(
                 if (isXiaomi) {

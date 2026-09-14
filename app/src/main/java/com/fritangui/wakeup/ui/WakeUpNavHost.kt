@@ -41,6 +41,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -150,6 +151,18 @@ private fun WakeUpNavHostContent(
     // la materia/tarea), para que "atrás" se sienta natural en vez de solo cerrar la app.
     LaunchedEffect(pendingDeepLink.value) {
         val target = pendingDeepLink.value ?: return@LaunchedEffect
+        // #161 (nueva pista): el usuario confirmó que esto SOLO pasa la primera vez que se abre la
+        // app desde el widget de Bienestar (proceso recién arrancado) — entrar normal y luego ir y
+        // volver de Bienestar funciona bien. La diferencia real de ese caso es que este LaunchedEffect
+        // se dispara en la MISMÍSIMA primera composición de WakeUpNavHost, a la vez que NavHost recién
+        // está terminando de armar su propio startDestination (Inicio) — navegar tan pronto puede
+        // agarrar a esa primera entrada de Inicio a mitad de camino de llegar a RESUMED, dejándola en
+        // un estado a medias del que después no sale (de ahí que CUALQUIER pestaña, no solo Inicio,
+        // rebotara de vuelta a Bienestar). Esperar un par de frames antes de navegar le da tiempo a
+        // NavHost de terminar de asentar esa primera entrada — no se nota (un par de milisegundos) y
+        // en el caso normal (deep link con la app ya corriendo) no cambia nada porque ya está asentado.
+        withFrameNanos {}
+        withFrameNanos {}
         // Mismo guard que la barra de navegación inferior (#147): sin esto, tocar un widget con un
         // editor abierto y cambios sin guardar los descartaba de golpe, sin el diálogo de confirmación.
         UnsavedChangesGuard.navigateOrConfirm {
