@@ -199,16 +199,6 @@ fun SessionEditorScreen(
                 }
             }
 
-            if (initial == null && selectedDays.isEmpty()) {
-                Text(
-                    "Elegí al menos un día para poder guardar",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    textAlign = TextAlign.Center,
-                )
-            }
-
             if (clashingDays.isNotEmpty()) {
                 Text(
                     "Ya hay un horario en " + clashingDays.sorted().joinToString(", ") { DIA_NOMBRES_COMPLETOS[it - 1] },

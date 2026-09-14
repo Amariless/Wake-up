@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -208,15 +209,17 @@ private fun WakeUpNavHostContent(
     )
 
     Scaffold(
+        // El intento anterior (navigationBarsPadding() en la pastilla, ver abajo) no alcanzaba: ese
+        // modifier solo hace más alta a la pastilla, pero Scaffold no tiene forma de "enterarse" de
+        // eso — su propio contentWindowInsets (por defecto, WindowInsets.systemBars) es INDEPENDIENTE
+        // de lo que haga el bottomBar, así que seguía sumando el inset del sistema una SEGUNDA vez al
+        // padding que le da a cada pantalla (#161: "todavía está la caja invisible"). Con
+        // contentWindowInsets en cero, Scaffold calcula el padding SOLO a partir de lo que el propio
+        // bottomBar mide de alto — que ya incluye el inset, gracias al navigationBarsPadding() de abajo.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             // Barra flotante (pastilla redondeada con sombra, separada de los bordes) en vez de la
             // NavigationBar de ancho completo de Material — así queda el look del rediseño 2026.
-            // navigationBarsPadding() ANTES que el padding/sombra visuales: sin esto, Scaffold no
-            // sabía que esta barra ya se ocupaba del inset de la barra de navegación del sistema (la
-            // pastilla no lo consumía ella misma) y lo sumaba OTRA VEZ al padding inferior que le da
-            // a cada pantalla — una franja invisible de más, del tamaño de esa barra del sistema, que
-            // recortaba el contenido de abajo en TODAS las pantallas y empujaba de más al FAB de "+"
-            // de Alarmas (#161: "hay una caja invisible abajo").
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
