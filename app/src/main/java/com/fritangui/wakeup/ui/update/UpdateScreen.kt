@@ -3,6 +3,7 @@
 package com.fritangui.wakeup.ui.update
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -52,6 +53,9 @@ fun UpdateScreen(onBack: () -> Unit, viewModel: UpdateViewModel = hiltViewModel(
     }
 
     Scaffold(
+        // Ver comentario en BlockingScreen.kt: el Scaffold de afuera ya reserva el espacio de abajo,
+        // este no debe volver a sumarlo (#161, "caja invisible").
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             WakeUpTopBar(
                 title = { Text("Buscar actualizaciones") },

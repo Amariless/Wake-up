@@ -3,6 +3,7 @@
 package com.fritangui.wakeup.ui.devtools
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -21,7 +22,11 @@ import com.fritangui.wakeup.blocking.NodeInspectorScreen
  */
 @Composable
 fun DevToolsScreen(viewModel: DevToolsViewModel = hiltViewModel()) {
-    Scaffold(topBar = { WakeUpTopBar(title = { Text("Panel de desarrollador") }) }) { padding ->
+    // contentWindowInsets en cero: ver comentario en BlockingScreen.kt (#161, "caja invisible").
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = { WakeUpTopBar(title = { Text("Panel de desarrollador") }) },
+    ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
             Text("Solo visible en builds debug. Para probar sin esperar horarios reales.")
             DevButton("Disparar alarma ya mismo") { viewModel.fireAlarmNow() }

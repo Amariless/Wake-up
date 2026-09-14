@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,6 +58,11 @@ fun BlockingScreen(onBack: () -> Unit, viewModel: BlockingViewModel = hiltViewMo
     val accessibilityEnabled = remember { PermissionStatus.hasAccessibilityServiceEnabled(context) }
 
     Scaffold(
+        // El Scaffold de afuera (WakeUpNavHost) ya reserva todo el espacio de abajo que hace falta
+        // (barra de sistema + pastilla de navegación) — si este Scaffold interno también reserva su
+        // propio WindowInsets.systemBars (el valor por defecto), ese espacio se cuenta DOS veces y
+        // deja una "caja invisible" comiéndose contenido justo arriba de la pastilla (#161).
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             WakeUpTopBar(
                 title = { Text("Bloqueo de contenido") },

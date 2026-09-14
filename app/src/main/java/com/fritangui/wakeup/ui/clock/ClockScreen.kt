@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -99,6 +100,11 @@ fun ClockScreen(
     }
 
     Scaffold(
+        // Ver comentario en BlockingScreen.kt: el Scaffold de afuera ya reserva el espacio de abajo
+        // (incluído el alto real de la pastilla) — este Scaffold interno reservaba el mismo espacio
+        // otra vez con su WindowInsets.systemBars por defecto, empujando el "+" de nueva alarma más
+        // arriba de lo necesario y dejando una caja invisible debajo (#161).
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             WakeUpTopBar(
                 title = {
