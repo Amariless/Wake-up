@@ -3,6 +3,7 @@
 package com.fritangui.wakeup.ui.subjects
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -69,11 +70,13 @@ fun SubjectEditorScreen(
     var professor by rememberSaveable(subject?.id) { mutableStateOf(subject?.professor ?: "") }
     var selectedColor by rememberSaveable(subject?.id) { mutableStateOf(subject?.colorArgb ?: defaultColor) }
     var selectedIcon by rememberSaveable(subject?.id) { mutableStateOf(subject?.iconKey) }
-    // Colapsado por defecto (#161): con los ~40 íconos del catálogo desplegados, "Horarios"/"Tareas"
-    // quedaban fuera de la vista apenas se creaba la materia — nada indicaba que de verdad se hubiera
-    // creado. Mostrando solo el elegido (toca para volver a desplegar la lista) queda espacio de
-    // sobra para ver esas dos secciones nuevas sin tener que scrollear a ciegas.
-    var iconPickerExpanded by remember { mutableStateOf(false) }
+    // Al CREAR una materia arrancan desplegados (#161: se puede ir probando color/ícono sin tener
+    // que volver a abrir cada uno) — se colapsan solos recién al tocar la "X" del selector o al
+    // guardar/crear, no con cada clic en una opción (así se pueden comparar varias antes de decidir).
+    // Al EDITAR una ya existente, en cambio, arrancan colapsados — ver #161 de la ronda anterior:
+    // con los ~16 colores + ~40 íconos desplegados, "Horarios"/"Tareas" quedaban fuera de la vista.
+    var colorPickerExpanded by remember { mutableStateOf(currentSubjectId == null) }
+    var iconPickerExpanded by remember { mutableStateOf(currentSubjectId == null) }
     var confirmDiscard by remember { mutableStateOf(false) }
     var pendingLeaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
@@ -122,6 +125,8 @@ fun SubjectEditorScreen(
                             // quedamos en la pantalla para poder agregar sus horarios de una: si
                             // saliéramos de una vez, habría que volver a entrar a mano para eso.
                             val wasExisting = currentSubjectId != null
+                            colorPickerExpanded = false
+                            iconPickerExpanded = false
                             viewModel.saveBasicInfo(name, professor, selectedColor, selectedIcon) { if (wasExisting) onBack() }
                         },
                         enabled = name.isNotBlank(),
@@ -147,52 +152,70 @@ fun SubjectEditorScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             Text("Color", modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-            // FlowRow en vez de Row: con 16 colores (antes 8) ya no caben todos en una sola fila.
-            androidx.compose.foundation.layout.FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SubjectColorPalette.forEach { color ->
-                    val argb = color.toArgb()
+            Box(modifier = Modifier.animateContentSize()) {
+                if (colorPickerExpanded) {
+                    // FlowRow en vez de Row: con 16 colores (antes 8) ya no caben todos en una sola
+                    // fila. Elegir un color NO colapsa esto de una — así se puede ir probando varios
+                    // (el ícono de al lado se tiñe con el que esté elegido en cada momento) antes de
+                    // cerrar con la X o de guardar/crear.
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ClosePickerCell(onClick = { colorPickerExpanded = false })
+                        SubjectColorPalette.forEach { color ->
+                            val argb = color.toArgb()
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .then(
+                                        if (argb == selectedColor) {
+                                            Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                        } else {
+                                            Modifier
+                                        },
+                                    )
+                                    .clickable { selectedColor = argb },
+                            )
+                        }
+                    }
+                } else {
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
-                            .background(color)
-                            .then(
-                                if (argb == selectedColor) {
-                                    Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                } else {
-                                    Modifier
-                                },
-                            )
-                            .clickable { selectedColor = argb },
+                            .background(androidx.compose.ui.graphics.Color(selectedColor))
+                            .border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            .clickable { colorPickerExpanded = true },
                     )
                 }
             }
 
             // Ícono opcional para reconocer la materia más fácil de un vistazo (además del color).
             Text("Ícono (opcional)", modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
-            if (iconPickerExpanded) {
-                androidx.compose.foundation.layout.FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // "Sin ícono": vuelve a mostrar solo el punto de color, como antes de esta función.
-                    IconPickerCell(icon = null, isSelected = selectedIcon == null, tint = selectedColor) {
-                        selectedIcon = null
-                        iconPickerExpanded = false
-                    }
-                    SubjectIcons.catalog.forEach { (key, icon) ->
-                        IconPickerCell(icon = icon, isSelected = selectedIcon == key, tint = selectedColor) {
-                            selectedIcon = key
-                            iconPickerExpanded = false
+            Box(modifier = Modifier.animateContentSize()) {
+                if (iconPickerExpanded) {
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ClosePickerCell(onClick = { iconPickerExpanded = false })
+                        // "Sin ícono": vuelve a mostrar solo el punto de color, como antes de esta función.
+                        IconPickerCell(icon = null, isSelected = selectedIcon == null, tint = selectedColor) {
+                            selectedIcon = null
+                        }
+                        SubjectIcons.catalog.forEach { (key, icon) ->
+                            IconPickerCell(icon = icon, isSelected = selectedIcon == key, tint = selectedColor) {
+                                selectedIcon = key
+                            }
                         }
                     }
-                }
-            } else {
-                IconPickerCell(icon = SubjectIcons.iconFor(selectedIcon), isSelected = true, tint = selectedColor) {
-                    iconPickerExpanded = true
+                } else {
+                    IconPickerCell(icon = SubjectIcons.iconFor(selectedIcon), isSelected = true, tint = selectedColor) {
+                        iconPickerExpanded = true
+                    }
                 }
             }
 
@@ -281,6 +304,22 @@ fun SubjectEditorScreen(
             },
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Seguir editando") } },
         )
+    }
+}
+
+/** Primera celda de un selector desplegado (color o ícono): cierra sin tocar lo que ya estaba
+ *  elegido — distinto de tocar una opción, que si cambia la selección. */
+@Composable
+private fun ClosePickerCell(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Default.Close, contentDescription = "Cerrar selector", tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
     }
 }
 
