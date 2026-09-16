@@ -57,11 +57,18 @@ import com.fritangui.wakeup.ui.components.ClockTimeText
 import com.fritangui.wakeup.ui.components.glowBackground
 import kotlinx.datetime.Clock
 
-private val DIA_LETRAS = listOf("L", "M", "X", "J", "V", "S", "D")
+// "m" en minúscula para miércoles, igual que el selector de días del editor (#161): ya no hace
+// falta la "X" para diferenciarlo de martes.
+private val DIA_LETRAS = listOf("L", "M", "m", "J", "V", "S", "D")
 
 @Composable
 fun AlarmsListScreen(
-    onOpenAlarm: (Long) -> Unit,
+    // (folderId, alarmId): antes solo recibía el id y WakeUpNavHost abría el editor con folderId=0
+    // siempre, sin importar de qué carpeta era la alarma de verdad — al guardar, eso pisaba su
+    // folderId real con null y la alarma "se mudaba" sola de Semestre a Generales (#161). Pasando
+    // el folderId propio de cada alarma, el editor la abre (y la vuelve a guardar) en la carpeta
+    // que ya tenía, sin importar desde qué pestaña se la abrió.
+    onOpenAlarm: (folderId: Long, alarmId: Long) -> Unit,
     viewModel: AlarmsViewModel = hiltViewModel(),
 ) {
     val alarms by viewModel.alarms.collectAsState()
@@ -136,7 +143,7 @@ fun AlarmsListScreen(
                         alarm = alarm,
                         now = now,
                         isPreviewing = playingUri == soundUri,
-                        onClick = { onOpenAlarm(alarm.id) },
+                        onClick = { onOpenAlarm(alarm.folderId ?: 0L, alarm.id) },
                         onToggle = { viewModel.setEnabled(alarm.id, it) },
                         onPreview = { viewModel.previewPlayer.toggle(soundUri) },
                         modifier = Modifier.animateItem(placementSpec = tween(220)),
@@ -151,7 +158,7 @@ fun AlarmsListScreen(
                         alarm = alarm,
                         now = now,
                         isPreviewing = playingUri == soundUri,
-                        onClick = { onOpenAlarm(alarm.id) },
+                        onClick = { onOpenAlarm(alarm.folderId ?: 0L, alarm.id) },
                         onToggle = { viewModel.setEnabled(alarm.id, it) },
                         onPreview = { viewModel.previewPlayer.toggle(soundUri) },
                         modifier = Modifier.animateItem(placementSpec = tween(220)),

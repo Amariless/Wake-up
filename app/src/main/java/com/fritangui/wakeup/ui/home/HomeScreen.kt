@@ -62,8 +62,8 @@ import com.fritangui.wakeup.domain.UpcomingClassOccurrence
 import com.fritangui.wakeup.domain.WeeklyClassEntry
 import com.fritangui.wakeup.domain.nextClassDayOfWeek
 import com.fritangui.wakeup.domain.taskUrgencyBucket
+import com.fritangui.wakeup.domain.taskUrgencyBucketLabel
 import com.fritangui.wakeup.permissions.AlarmVolumeStatus
-import com.fritangui.wakeup.permissions.PermissionIntents
 import com.fritangui.wakeup.ui.components.LocalUse24HourFormat
 import com.fritangui.wakeup.ui.components.SubjectIndicator
 import com.fritangui.wakeup.ui.components.amPmSuffix
@@ -120,9 +120,10 @@ fun HomeScreen(
 
     // Chequeo en vivo (no cacheado en el ViewModel) cada vez que se abre/vuelve a Inicio: si el
     // volumen de alarma está por debajo de la mitad, un aviso bien visible en vez de descubrirlo
-    // recién cuando una alarma no suena lo bastante fuerte (#2).
+    // recién cuando una alarma no suena lo bastante fuerte (#2). Es var (no val) para poder ocultar
+    // el aviso apenas se soluciona con el botón de abajo, sin esperar a salir y volver a Inicio.
     val context = LocalContext.current
-    val isAlarmVolumeLow = remember { AlarmVolumeStatus.isLow(context) }
+    var isAlarmVolumeLow by remember { mutableStateOf(AlarmVolumeStatus.isLow(context)) }
 
     // Se calcula una sola vez al entrar (no hace falta que "hoy"/"ahora" cambien en vivo mientras
     // se mira Inicio) — igual que ya hacía la versión anterior de esta pantalla.
@@ -150,7 +151,9 @@ fun HomeScreen(
     // Igual que classCardRows: se agrupa en base al mismo "now" fijo de arriba, no hace falta que
     // se reclasifiquen en vivo mientras se mira la pantalla. Como upcomingTasks ya viene ordenada
     // por dueAtEpochMillis ascendente (con nulas al final), agrupar por bucket produce grupos ya
-    // contiguos en ese mismo orden (vencidas → próximos días → esta semana → más adelante → sin fecha).
+    // contiguos en ese mismo orden (vencidas → hoy → mañana → próximos días → esta semana → más
+    // adelante → sin fecha, #161: hoy/mañana ahora son grupos propios en vez de cualquier caer
+    // dentro de "próximos días").
     val taskCardRows = remember(upcomingTasks, now) {
         if (upcomingTasks.isEmpty()) {
             listOf(TaskCardRow.EmptyRow)
@@ -202,7 +205,12 @@ fun HomeScreen(
             if (isAlarmVolumeLow) {
                 LowAlarmVolumeBanner(
                     onFix = {
-                        PermissionIntents.safeStart(context, android.content.Intent(android.provider.Settings.ACTION_SOUND_SETTINGS))
+                        // Antes esto solo abría Ajustes > Sonido y dejaba que la persona buscara el
+                        // control correcto a mano — en algunos Samsung (#161) ese control de Alarma
+                        // ni se ve sin expandir el panel, así que se sentía como si la app estuviera
+                        // "mintiendo" sobre el volumen bajo. Ahora lo sube directo.
+                        AlarmVolumeStatus.raiseToComfortable(context)
+                        isAlarmVolumeLow = false
                     },
                 )
             }
@@ -458,7 +466,10 @@ private fun LowAlarmVolumeBanner(onFix: () -> Unit) {
             Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                 Text("Volumen de alarma bajo", style = MaterialTheme.typography.titleSmall, color = onWarning)
                 Text(
-                    "Está por debajo de la mitad: puede que no te despiertes con tus alarmas.",
+                    // Aclara que es un volumen APARTE del general/multimedia (#161: confunde en
+                    // Samsung, donde subir el volumen con los botones no mueve este) — sin esto se
+                    // siente como que la app está mal, en vez de un volumen que de verdad está bajo.
+                    "Es un volumen aparte del general del celular — puede que no te despiertes con tus alarmas.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -583,17 +594,12 @@ private fun DayHeader(label: String, isToday: Boolean, isNextClassDay: Boolean) 
 }
 
 /** Encabezado de grupo dentro de "Próximas tareas" (#161) — mismo estilo discreto que la etiqueta
- *  de día "normal" de [DayHeader], salvo "Atrasadas", que se resalta en rojo porque de verdad
- *  necesita atención. */
+ *  de día "normal" de [DayHeader], salvo "Vencidas", que se resalta en rojo porque de verdad
+ *  necesita atención. El texto de cada grupo sale de [taskUrgencyBucketLabel], compartida con el
+ *  widget para que los dos digan siempre lo mismo. */
 @Composable
 private fun TaskBucketHeader(bucket: TaskUrgencyBucket) {
-    val label = when (bucket) {
-        TaskUrgencyBucket.OVERDUE -> "Atrasadas"
-        TaskUrgencyBucket.WITHIN_3_DAYS -> "Próximos días"
-        TaskUrgencyBucket.WITHIN_1_WEEK -> "Esta semana"
-        TaskUrgencyBucket.LATER -> "Más adelante"
-        TaskUrgencyBucket.NO_DUE_DATE -> "Sin fecha"
-    }
+    val label = taskUrgencyBucketLabel(bucket)
     val isOverdue = bucket == TaskUrgencyBucket.OVERDUE
     Text(
         label,
