@@ -34,6 +34,8 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.fritangui.wakeup.MainActivity
 import com.fritangui.wakeup.data.db.entity.TaskEntity
+import com.fritangui.wakeup.domain.taskUrgencyBucket
+import com.fritangui.wakeup.domain.taskUrgencyBucketLabel
 import com.fritangui.wakeup.ui.components.amPmSuffix
 import com.fritangui.wakeup.ui.components.formatClockTime
 import com.fritangui.wakeup.ui.theme.WakeUpTextPrimaryNight
@@ -43,7 +45,6 @@ import com.fritangui.wakeup.ui.theme.WakeUpSurfaceAltNight
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -58,9 +59,10 @@ class NextTasksWidget : GlanceAppWidget() {
         val subjectNames = subjects.associate { it.subject.id to it.subject.name }
         val use24Hour = entryPoint.settingsDataStore().use24HourFormat.first()
         val openAppIntent = Intent(context, MainActivity::class.java)
+        val nowEpochMillis = Clock.System.now().toEpochMilliseconds()
 
         provideContent {
-            WidgetContent(tasks, subjectColors, subjectNames, use24Hour, openAppIntent)
+            WidgetContent(tasks, subjectColors, subjectNames, use24Hour, openAppIntent, nowEpochMillis)
         }
     }
 
@@ -71,6 +73,7 @@ class NextTasksWidget : GlanceAppWidget() {
         subjectNames: Map<Long, String>,
         use24Hour: Boolean,
         openAppIntent: Intent,
+        nowEpochMillis: Long,
     ) {
         Column(
             modifier = GlanceModifier
@@ -100,10 +103,14 @@ class NextTasksWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).clickable(actionStartActivity(openAppIntent)),
                 )
             } else {
+                // Mismos subtítulos que Inicio (Vencidas/Hoy/Mañana/Próximos días/...), calculados
+                // con la misma función pura de dominio — antes el widget agrupaba por fecha exacta
+                // (p.ej. "12 sept") y no distinguía una tarea vencida de una con fecha futura, algo
+                // fácil de pasar por alto en un vistazo rápido al widget (#161).
                 LazyColumn(modifier = GlanceModifier.fillMaxWidth()) {
                     var lastGroup: String? = null
                     items.forEach { task ->
-                        val group = dueGroupLabel(task.dueAtEpochMillis)
+                        val group = taskUrgencyBucketLabel(taskUrgencyBucket(task.dueAtEpochMillis, nowEpochMillis))
                         if (group != lastGroup) {
                             lastGroup = group
                             item { DayHeader(group) }
@@ -170,17 +177,6 @@ class NextTasksWidget : GlanceAppWidget() {
                     )
                 }
             }
-        }
-    }
-
-    private fun dueGroupLabel(epochMillis: Long?): String {
-        if (epochMillis == null) return "Sin fecha"
-        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-        val dueDate = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault()).date
-        return when (dueDate) {
-            today -> "Hoy"
-            LocalDate.fromEpochDays(today.toEpochDays() + 1) -> "Mañana"
-            else -> "${dueDate.dayOfMonth} ${MES_ABREVIADO[dueDate.monthNumber - 1]}"
         }
     }
 

@@ -218,12 +218,16 @@ class NotificationHelper @Inject constructor(
         manager.notify(AlarmConstants.NOTIF_ID_TASK_REMINDER_BASE + task.id.toInt(), notification)
     }
 
-    /** "Vence en 1 semana" / "Vence mañana" / "Vence en 3 h" — ver [notifyTaskReminder]. */
+    /** "Vence ahora" / "Vence en 1 semana" / "Vence mañana" / "Vence en 3 h" — ver [notifyTaskReminder]. */
     private fun formatTimeUntilDue(nowMillis: Long, dueMillis: Long): String {
         val diffMinutes = ((dueMillis - nowMillis) / 60_000L).coerceAtLeast(0L)
         val diffHours = diffMinutes / 60
         val diffDays = diffMinutes / (24 * 60)
         return when {
+            // El recordatorio extra que se agrega justo al vencimiento (#161) dispara con esto en 0
+            // (o cerca, según cuándo AlarmManager lo entregue de verdad) — "menos de una hora" suena
+            // a que todavía falta, cuando en realidad ya es ahora.
+            diffMinutes <= 1L -> "Vence ahora"
             diffMinutes < 60 -> "Vence en menos de una hora"
             diffDays == 0L -> "Vence en $diffHours h"
             diffDays == 1L -> "Vence mañana"

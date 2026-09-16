@@ -300,6 +300,14 @@ fun TaskEditorScreen(
                 Text("Recordarme", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
                 ReminderToggleRow("1 semana antes", reminderWeekBefore) { reminderWeekBefore = it }
                 ReminderToggleRow("1 día antes", reminderDayBefore) { reminderDayBefore = it }
+                // Aviso extra fijo (#161), independiente de los dos toggles de arriba — se explica
+                // acá para que no sorprenda una notificación con los dos desactivados.
+                Text(
+                    "Siempre avisamos además justo cuando la tarea vence",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
 
             Button(

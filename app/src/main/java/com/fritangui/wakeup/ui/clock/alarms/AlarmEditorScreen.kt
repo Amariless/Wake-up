@@ -71,7 +71,9 @@ import com.fritangui.wakeup.ui.components.ClockTimeText
 import com.fritangui.wakeup.ui.navigation.UnsavedChangesGuard
 
 // "M" para miércoles (no "X"): se sobreentiende por la posición entre martes y jueves.
-private val DIA_NOMBRES = listOf("L", "M", "M", "J", "V", "S", "D")
+// "m" en minúscula para miércoles (no "M" repetida): antes L M M J V S D no dejaba distinguir
+// martes de miércoles a simple vista (#161).
+private val DIA_NOMBRES = listOf("L", "M", "m", "J", "V", "S", "D")
 
 // Nombre completo para lectores de pantalla: la letra sola es ambigua ("M" es tanto martes como
 // miércoles) para quien no puede apoyarse en la posición visual.

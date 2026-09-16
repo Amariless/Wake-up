@@ -55,7 +55,7 @@ private val TABS = listOf("Alarmas", "Temporizador", "Cronómetro")
 
 @Composable
 fun ClockScreen(
-    onOpenAlarm: (Long) -> Unit,
+    onOpenAlarm: (folderId: Long, alarmId: Long) -> Unit,
     /** [folderId] es 0L para una alarma general, o el id de la carpeta activa si el toggle de
      *  Alarmas está en esa posición cuando se toca "+" (#161). */
     onNewAlarm: (folderId: Long) -> Unit,

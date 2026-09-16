@@ -197,9 +197,11 @@ private fun TimerIdleContent(
         // el resplandor de la pantalla, como el reloj nativo — antes vivían dentro de una tarjeta
         // surfaceContainer que el usuario pidió sacar ("la caja... está muy fea").
         //
-        // itemHeight/visibleCount más chicos que antes (52dp×3 = 156dp, antes 64dp×5 = 320dp): el
-        // botón de Iniciar seguía quedando tapado en pantallas más chicas (#161) — las ruedas eran,
-        // de lejos, lo que más alto ocupaba.
+        // itemHeight/visibleCount más chicos que la versión original (64dp×5 = 320dp): el botón de
+        // Iniciar seguía quedando tapado en pantallas más chicas (#161) — las ruedas eran, de lejos,
+        // lo que más alto ocupaba. Con visibleCount ya en 3 sobraba aire de sobra para subir de
+        // nuevo el itemHeight (52dp→66dp, #161: "se sienten un poco apretados") sin volver a tapar
+        // nada — 66dp×3 = 198dp sigue bien lejos de los 320dp originales.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             // Sin etiquetas "h"/"min"/"seg" arriba de cada rueda: el orden ya deja claro cuál es
             // cuál. Y con loop = true, cada rueda da la vuelta indefinidamente en cualquier
@@ -211,7 +213,7 @@ private fun TimerIdleContent(
                 range = 0..23,
                 onValueChange = onHoursChange,
                 loop = true,
-                itemHeight = 52.dp,
+                itemHeight = 66.dp,
                 visibleCount = 3,
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
@@ -224,7 +226,7 @@ private fun TimerIdleContent(
                 range = 0..59,
                 onValueChange = onMinutesChange,
                 loop = true,
-                itemHeight = 52.dp,
+                itemHeight = 66.dp,
                 visibleCount = 3,
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
@@ -237,7 +239,7 @@ private fun TimerIdleContent(
                 range = 0..59,
                 onValueChange = onSecondsChange,
                 loop = true,
-                itemHeight = 52.dp,
+                itemHeight = 66.dp,
                 visibleCount = 3,
                 width = 96.dp,
                 textStyle = MaterialTheme.typography.displaySmall,
